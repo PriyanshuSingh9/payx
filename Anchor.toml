@@ -1,13 +1,13 @@
 [toolchain]
 
 [features]
-seeds = false
+resolution = true
 skip-lint = false
 
-[programs.localnet]
-payx_escrow = "11111111111111111111111111111111"
-
 [programs.devnet]
+payx_escrow = "CTFbnKuiHpg5PR5vHpBXJzvLyCGrhMuQp4PbK8ZRGboa"
+
+[programs.localnet]
 payx_escrow = "11111111111111111111111111111111"
 
 [registry]

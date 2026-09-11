@@ -10,6 +10,8 @@ import { rampRouter } from "./routes/ramps.js";
 import { transferRouter } from "./routes/transfers.js";
 import { paymentRouter } from "./routes/payments.js";
 import { webhookRouter } from "./routes/webhooks.js";
+import { pollerRouter } from "./routes/poller.js";
+import { globalPaymentPollerService } from "./services/paymentPoller.js";
 import { startEscrowListener } from "./solana.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -39,8 +41,9 @@ app.get(["/", "/console", "/demo"], (_req, res) => {
 });
 
 // API Routes
-app.use(paymentRouter);
 app.use(webhookRouter);
+app.use(pollerRouter);
+app.use(paymentRouter);
 app.use(authRouter);
 app.use(corridorRouter);
 app.use(transferRouter);
@@ -61,6 +64,18 @@ if (env.enableBlockchain) {
 } else {
   console.log("[server] Blockchain disabled. Set ENABLE_BLOCKCHAIN=true to connect.");
 }
+
+if (env.enablePoller) {
+  globalPaymentPollerService.start();
+  console.log(`[server] Background payment poller started (interval: ${env.pollIntervalMs}ms).`);
+}
+
+process.on("SIGINT", () => {
+  globalPaymentPollerService.stop();
+});
+process.on("SIGTERM", () => {
+  globalPaymentPollerService.stop();
+});
 
 export { app };
 

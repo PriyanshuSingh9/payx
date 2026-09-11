@@ -1,7 +1,4 @@
-import type {
-  Payment,
-  WebhookEventRecord
-} from "../lib/index.js";
+import type { Payment } from "../lib/index.js";
 
 export interface IPaymentStore {
   savePayment(payment: Payment): Promise<Payment>;
@@ -10,19 +7,12 @@ export interface IPaymentStore {
   recordIdempotency(key: string, paymentId: string): Promise<void>;
   getPaymentByIdempotencyKey(key: string): Promise<Payment | null>;
   reserveIdempotencyKey(key: string, executor: () => Promise<Payment>): Promise<Payment>;
-  hasWebhookProcessed(eventId: string): Promise<boolean>;
-  acquireWebhookLock(eventId: string): Promise<boolean>;
-  releaseWebhookLock(eventId: string): Promise<void>;
-  recordWebhook(record: WebhookEventRecord): Promise<void>;
-  getWebhook(eventId: string): Promise<WebhookEventRecord | null>;
 }
 
 export class InMemoryPaymentStore implements IPaymentStore {
   private payments = new Map<string, Payment>();
   private idempotencyKeys = new Map<string, string>(); // idempotencyKey -> paymentId
   private inFlightIdempotency = new Map<string, Promise<Payment>>();
-  private webhooks = new Map<string, WebhookEventRecord>(); // eventId -> WebhookEventRecord
-  private inFlightWebhooks = new Set<string>();
 
   async savePayment(payment: Payment): Promise<Payment> {
     const clone = JSON.parse(JSON.stringify(payment)) as Payment;
@@ -80,41 +70,11 @@ export class InMemoryPaymentStore implements IPaymentStore {
     return promise;
   }
 
-  async hasWebhookProcessed(eventId: string): Promise<boolean> {
-    const record = this.webhooks.get(eventId);
-    return Boolean(record && record.status === "processed");
-  }
-
-  // Synchronously acquires lock on eventId to guard against concurrent duplicate webhook deliveries.
-  async acquireWebhookLock(eventId: string): Promise<boolean> {
-    const processed = await this.hasWebhookProcessed(eventId);
-    if (processed || this.inFlightWebhooks.has(eventId)) {
-      return false; // Lock denied, already processed or processing
-    }
-    this.inFlightWebhooks.add(eventId);
-    return true;
-  }
-
-  async releaseWebhookLock(eventId: string): Promise<void> {
-    this.inFlightWebhooks.delete(eventId);
-  }
-
-  async recordWebhook(record: WebhookEventRecord): Promise<void> {
-    this.webhooks.set(record.eventId, JSON.parse(JSON.stringify(record)) as WebhookEventRecord);
-  }
-
-  async getWebhook(eventId: string): Promise<WebhookEventRecord | null> {
-    const record = this.webhooks.get(eventId);
-    return record ? (JSON.parse(JSON.stringify(record)) as WebhookEventRecord) : null;
-  }
-
   // Clear helper for tests
   clear(): void {
     this.payments.clear();
     this.idempotencyKeys.clear();
     this.inFlightIdempotency.clear();
-    this.webhooks.clear();
-    this.inFlightWebhooks.clear();
   }
 }
 

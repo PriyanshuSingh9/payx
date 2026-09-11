@@ -25,8 +25,7 @@ Backend API (Express :8787)
   |-- Neon Postgres (Prisma) .... users, corridors, transactions, ramp_orders
   |-- Solana RPC ................ devnet / mainnet / local test validator :8899
   |     PayX escrow program (PDA per escrow, SPL USDC vault)
-  |-- On-ramp providers ......... Transak / Stripe / MoonPay (+ mock in dev)
-  |-- Off-ramp providers ........ OnMeta / regional rails (+ mock in dev)
+  |-- Payment simulation ........ local mock USDC-to-INR workflow
   |-- Google Identity ........... ID-token verification at /auth/google only
 ```
 
@@ -35,12 +34,11 @@ Backend API (Express :8787)
 1. Client requests quote (`GET /rates`): corridor, live FX, fee breakdown, ETA.
 2. Client validates recipient rail (`POST /recipients/validate`).
 3. Client creates transfer intent (`POST /transfers`): reserves quote, status `pending`.
-4. Sender completes on-ramp; provider webhook (or mock completion) credits USDC
-   to the sender's wallet; backend moves USDC into the escrow PDA (`escrow_locked`).
+4. Sender confirms a mock USDC settlement; the backend records a simulated
+   receipt and advances the local workflow.
 5. Backend watches program events; on `EscrowLocked`, fires off-ramp payout
    (`offramp_pending`).
-6. Off-ramp confirms readiness; backend calls `confirm_funding`, then on fiat
-   dispatch calls `release` (`escrow_released` → `completed`).
+6. The mock adapter advances through INR payout pending and completed states.
 7. Any failure before release triggers `refund` and sender balance restore
    (`refunded` / `failed`).
 

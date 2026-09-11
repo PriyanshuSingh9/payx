@@ -1,7 +1,6 @@
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import http from "node:http";
-import crypto from "node:crypto";
 import { app } from "../backend/src/server.js";
 import { checkPaymentRateLimit, clearPaymentRateLimits } from "../backend/src/routes/payments.js";
 
@@ -187,48 +186,6 @@ describe("PayX HTTP API & Dev Console Integration Suite", () => {
     assert.ok(failData.payment.failureReason);
   });
 
-  it("POST /webhooks/onmeta handles duplicate webhooks idempotently", async () => {
-    const eventId = "EVT-HTTP-DUP-001";
-    const res1 = await fetch(`${baseUrl}/webhooks/onmeta`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ eventId, status: "payoutSuccess", orderId: "ORD-NONEXISTENT" })
-    });
-    assert.equal(res1.status, 404); // no payment associated
-
-    // Now test with valid payment
-    const fullRes = await fetch(`${baseUrl}/api/v1/payments/execute`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        senderWallet: VALID_SOLANA_WALLET,
-        sourceAmount: 25,
-        recipient: { name: "Demo User", phone: "+919876543210", upiId: "demo@upi" }
-      })
-    });
-    const { payment } = (await fullRes.json()) as { payment: { offRampOrder: { providerOrderId: string } } };
-    const orderId = payment.offRampOrder.providerOrderId;
-
-    const res2 = await fetch(`${baseUrl}/webhooks/onmeta`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ eventId: "EVT-REAL-001", status: "payoutSuccess", orderId })
-    });
-    const body2 = (await res2.json()) as { duplicate: boolean; ok: boolean };
-    assert.equal(body2.ok, true);
-    assert.equal(body2.duplicate, false);
-
-    // Duplicate call
-    const res3 = await fetch(`${baseUrl}/webhooks/onmeta`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ eventId: "EVT-REAL-001", status: "payoutSuccess", orderId })
-    });
-    const body3 = (await res3.json()) as { duplicate: boolean; ok: boolean };
-    assert.equal(body3.ok, true);
-    assert.equal(body3.duplicate, true);
-  });
-
   it("POST /api/v1/payments/execute works with default demo wallet without validation errors", async () => {
     const res = await fetch(`${baseUrl}/api/v1/payments/execute`, {
       method: "POST",
@@ -249,7 +206,7 @@ describe("PayX HTTP API & Dev Console Integration Suite", () => {
     assert.equal(data.payment.senderWallet, VALID_SOLANA_WALLET);
   });
 
-  it("POST /api/v1/payments/:id/reconcile successfully resolves status when webhook is delayed", async () => {
+  it("POST /api/v1/payments/:id/reconcile reads the local mock status", async () => {
     // 1. Create and step to offramp
     const createRes = await fetch(`${baseUrl}/api/v1/payments`, {
       method: "POST",
@@ -280,7 +237,7 @@ describe("PayX HTTP API & Dev Console Integration Suite", () => {
       body: JSON.stringify({ step: "create_offramp" })
     });
 
-    // 2. Call reconcile route (PRD Section 25 & 32)
+    // 2. Call reconcile route.
     const recRes = await fetch(`${baseUrl}/api/v1/payments/${payment.id}/reconcile`, {
       method: "POST"
     });
@@ -317,60 +274,4 @@ describe("PayX HTTP API & Dev Console Integration Suite", () => {
     clearPaymentRateLimits();
   });
 
-  it("POST /webhooks/onmeta enforces signature verification when secret is configured", async () => {
-    const originalSecret = process.env["ONMETA_WEBHOOK_SECRET"];
-    try {
-      process.env["ONMETA_WEBHOOK_SECRET"] = "secure_test_webhook_secret_key_123";
-
-      // 1. Missing signature header -> 401
-      const res1 = await fetch(`${baseUrl}/webhooks/onmeta`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ eventId: "EVT-SIG-1", status: "payoutSuccess" })
-      });
-      assert.equal(res1.status, 401);
-
-      // 2. Invalid / malformed signature -> 401 without 500 crash
-      const res2 = await fetch(`${baseUrl}/webhooks/onmeta`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-onmeta-signature": "short_invalid_sig"
-        },
-        body: JSON.stringify({ eventId: "EVT-SIG-2", status: "payoutSuccess" })
-      });
-      assert.equal(res2.status, 401);
-
-      // 3. Valid HMAC-SHA256 signature
-      const payload = JSON.stringify({
-        eventId: "EVT-SIG-VALID",
-        status: "payoutSuccess",
-        orderId: "ORD-TEST-DUMMY"
-      });
-      const validSig = crypto
-        .createHmac("sha256", "secure_test_webhook_secret_key_123")
-        .update(payload)
-        .digest("hex");
-
-      const res3 = await fetch(`${baseUrl}/webhooks/onmeta`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-onmeta-signature": validSig
-        },
-        body: payload
-      });
-
-      // Signature was valid; order doesn't exist so 404 (not 401 unauthorized or 500 error)
-      assert.notEqual(res3.status, 401);
-      assert.notEqual(res3.status, 500);
-      assert.equal(res3.status, 404);
-    } finally {
-      if (originalSecret) {
-        process.env["ONMETA_WEBHOOK_SECRET"] = originalSecret;
-      } else {
-        delete process.env["ONMETA_WEBHOOK_SECRET"];
-      }
-    }
-  });
 });

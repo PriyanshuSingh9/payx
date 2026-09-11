@@ -633,8 +633,6 @@
           <button class="btn btn-danger" onclick="injectConsoleFailure('solana_failed')">Test: Solana Rejection</button>
           <button class="btn btn-danger" onclick="injectConsoleFailure('offramp_failed')">Test: Off-Ramp Rejection</button>
           <button class="btn btn-danger" onclick="injectConsoleFailure('payout_failed')">Test: Payout Failed</button>
-          <button class="btn btn-secondary" onclick="testWebhookDelayReconcile()">Test: Webhook Delay & Reconcile</button>
-          <button class="btn btn-secondary" onclick="testDuplicateWebhook()">Test: Duplicate Webhook</button>
         </div>
 
         <div style="margin-top: 1rem;">
@@ -766,7 +764,7 @@
           const offrampData = await offrampRes.json();
           renderPayment(offrampData.payment);
 
-          // Simulate provider webhook status updates
+          // Advance the local mock off-ramp status.
           setTimeout(async () => {
             await fetch(`/api/v1/payments/${activePaymentId}/simulate-step`, {
               method: 'POST',
@@ -920,8 +918,11 @@
       if (p.status === 'COMPLETED') {
         receiptBox.style.display = 'block';
         const explorerLink = document.getElementById('solanaExplorerLink');
-        if (p.blockchainTransaction?.transactionSignature) {
-          explorerLink.href = p.blockchainTransaction.explorerUrl || `https://explorer.solana.com/tx/${p.blockchainTransaction.transactionSignature}?cluster=devnet`;
+        if (p.blockchainTransaction?.network === 'simulator') {
+          explorerLink.removeAttribute('href');
+          explorerLink.innerText = 'Simulated settlement receipt';
+        } else if (p.blockchainTransaction?.transactionSignature) {
+          explorerLink.href = p.blockchainTransaction.explorerUrl || '#';
           explorerLink.innerText = p.blockchainTransaction.transactionSignature.substring(0, 18) + '...';
         }
         document.getElementById('bankReferenceDisplay').innerText = p.offRampOrder?.payoutReference || 'UTR88291038';
@@ -990,42 +991,6 @@
       });
       const data = await res.json();
       renderPayment(data.payment);
-    }
-
-    async function testWebhookDelayReconcile() {
-      if (!activePaymentId) {
-        alert('Please create and advance a payment first.');
-        return;
-      }
-      const res = await fetch(`/api/v1/payments/${activePaymentId}/reconcile`, {
-        method: 'POST'
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        alert('Error reconciling: ' + (data.error || 'Failed'));
-        return;
-      }
-      renderPayment(data.payment);
-      alert('Reconciliation Result: Reconciled = ' + data.reconciled + ' | Status = ' + data.payment.status);
-    }
-
-    async function testDuplicateWebhook() {
-      const eventId = 'EVT-TEST-DUP-001';
-      const orderId = activePayment?.offRampOrder?.providerOrderId || 'ONM-MOCK-TEST';
-      // First submission
-      await fetch('/webhooks/onmeta', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ eventId, orderId, status: 'payoutSuccess' })
-      });
-      // Second submission (duplicate)
-      const dupRes = await fetch('/webhooks/onmeta', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ eventId, orderId, status: 'payoutSuccess' })
-      });
-      const dupData = await dupRes.json();
-      alert('Duplicate Webhook Result: ' + JSON.stringify(dupData));
     }
 
     async function loadHistory() {

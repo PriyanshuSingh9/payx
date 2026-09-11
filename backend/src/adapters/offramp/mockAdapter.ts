@@ -12,7 +12,7 @@ import type {
   SubmitTxResult
 } from "./types.js";
 
-// Deterministic mock settlement wallet for Onmeta devnet/simulation bridge (valid on-curve Solana address).
+// Deterministic mock settlement wallet for the simulation bridge (valid on-curve Solana address).
 const MOCK_SETTLEMENT_DEPOSIT_ADDRESS = "DaxETCdkR5cNgWNBN3Su6dAepQtnPVuae4v1D5T5b9u6";
 
 export type MockFailureType =
@@ -84,7 +84,7 @@ export class MockOffRampAdapter implements OffRampProvider {
       };
     }
 
-    const orderId = generateOrderId("ONM-MOCK-");
+    const orderId = generateOrderId("MOCK-");
     const quote = computeOffRampQuote({
       sourceAmount: params.sourceAmount,
       exchangeRate: this.customRate
@@ -178,8 +178,10 @@ export class MockOffRampAdapter implements OffRampProvider {
     if (!order) {
       throw new Error(`Order not found: ${orderId}`);
     }
-    order.status = nextStatus;
-    if (nextStatus === "payoutSuccess") {
+    order.status = this.failureMode === "payout_failed" && nextStatus === "payoutSuccess"
+      ? "payoutFailed"
+      : nextStatus;
+    if (order.status === "payoutSuccess") {
       order.payoutReference = `UTR${Date.now().toString().slice(-8)}`;
     }
     order.updatedAt = new Date().toISOString();

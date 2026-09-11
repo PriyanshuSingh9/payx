@@ -13,10 +13,10 @@ import {
   type PaymentStatus,
   type RecipientInfo,
   type SimulationMode,
-  type TimelineEvent,
-  type WebhookEventRecord
+  type TimelineEvent
 } from "../lib/index.js";
-import { MockOffRampAdapter, OnmetaAdapter, type OffRampProvider } from "../adapters/offramp/index.js";
+import { MockOffRampAdapter } from "../adapters/offramp/index.js";
+import { env } from "../env.js";
 import { SolanaSettlementService } from "./solanaSettlement.js";
 import { globalPaymentStore, type IPaymentStore } from "./paymentStore.js";
 
@@ -41,40 +41,27 @@ export interface CreatePaymentInput {
 
 export class PaymentPipelineService {
   private store: IPaymentStore;
-  private customOffRampProvider?: OffRampProvider;
   private mockProvider: MockOffRampAdapter;
-  private onmetaProvider: OnmetaAdapter;
   private solanaService: SolanaSettlementService;
 
   constructor(options?: {
     store?: IPaymentStore;
-    offRampProvider?: OffRampProvider;
+    mockProvider?: MockOffRampAdapter;
     solanaService?: SolanaSettlementService;
   }) {
     this.store = options?.store ?? globalPaymentStore;
-    this.customOffRampProvider = options?.offRampProvider;
-    this.mockProvider = new MockOffRampAdapter();
-    this.onmetaProvider = new OnmetaAdapter();
+    this.mockProvider = options?.mockProvider ?? new MockOffRampAdapter();
     this.solanaService = options?.solanaService ?? new SolanaSettlementService();
   }
 
-  setOffRampProvider(provider: OffRampProvider): void {
-    this.customOffRampProvider = provider;
-  }
-
-  getOffRampProvider(mode?: SimulationMode): OffRampProvider {
-    return this.getProviderForPayment(undefined, mode);
-  }
-
-  private getProviderForPayment(payment?: Payment, mode?: SimulationMode): OffRampProvider {
-    if (this.customOffRampProvider) {
-      return this.customOffRampProvider;
-    }
-    const targetMode = mode || payment?.mode;
-    if (targetMode === "live_testnet") {
-      return this.onmetaProvider;
-    }
+  private getMockProvider(): MockOffRampAdapter {
     return this.mockProvider;
+  }
+
+  private async waitForMockStage(): Promise<void> {
+    const delayMs = Math.min(Math.max(env.mockRampDelayMs, 0), 500);
+    if (delayMs === 0) return;
+    await new Promise<void>((resolve) => setTimeout(resolve, delayMs));
   }
 
   private addTimelineEvent(
@@ -121,7 +108,7 @@ export class PaymentPipelineService {
     }
 
     const paymentId = generatePaymentId("PX-");
-    const mode = input.mode ?? "full_simulation";
+    const mode: SimulationMode = "full_simulation";
     const now = new Date().toISOString();
 
     const recipient: RecipientInfo = {
@@ -182,7 +169,7 @@ export class PaymentPipelineService {
     );
 
     try {
-      const provider = this.getProviderForPayment(payment, payment.mode);
+      const provider = this.getMockProvider();
       const quote = await provider.getQuote(input.sourceAmount);
       payment.quoteId = quote.quoteId;
       payment.quote = quote;
@@ -228,7 +215,7 @@ export class PaymentPipelineService {
       "Requesting a fresh off-ramp quote."
     );
 
-    const provider = this.getProviderForPayment(payment);
+    const provider = this.getMockProvider();
     const quote = await provider.getQuote(payment.sourceAmount);
     payment.quoteId = quote.quoteId;
     payment.quote = quote;
@@ -346,7 +333,7 @@ export class PaymentPipelineService {
       throw new Error("Missing quote for off-ramp initiation.");
     }
 
-    const provider = this.getProviderForPayment(payment);
+    const provider = this.getMockProvider();
 
     // 1. Create order on Off-Ramp provider (PRD Section 11)
     const orderResult = await provider.createOrder({
@@ -377,7 +364,7 @@ export class PaymentPipelineService {
     const offRampOrder: OffRampOrder = {
       id: `ORO-${Date.now().toString(36).toUpperCase()}`,
       paymentId: payment.id,
-      provider: provider.providerName as "onmeta" | "mock",
+      provider: "mock",
       providerOrderId: orderResult.orderId,
       quoteId: payment.quote.quoteId,
       asset: "USDC",
@@ -399,7 +386,7 @@ export class PaymentPipelineService {
       `Off-ramp order ${orderResult.orderId} created with ${provider.providerName.toUpperCase()}.`
     );
 
-    // 2. Submit transaction hash to Onmeta (PRD Section 12)
+    // 2. Submit the simulated transaction receipt to the mock off-ramp.
     const txHash = payment.blockchainTransaction?.transactionSignature || "sig_simulated_placeholder";
     const submitResult = await provider.submitTransaction(orderResult.orderId, txHash);
 
@@ -430,115 +417,22 @@ export class PaymentPipelineService {
     return payment;
   }
 
-  // Processes webhook updates from Onmeta (PRD Section 13, 19, 20)
-  async processWebhookEvent(record: WebhookEventRecord): Promise<{
-    processed: boolean;
-    duplicate: boolean;
-    payment?: Payment;
-    errorMessage?: string;
-  }> {
-    // 1. Idempotency & duplicate event protection (PRD Section 19 & 20)
-    const acquired = await this.store.acquireWebhookLock(record.eventId);
-    if (!acquired) {
-      record.status = "duplicate";
-      await this.store.recordWebhook(record);
-      return { processed: false, duplicate: true };
+  async advanceMockOffRamp(
+    paymentId: string,
+    status: "cryptoInit" | "fiatPending" | "payoutSuccess" | "payoutFailed"
+  ): Promise<Payment> {
+    const payment = await this.store.getPayment(paymentId);
+    if (!payment?.offRampOrder) {
+      throw new Error("Cannot advance mock off-ramp before an order is created.");
     }
 
-    try {
-      // 2. Find associated payment by orderId or correlation ID
-      const orderId = record.orderId || (record.payload["orderId"] as string) || (record.payload["order_id"] as string);
-      const correlationId = (record.payload["paymentId"] as string) || (record.payload["correlation_id"] as string);
+    const provider = this.getMockProvider();
 
-      let payment: Payment | null = null;
-      if (correlationId) {
-        payment = await this.store.getPayment(correlationId);
-      }
-      if (!payment && orderId) {
-        const all = await this.store.listPayments(100);
-        payment = all.find((p) => p.offRampOrder?.providerOrderId === orderId) ?? null;
-      }
-
-      if (!payment) {
-        record.status = "error";
-        record.errorMessage = `No matching payment found for webhook event: ${record.eventId}`;
-        await this.store.recordWebhook(record);
-        return { processed: false, duplicate: false, errorMessage: record.errorMessage };
-      }
-
-      // 3. Map provider status to PayX payment state
-      const providerStatus = (record.payload["status"] as string) || record.eventType;
-      const targetStatus = mapProviderStatusToPaymentStatus(providerStatus);
-
-      if (!targetStatus) {
-        record.status = "ignored";
-        await this.store.recordWebhook(record);
-        return { processed: false, duplicate: false, payment };
-      }
-
-      if (!canTransitionPayment(payment.status, targetStatus)) {
-        // If payment is already completed or ahead, ignore out-of-order webhook gracefully
-        record.status = "ignored";
-        record.errorMessage = `Transition from ${payment.status} to ${targetStatus} is illegal.`;
-        await this.store.recordWebhook(record);
-        return { processed: false, duplicate: false, payment, errorMessage: record.errorMessage };
-      }
-
-      // 4. Advance payment status
-      if (payment.offRampOrder) {
-        payment.offRampOrder.status = providerStatus as OffRampOrder["status"];
-        if (record.payload["payoutReference"]) {
-          payment.offRampOrder.payoutReference = String(record.payload["payoutReference"]);
-        }
-        payment.offRampOrder.updatedAt = new Date().toISOString();
-      }
-
-      if (targetStatus === "OFFRAMP_PROCESSING") {
-        this.addTimelineEvent(
-          payment,
-          "OFFRAMP_PROCESSING",
-          "Off-Ramp Processing",
-          `USDC deposit recognized by ${record.provider.toUpperCase()}. Converting to INR.`
-        );
-      } else if (targetStatus === "FIAT_PAYOUT_PENDING") {
-        this.addTimelineEvent(
-          payment,
-          "FIAT_PAYOUT_PENDING",
-          "INR Payout Initiated",
-          `INR payout initiated to recipient bank account / UPI (${payment.recipient.name}).`
-        );
-      } else if (targetStatus === "COMPLETED") {
-        payment.completedAt = new Date().toISOString();
-        const utr = payment.offRampOrder?.payoutReference || (record.payload["utr"] as string) || `UTR${Date.now().toString().slice(-8)}`;
-        this.addTimelineEvent(
-          payment,
-          "COMPLETED",
-          "Payment Completed",
-          `₹${payment.destinationAmount?.toLocaleString("en-IN")} delivered to ${payment.recipient.name}. Reference: ${utr}`,
-          { utr }
-        );
-      } else if (targetStatus === "PAYOUT_FAILED") {
-        payment.failureReason = (record.payload["failureReason"] as string) || "Bank payout rejected by Indian banking system.";
-        this.addTimelineEvent(
-          payment,
-          "PAYOUT_FAILED",
-          "Payout Failed",
-          payment.failureReason
-        );
-      }
-
-      record.status = "processed";
-      record.processedAt = new Date().toISOString();
-      await this.store.recordWebhook(record);
-      await this.store.savePayment(payment);
-
-      return { processed: true, duplicate: false, payment };
-    } finally {
-      await this.store.releaseWebhookLock(record.eventId);
-    }
+    provider.advanceOrderStatus(payment.offRampOrder.providerOrderId, status);
+    return (await this.reconcilePayment(paymentId)).payment;
   }
 
-  // Reconciles payment state against off-ramp provider when webhooks are delayed (PRD Section 25 & 32)
+  // Reconciles the stored payment state against the local mock adapter.
   async reconcilePayment(paymentId: string): Promise<{ payment: Payment; reconciled: boolean }> {
     const payment = await this.store.getPayment(paymentId);
     if (!payment) throw new Error(`Payment not found: ${paymentId}`);
@@ -551,7 +445,7 @@ export class PaymentPipelineService {
       return { payment, reconciled: false };
     }
 
-    const provider = this.getProviderForPayment(payment);
+    const provider = this.getMockProvider();
     const statusResult = await provider.getStatus(payment.offRampOrder.providerOrderId);
 
     if (payment.offRampOrder) {
@@ -601,7 +495,7 @@ export class PaymentPipelineService {
     return { payment, reconciled: false };
   }
 
-  // Executes the complete pipeline from start to finish
+  // Executes the complete local mock pipeline from start to finish.
   async executeFullPipeline(input: CreatePaymentInput): Promise<Payment> {
     const payment = await this.createPayment(input);
     if (payment.status === "PAYMENT_FAILED") return payment;
@@ -609,49 +503,20 @@ export class PaymentPipelineService {
     const confirmed = await this.confirmPayment(payment.id);
     if (confirmed.status === "QUOTE_EXPIRED" || confirmed.status === "PAYMENT_FAILED") return confirmed;
 
+    await this.waitForMockStage();
     const settled = await this.settleSolana(confirmed.id);
     if (settled.status === "SETTLEMENT_FAILED") return settled;
 
+    await this.waitForMockStage();
     const offramp = await this.initiateOffRamp(settled.id);
     if (offramp.status === "OFFRAMP_FAILED") return offramp;
 
-    // Simulate provider asynchronous status updates
-    await this.processWebhookEvent({
-      eventId: generateEventId("EVT-ONM-1-"),
-      provider: "onmeta",
-      eventType: "cryptoInit",
-      orderId: offramp.offRampOrder?.providerOrderId,
-      payload: { status: "cryptoInit", orderId: offramp.offRampOrder?.providerOrderId, paymentId: offramp.id },
-      receivedAt: new Date().toISOString(),
-      status: "processed"
-    });
+    await this.waitForMockStage();
+    const payoutPending = await this.advanceMockOffRamp(offramp.id, "fiatPending");
+    if (payoutPending.status === "PAYOUT_FAILED") return payoutPending;
 
-    await this.processWebhookEvent({
-      eventId: generateEventId("EVT-ONM-2-"),
-      provider: "onmeta",
-      eventType: "fiatPending",
-      orderId: offramp.offRampOrder?.providerOrderId,
-      payload: { status: "fiatPending", orderId: offramp.offRampOrder?.providerOrderId, paymentId: offramp.id },
-      receivedAt: new Date().toISOString(),
-      status: "processed"
-    });
-
-    const completed = await this.processWebhookEvent({
-      eventId: generateEventId("EVT-ONM-3-"),
-      provider: "onmeta",
-      eventType: "payoutSuccess",
-      orderId: offramp.offRampOrder?.providerOrderId,
-      payload: {
-        status: "payoutSuccess",
-        orderId: offramp.offRampOrder?.providerOrderId,
-        paymentId: offramp.id,
-        payoutReference: `UTR${Date.now().toString().slice(-8)}`
-      },
-      receivedAt: new Date().toISOString(),
-      status: "processed"
-    });
-
-    return completed.payment || (await this.store.getPayment(payment.id))!;
+    await this.waitForMockStage();
+    return this.advanceMockOffRamp(offramp.id, "payoutSuccess");
   }
 
   // Dev Console Step-by-Step Simulator (PRD Section 23)
@@ -678,36 +543,11 @@ export class PaymentPipelineService {
         return (await this.reconcilePayment(paymentId)).payment;
 
       case "payout_processing": {
-        const orderId = payment.offRampOrder?.providerOrderId;
-        const res = await this.processWebhookEvent({
-          eventId: generateEventId("EVT-SIM-PROC-"),
-          provider: "onmeta",
-          eventType: "fiatPending",
-          orderId,
-          payload: { status: "fiatPending", orderId, paymentId: payment.id },
-          receivedAt: new Date().toISOString(),
-          status: "processed"
-        });
-        return res.payment || (await this.store.getPayment(paymentId))!;
+        return this.advanceMockOffRamp(paymentId, "fiatPending");
       }
 
       case "payout_success": {
-        const orderId = payment.offRampOrder?.providerOrderId;
-        const res = await this.processWebhookEvent({
-          eventId: generateEventId("EVT-SIM-SUCC-"),
-          provider: "onmeta",
-          eventType: "payoutSuccess",
-          orderId,
-          payload: {
-            status: "payoutSuccess",
-            orderId,
-            paymentId: payment.id,
-            payoutReference: `UTR${Date.now().toString().slice(-8)}`
-          },
-          receivedAt: new Date().toISOString(),
-          status: "processed"
-        });
-        return res.payment || (await this.store.getPayment(paymentId))!;
+        return this.advanceMockOffRamp(paymentId, "payoutSuccess");
       }
 
       default:

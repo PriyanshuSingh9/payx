@@ -4,3 +4,7 @@ resolver = "2"
 
 [workspace.metadata.anchor]
 address = "11111111111111111111111111111111"
+
+[profile.release]
+overflow-checks = true
+

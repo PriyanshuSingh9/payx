@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Mint, Token, TokenAccount, Transfer};
 
-declare_id!("11111111111111111111111111111111");
+declare_id!("CTFbnKuiHpg5PR5vHpBXJzvLyCGrhMuQp4PbK8ZRGboa");
 // Placeholder program ID. Replaced by `anchor keys sync` on first deploy;
 // backend PAYX_PROGRAM_ID must be updated to match (see docs/contracts.md).
 

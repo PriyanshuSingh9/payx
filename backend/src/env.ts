@@ -35,5 +35,12 @@ export const env = {
   operatorKeypairPath: read("OPERATOR_KEYPAIR_PATH") ?? "",
 
   // ─── Ramps ────────────────────────────────────────────────────
-  mockRampDelayMs: Number(read("MOCK_RAMP_DELAY_MS") ?? "3000")
+  mockRampDelayMs: Number(read("MOCK_RAMP_DELAY_MS") ?? "250"),
+
+  // ─── Webhooks & Polling ────────────────────────────────────────
+  heliusWebhookSecret: read("HELIUS_WEBHOOK_SECRET") ?? "",
+  enablePoller: (read("ENABLE_POLLER") ?? "true").toLowerCase() !== "false",
+  pollIntervalMs: Number(read("POLL_INTERVAL_MS") ?? "5000")
 };
+
+
