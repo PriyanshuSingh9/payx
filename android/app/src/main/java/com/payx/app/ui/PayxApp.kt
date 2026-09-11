@@ -58,6 +58,15 @@ fun PayxApp() {
             )
         }
         composable(Routes.RECEIVER) { ReceiverScreen() }
-        composable(Routes.SETTINGS) { SettingsScreen(onSignedOut = { nav.navigate(Routes.LOGIN) }) }
+        composable(Routes.SETTINGS) {
+            SettingsScreen(
+                onBack = { nav.popBackStack() },
+                onSignedOut = {
+                    nav.navigate(Routes.LOGIN) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
+            )
+        }
     }
 }
