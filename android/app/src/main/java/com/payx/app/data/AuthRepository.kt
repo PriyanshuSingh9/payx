@@ -104,7 +104,7 @@ class AuthRepository(
             raw.contains("matching credential", ignoreCase = true)
         return if (misconfigured) {
             "Google rejected PayX's OAuth client. In the PayX Google Cloud project, add an Android " +
-                "OAuth client for package com.payx.app with this machine's debug SHA-1."
+                "OAuth client for package com.payx.app with the SHA-1 of android/keystore/debug.keystore."
         } else {
             raw.ifBlank { "Google sign-in failed." }
         }

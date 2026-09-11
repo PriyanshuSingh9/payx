@@ -38,6 +38,9 @@ build/
 local.properties
 *.apk
 *.aab
+*.jks
+*.keystore
+!android/keystore/debug.keystore
 android/*/.gradle/
 
 # =========================

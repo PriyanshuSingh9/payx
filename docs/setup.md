@@ -14,7 +14,7 @@ environment. Follow top to bottom; each step has an expected result.
 | Anchor | 0.31 via `avm` | must match `anchor-lang 0.31` in `programs/payx_escrow/Cargo.toml` |
 | Android Studio | Narwhal (2025.1) or newer | see section 5 |
 | Neon account | free tier works | pooled `DATABASE_URL` + direct `DIRECT_URL` |
-| Google OAuth client | Web client ID **and** Android client | Web ID verifies tokens at `/auth/google`; Android client is package `com.payx.app` + debug SHA-1 |
+| Google OAuth client | Web client ID **and** Android client | Web ID verifies tokens at `/auth/google`; Android client is package `com.payx.app` + SHA-1 of `android/keystore/debug.keystore` |
 
 No sudo is required if you install to user-space (`~/development`, `~/Android` on Linux,
 or `~/Library/Android/sdk` on macOS).
@@ -99,9 +99,18 @@ client secret in the app or in env; this flow only uses the client ID.
 In the **PayX** Google Cloud project, create:
 
 - **Web application** client — this ID goes in `GOOGLE_CLIENT_ID`
-- **Android** client — package `com.payx.app`, SHA-1 from this machine's
-  debug keystore (`keytool -list -v -keystore %USERPROFILE%\.android\debug.keystore
-  -alias androiddebugkey -storepass android`)
+- **Android** client — package `com.payx.app`, SHA-1 of the **shared** debug
+  keystore at `android/keystore/debug.keystore` (not this machine's
+  `~/.android/debug.keystore`):
+
+```bash
+keytool -list -v -keystore android/keystore/debug.keystore \
+  -alias androiddebugkey -storepass android
+```
+
+Gradle debug builds already sign with that file. After switching to it, uninstall
+any existing `com.payx.app` install (`adb uninstall com.payx.app`) — Android will
+not update an app signed with a different cert.
 
 The emulator/device must have a Google account, Play Services, and a reachable
 backend (`./dev.sh` or `pnpm dev`).
@@ -135,5 +144,9 @@ Run it from the repo root.
   minor (0.31.x); use `avm` to switch.
 - Gradle `Unsupported class file version` — Gradle is running on the wrong
   JDK; point Studio/Gradle at JDK 17.
+- Google Sign-In `DEVELOPER_ERROR` / 10 — the PayX GCP project is missing an
+  Android OAuth client for package `com.payx.app` with the SHA-1 of
+  `android/keystore/debug.keystore`. After adding it, wait a few minutes, then
+  `adb uninstall com.payx.app` and reinstall.
 - Emulator painfully slow — On Linux, `/dev/kvm` missing (enable virtualization in BIOS).
   On macOS Apple Silicon, ensure you use the `arm64-v8a` system image.
