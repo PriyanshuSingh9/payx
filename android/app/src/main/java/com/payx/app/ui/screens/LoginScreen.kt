@@ -1,10 +1,14 @@
 package com.payx.app.ui.screens
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
@@ -15,6 +19,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -26,6 +31,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MoreVert
@@ -37,7 +43,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -74,6 +82,8 @@ import kotlin.math.sin
 
 @Composable
 fun LoginScreen(onSignedIn: () -> Unit) {
+    var selectedCorridor by remember { mutableStateOf("US") }
+
     val ambientBackground = Brush.verticalGradient(
         colorStops = arrayOf(
             0.0f to Color(0xFF17122E),
@@ -117,16 +127,16 @@ fun LoginScreen(onSignedIn: () -> Unit) {
                 .fillMaxSize()
                 .statusBarsPadding()
                 .navigationBarsPadding()
-                .padding(horizontal = 24.dp, vertical = 14.dp),
+                .padding(horizontal = 24.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.SpaceBetween,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Top Bar: PayX Logo & Wordmark
+            // 1. Top Bar: Clean PayX Logo & Wordmark (No 3 dots)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                    .padding(top = 2.dp),
+                horizontalArrangement = Arrangement.Start,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(
@@ -134,7 +144,6 @@ fun LoginScreen(onSignedIn: () -> Unit) {
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     PayxHeaderLogo()
-                    // Single text with sweeping gradient — premium fintech wordmark
                     Text(
                         text = "PayX",
                         style = TextStyle(
@@ -152,27 +161,16 @@ fun LoginScreen(onSignedIn: () -> Unit) {
                         )
                     )
                 }
-
-                IconButton(
-                    onClick = { },
-                    modifier = Modifier.size(36.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.MoreVert,
-                        contentDescription = "Options",
-                        tint = PayxPalette.TextTertiary
-                    )
-                }
             }
 
-            // Center Dynamic Animated Spinning Globe & Active Components Cluster
+            // 2. Center Dynamic Animated Spinning Globe & Active Components Cluster
             PayxAnimatedGlobeCluster(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(310.dp)
+                    .height(280.dp)
             )
 
-            // Luxury Headings Section
+            // 3. Luxury Headings Section — polished typography hierarchy
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
@@ -182,9 +180,9 @@ fun LoginScreen(onSignedIn: () -> Unit) {
                     style = TextStyle(
                         fontFamily = FontFamily.Serif,
                         fontWeight = FontWeight.Normal,
-                        fontSize = 38.sp,
-                        lineHeight = 44.sp,
-                        letterSpacing = (-0.8).sp,
+                        fontSize = 34.sp,
+                        lineHeight = 40.sp,
+                        letterSpacing = (-0.6).sp,
                         brush = Brush.verticalGradient(
                             colors = listOf(
                                 Color.White,
@@ -196,39 +194,34 @@ fun LoginScreen(onSignedIn: () -> Unit) {
                     )
                 )
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
                 Text(
-                    text = "Instant non-custodial remittance protocol powered by on-chain escrow custody and automated fiat settlement.",
+                    text = "Instant non-custodial remittance protocol powered by on-chain custody and automated fiat settlement.",
                     style = TextStyle(
                         fontFamily = FontFamily.SansSerif,
                         fontWeight = FontWeight.Normal,
-                        fontSize = 13.5.sp,
-                        lineHeight = 20.sp,
+                        fontSize = 13.sp,
+                        lineHeight = 19.sp,
                         color = PayxPalette.TextSecondary,
                         textAlign = TextAlign.Center
                     ),
-                    modifier = Modifier.padding(horizontal = 14.dp)
+                    modifier = Modifier.padding(horizontal = 16.dp)
                 )
             }
 
-            // Bottom Action Area (Only Continue with Google)
+            // 4. Bottom Action Area: US/IND Switching Tab, Google Login Button, Legal Notice
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text(
-                    text = "By continuing, you agree to our Terms of Service\nand Privacy Policy.",
-                    style = TextStyle(
-                        fontFamily = FontFamily.SansSerif,
-                        fontSize = 12.sp,
-                        lineHeight = 17.sp,
-                        fontWeight = FontWeight.Normal,
-                        color = PayxPalette.TextTertiary,
-                        textAlign = TextAlign.Center
-                    ),
-                    modifier = Modifier.padding(bottom = 16.dp)
+                // US and IND Switching Tab above login
+                CorridorSwitchTab(
+                    selectedCorridor = selectedCorridor,
+                    onCorridorSelected = { selectedCorridor = it }
                 )
+
+                Spacer(modifier = Modifier.height(16.dp))
 
                 // Continue with Google Button
                 val buttonGradient = Brush.horizontalGradient(
@@ -239,14 +232,14 @@ fun LoginScreen(onSignedIn: () -> Unit) {
                     onClick = onSignedIn,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(56.dp)
+                        .height(54.dp)
                         .shadow(
                             elevation = 14.dp,
-                            shape = RoundedCornerShape(28.dp),
+                            shape = RoundedCornerShape(27.dp),
                             spotColor = Color(0x66AE9EF8),
                             ambientColor = Color(0x33AE9EF8)
                         ),
-                    shape = RoundedCornerShape(28.dp),
+                    shape = RoundedCornerShape(27.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color.Transparent,
                         contentColor = Color.White
@@ -264,14 +257,13 @@ fun LoginScreen(onSignedIn: () -> Unit) {
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            // Google G logo with transparent background
                             GoogleOfficialLogo(modifier = Modifier.size(20.dp))
                             Spacer(modifier = Modifier.width(12.dp))
                             Text(
                                 text = "Continue with Google",
                                 style = TextStyle(
                                     fontFamily = FontFamily.SansSerif,
-                                    fontSize = 16.sp,
+                                    fontSize = 15.5.sp,
                                     fontWeight = FontWeight.SemiBold,
                                     letterSpacing = (-0.2).sp,
                                     color = Color.White
@@ -281,7 +273,22 @@ fun LoginScreen(onSignedIn: () -> Unit) {
                     }
                 }
 
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Legal Terms Disclaimer placed below button
+                Text(
+                    text = "By continuing, you agree to our Terms of Service & Privacy Policy.",
+                    style = TextStyle(
+                        fontFamily = FontFamily.SansSerif,
+                        fontSize = 11.5.sp,
+                        lineHeight = 16.sp,
+                        fontWeight = FontWeight.Normal,
+                        color = PayxPalette.TextTertiary,
+                        textAlign = TextAlign.Center
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
             }
         }
     }
@@ -303,7 +310,7 @@ private fun PayxAnimatedGlobeCluster(modifier: Modifier = Modifier) {
         label = "globeRotation"
     )
 
-    // 3. Gyroscope Trajectory Ring Rotation
+    // 2. Gyroscope Trajectory Ring Rotation
     val orbitAngle by transition.animateFloat(
         initialValue = 0f,
         targetValue = 360f,
@@ -311,7 +318,7 @@ private fun PayxAnimatedGlobeCluster(modifier: Modifier = Modifier) {
         label = "orbitAngle"
     )
 
-    // 4. Genuine 3D Coin Rotation on Y-Axis (0 to 360 degrees)
+    // 3. Genuine 3D Coin Rotation on Y-Axis
     val coin3DY by transition.animateFloat(
         initialValue = 0f,
         targetValue = 360f,
@@ -319,15 +326,23 @@ private fun PayxAnimatedGlobeCluster(modifier: Modifier = Modifier) {
         label = "coin3DY"
     )
 
-    // 5. Lightning High-Voltage Crackle & Pulse
-    val lightningIntensity by transition.animateFloat(
-        initialValue = 0.80f,
-        targetValue = 1.25f,
-        animationSpec = infiniteRepeatable(tween(450, easing = FastOutSlowInEasing), RepeatMode.Reverse),
-        label = "lightningIntensity"
+    // 4. Lightning crackle phase — smoothed so only lightning is adjusted
+    val lightningPhase by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(1400, easing = LinearEasing), RepeatMode.Restart),
+        label = "lightningPhase"
     )
 
-    // 6. Sonar Security Radar Wave on Escrow Vault (0f to 1f)
+    // 5. Lightning outer glow pulse
+    val lightningGlow by transition.animateFloat(
+        initialValue = 0.5f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(1000, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "lightningGlow"
+    )
+
+    // 6. Sonar Security Radar Wave — two offset waves
     val radarPulse by transition.animateFloat(
         initialValue = 0f,
         targetValue = 1f,
@@ -335,24 +350,47 @@ private fun PayxAnimatedGlobeCluster(modifier: Modifier = Modifier) {
         label = "radarPulse"
     )
 
-    // 7. Shimmer Sweep on Live Corridor
-    val shimmerOffset by transition.animateFloat(
-        initialValue = -100f,
-        targetValue = 300f,
-        animationSpec = infiniteRepeatable(tween(2200, easing = LinearEasing), RepeatMode.Restart),
-        label = "shimmerOffset"
+    // 7. Escrow scan bar — 0f to 1f sweeps top-to-bottom inside the tag
+    val escrowScan by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(2400, easing = LinearEasing), RepeatMode.Restart),
+        label = "escrowScan"
     )
 
-    // 8. UPI Velocity Pulse & Lightning Shift
-    val upiPulse by transition.animateFloat(
-        initialValue = 0.94f,
-        targetValue = 1.06f,
-        animationSpec = infiniteRepeatable(tween(800, easing = FastOutSlowInEasing), RepeatMode.Reverse),
-        label = "upiPulse"
+    // 8. Corridor data arrow sweep — 0f to 1f slides the animated arrow group
+    val arrowSweep by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(1100, easing = LinearEasing), RepeatMode.Restart),
+        label = "arrowSweep"
+    )
+
+    // 9. Live dot pulse for corridor and UPI
+    val liveDotPulse by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(900, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "liveDotPulse"
+    )
+
+    // 10. UPI speed lines scroll — 0f to 1f
+    val upiScroll by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(600, easing = LinearEasing), RepeatMode.Restart),
+        label = "upiScroll"
+    )
+
+    // 11. Coin specular shine sweep
+    val coinShine by transition.animateFloat(
+        initialValue = -1f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(3000, easing = FastOutSlowInEasing), RepeatMode.Restart),
+        label = "coinShine"
     )
 
     // Float offsets for organic natural drift — each uses a unique CubicBezier easing and period
-    // so components never look like they share the same clock
     val floatEase1 = androidx.compose.animation.core.CubicBezierEasing(0.37f, 0f, 0.63f, 1f)
     val floatEase2 = androidx.compose.animation.core.CubicBezierEasing(0.45f, 0.05f, 0.55f, 0.95f)
     val floatEase3 = androidx.compose.animation.core.CubicBezierEasing(0.25f, 0.46f, 0.45f, 0.94f)
@@ -431,17 +469,16 @@ private fun PayxAnimatedGlobeCluster(modifier: Modifier = Modifier) {
                 style = Stroke(width = 1.6.dp.toPx(), pathEffect = dashEffect)
             )
 
-            // Traveling Energy Node on the Ring
-            val rad = orbitAngle * (PI / 180f).toFloat()
+            // Traveling Energy Node on the Ring (orbits naturally at 1x speed with the Canvas)
             val rx = size.width / 2f
             val ry = size.height / 2f
-            val px = rx + rx * cos(rad)
-            val py = ry + ry * sin(rad)
+            val px = rx + rx * 0.98f
+            val py = ry
 
             drawCircle(color = Color.White, radius = 3.5.dp.toPx(), center = Offset(px, py))
             drawCircle(
                 color = Color(0xFFC4BAF9),
-                radius = 8.dp.toPx(),
+                radius = 7.dp.toPx(),
                 center = Offset(px, py),
                 style = Stroke(width = 1.5.dp.toPx())
             )
@@ -469,34 +506,43 @@ private fun PayxAnimatedGlobeCluster(modifier: Modifier = Modifier) {
 
         // LAYER 3: INTERNALLY REACTIVE & CRAZY ANIMATED COMPONENTS
 
-        // 1. Top-Right: Live Corridor Capsule with Active Shimmer & Sliding Arrows
+        // 1. Top-Right: Live Corridor Capsule — animated data flow arrows + glowing live dot
         Box(
             modifier = Modifier
                 .align(Alignment.Center)
                 .offset(x = 76.dp, y = (-86).dp + float1.dp)
         ) {
-            ReactiveCorridorCapsule(shimmerOffset = shimmerOffset)
+            ReactiveCorridorCapsule(
+                arrowSweep = arrowSweep,
+                liveDotPulse = liveDotPulse
+            )
         }
 
-        // 2. Top-Left: High-Voltage Lightning Prism that crackles and pulses
+        // 2. Top-Left: High-Voltage Lightning Prism — crackling arc paths + flickering glow
         Box(
             modifier = Modifier
                 .align(Alignment.Center)
                 .offset(x = (-84).dp, y = (-82).dp + float2.dp)
         ) {
-            HighVoltageLightningPrism(intensity = lightningIntensity)
+            HighVoltageLightningPrism(
+                phase = lightningPhase,
+                glow = lightningGlow
+            )
         }
 
-        // 3. Mid-Right: Escrow Security Vault Tag with Expanding Sonar Radar Ping
+        // 3. Mid-Right: Escrow Security Vault Tag — dual sonar rings + scanning bar
         Box(
             modifier = Modifier
                 .align(Alignment.Center)
                 .offset(x = 96.dp, y = (-4).dp + float3.dp)
         ) {
-            ActiveEscrowVaultTag(sonarProgress = radarPulse)
+            ActiveEscrowVaultTag(
+                sonarProgress = radarPulse,
+                scanProgress = escrowScan
+            )
         }
 
-        // 4. Bottom-Right: Genuine 3D Spinning Minted Coin (spins 360° on Y-axis)
+        // 4. Bottom-Right: Genuine 3D Spinning Minted Coin + specular shine sweep
         Box(
             modifier = Modifier
                 .align(Alignment.Center)
@@ -506,17 +552,19 @@ private fun PayxAnimatedGlobeCluster(modifier: Modifier = Modifier) {
                     cameraDistance = 12f * density.density
                 }
         ) {
-            Spinning3DCoin(rotationY = coin3DY)
+            Spinning3DCoin(rotationY = coin3DY, shine = coinShine)
         }
 
-        // 5. Bottom-Left: Re-engineered UPI Velocity Hub with Speed Flash
+        // 5. Bottom-Left: UPI Velocity Hub — streaming speed lines + neon scanning + dot glow
         Box(
             modifier = Modifier
                 .align(Alignment.Center)
                 .offset(x = (-70).dp, y = 80.dp + float1.dp)
-                .scale(upiPulse)
         ) {
-            UpiVelocityHub()
+            UpiVelocityHub(
+                scrollPhase = upiScroll,
+                dotPulse = liveDotPulse
+            )
         }
 
         // 6. Prismatic Twinkling Diamond Accents
@@ -663,14 +711,20 @@ private fun SpinningHolographicGlobeCanvas(
 }
 
 /**
- * 1. Live Corridor Capsule with sweep shimmer
+ * 1. Live Corridor Capsule — animated streaming data arrows + glowing live dot
  */
 @Composable
-private fun ReactiveCorridorCapsule(shimmerOffset: Float) {
+private fun ReactiveCorridorCapsule(
+    arrowSweep: Float,
+    liveDotPulse: Float
+) {
+    val dotGlowAlpha = 0.3f + 0.7f * liveDotPulse
+    val dotScale = 0.85f + 0.3f * liveDotPulse
+
     Surface(
         shape = RoundedCornerShape(18.dp),
         color = Color(0xFF1A1230),
-        border = BorderStroke(1.dp, Color(0xFF7060B8)),
+        border = BorderStroke(1.dp, Color(0xFF7060B8).copy(alpha = 0.6f + 0.4f * liveDotPulse)),
         shadowElevation = 8.dp
     ) {
         Box(contentAlignment = Alignment.Center) {
@@ -680,108 +734,198 @@ private fun ReactiveCorridorCapsule(shimmerOffset: Float) {
                 horizontalArrangement = Arrangement.spacedBy(5.dp)
             ) {
                 UsaFlag(width = 14.dp, height = 10.dp)
-                Text(
-                    text = "⇄",
-                    style = TextStyle(
-                        fontSize = 11.sp,
-                        color = PayxPalette.SoftLavender,
-                        fontWeight = FontWeight.Bold
-                    )
-                )
-                IndiaFlag(width = 14.dp, height = 10.dp)
-                Box(
-                    modifier = Modifier
-                        .size(5.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFF34D399))
-                )
-            }
 
-            // Shimmer highlight effect
-            Canvas(modifier = Modifier.matchParentSize()) {
-                val shimmerBrush = Brush.linearGradient(
-                    colors = listOf(
-                        Color.Transparent,
-                        Color.White.copy(alpha = 0.18f),
-                        Color.Transparent
-                    ),
-                    start = Offset(shimmerOffset, 0f),
-                    end = Offset(shimmerOffset + 40.dp.toPx(), size.height)
-                )
-                drawRect(brush = shimmerBrush)
+                // Animated streaming arrows canvas — 3 staggered chevrons slide left to right
+                Canvas(modifier = Modifier.size(22.dp, 11.dp)) {
+                    val w = size.width
+                    val h = size.height
+                    val arrowW = w / 4f
+                    // Draw 3 chevrons at staggered positions, wrapping with arrowSweep
+                    for (i in 0..2) {
+                        val baseX = ((arrowSweep + i / 3f) % 1f) * w
+                        val alpha = when {
+                            baseX < arrowW -> baseX / arrowW
+                            baseX > w - arrowW -> (w - baseX) / arrowW
+                            else -> 1f
+                        }.coerceIn(0f, 1f)
+                        val chevronPath = Path().apply {
+                            moveTo(baseX, h * 0.15f)
+                            lineTo(baseX + arrowW * 0.55f, h * 0.5f)
+                            lineTo(baseX, h * 0.85f)
+                            moveTo(baseX + arrowW * 0.5f, h * 0.15f)
+                            lineTo(baseX + arrowW, h * 0.5f)
+                            lineTo(baseX + arrowW * 0.5f, h * 0.85f)
+                        }
+                        drawPath(
+                            path = chevronPath,
+                            color = Color(0xFFAE9EF8).copy(alpha = alpha * 0.85f),
+                            style = Stroke(width = 1.6.dp.toPx(), cap = StrokeCap.Round)
+                        )
+                    }
+                }
+
+                IndiaFlag(width = 14.dp, height = 10.dp)
+
+                // Live dot with breathing glow ring
+                Box(contentAlignment = Alignment.Center) {
+                    Canvas(modifier = Modifier.size(12.dp)) {
+                        // Outer glow ring
+                        drawCircle(
+                            color = Color(0xFF34D399).copy(alpha = dotGlowAlpha * 0.5f),
+                            radius = 5.dp.toPx() * dotScale
+                        )
+                        // Core dot
+                        drawCircle(
+                            color = Color(0xFF34D399),
+                            radius = 2.5.dp.toPx()
+                        )
+                    }
+                }
             }
         }
     }
 }
 
 /**
- * 2. High-Voltage Crackling Lightning Prism
+ * 2. High-Voltage Crackling Lightning Prism — authentic, iconic electric lightning bolt
  */
 @Composable
-private fun HighVoltageLightningPrism(intensity: Float) {
+private fun HighVoltageLightningPrism(phase: Float, glow: Float) {
+    val flicker = 0.85f + 0.15f * glow
+
     Box(
         modifier = Modifier
-            .size(44.dp)
-            .scale(intensity)
-            .clip(RoundedCornerShape(14.dp))
+            .size(50.dp)
+            .shadow(
+                elevation = (8f + 8f * glow).dp,
+                shape = RoundedCornerShape(16.dp),
+                spotColor = Color(0xFFFDE047).copy(alpha = 0.60f * glow),
+                ambientColor = Color(0xFFF59E0B).copy(alpha = 0.30f * glow)
+            )
+            .clip(RoundedCornerShape(16.dp))
             .background(
-                Brush.linearGradient(
-                    listOf(Color(0xFF261942), Color(0xFF150D26))
+                Brush.radialGradient(
+                    colorStops = arrayOf(
+                        0.0f to Color(0xFF261908),
+                        0.6f to Color(0xFF140C04),
+                        1.0f to Color(0xFF090602)
+                    )
                 )
             )
             .border(
-                1.dp,
-                Color(0xFFF59E0B).copy(alpha = (intensity - 0.7f).coerceIn(0.4f, 1f)),
-                RoundedCornerShape(14.dp)
+                1.5.dp,
+                Brush.linearGradient(
+                    listOf(
+                        Color(0xFFFDE047).copy(alpha = 0.40f + 0.60f * glow),
+                        Color(0xFFF59E0B).copy(alpha = 0.50f),
+                        Color(0xFFFDE047).copy(alpha = 0.30f + 0.70f * glow)
+                    )
+                ),
+                RoundedCornerShape(16.dp)
             ),
         contentAlignment = Alignment.Center
     ) {
-        Canvas(modifier = Modifier.size(24.dp)) {
+        Canvas(modifier = Modifier.size(30.dp)) {
             val w = size.width
             val h = size.height
 
-            // Faceted Lightning Prism
-            val boltLeft = Path().apply {
-                moveTo(w * 0.55f, 0f)
-                lineTo(w * 0.20f, h * 0.52f)
-                lineTo(w * 0.48f, h * 0.52f)
-                lineTo(w * 0.35f, h)
+            // 1. Warm radial electric glow behind the bolt
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colorStops = arrayOf(
+                        0.0f to Color(0xFFFDE047).copy(alpha = 0.45f * glow),
+                        0.45f to Color(0xFFF59E0B).copy(alpha = 0.18f * glow),
+                        1.0f to Color.Transparent
+                    ),
+                    center = Offset(w * 0.50f, h * 0.50f)
+                ),
+                radius = w * 0.75f,
+                center = Offset(w * 0.50f, h * 0.50f)
+            )
+
+            // 2. Iconic Sharp Lightning Bolt Silhouette
+            // Classic 6-point electric bolt geometry
+            val boltPath = Path().apply {
+                moveTo(w * 0.62f, h * 0.06f) // Top sharp apex
+                lineTo(w * 0.26f, h * 0.52f) // Slanted left shoulder
+                lineTo(w * 0.48f, h * 0.52f) // Horizontal shelf stepping right
+                lineTo(w * 0.38f, h * 0.94f) // Slanted needle tip at bottom
+                lineTo(w * 0.74f, h * 0.46f) // Slanted right shoulder
+                lineTo(w * 0.52f, h * 0.46f) // Horizontal shelf stepping left
                 close()
             }
+
+            // 3. Electric gradient fill — hot white at top to electric yellow to golden amber
             drawPath(
-                path = boltLeft,
+                path = boltPath,
                 brush = Brush.verticalGradient(
-                    listOf(Color(0xFFFDE047), Color(0xFFF59E0B))
+                    colorStops = arrayOf(
+                        0.0f to Color.White.copy(alpha = flicker),
+                        0.28f to Color(0xFFFEF08A).copy(alpha = flicker),
+                        0.68f to Color(0xFFFACC15).copy(alpha = flicker),
+                        1.0f to Color(0xFFF59E0B).copy(alpha = flicker * 0.90f)
+                    ),
+                    startY = 0f,
+                    endY = h
                 )
             )
 
-            val boltRight = Path().apply {
-                moveTo(w * 0.55f, 0f)
-                lineTo(w * 0.48f, h * 0.52f)
-                lineTo(w * 0.35f, h)
-                lineTo(w * 0.85f, h * 0.45f)
-                lineTo(w * 0.52f, h * 0.45f)
-                close()
+            // 4. Razor-sharp white outer stroke
+            drawPath(
+                path = boltPath,
+                color = Color.White.copy(alpha = 0.90f * flicker),
+                style = Stroke(width = 1.4.dp.toPx(), cap = StrokeCap.Round)
+            )
+
+            // 5. White-hot center spine highlight
+            val spinePath = Path().apply {
+                moveTo(w * 0.60f, h * 0.12f)
+                lineTo(w * 0.50f, h * 0.49f)
+                lineTo(w * 0.41f, h * 0.86f)
             }
             drawPath(
-                path = boltRight,
-                brush = Brush.verticalGradient(
-                    listOf(Color(0xFFF59E0B), Color(0xFFD97706))
-                )
+                path = spinePath,
+                color = Color.White,
+                style = Stroke(width = 1.5.dp.toPx(), cap = StrokeCap.Round)
+            )
+
+            // 6. Tiny electric discharge spark at bottom needle tip
+            val sparkPoint = Offset(w * 0.38f, h * 0.94f)
+            drawCircle(
+                color = Color.White,
+                radius = 1.6.dp.toPx(),
+                center = sparkPoint
+            )
+            drawCircle(
+                color = Color(0xFFFDE047).copy(alpha = 0.7f * glow),
+                radius = 3.5.dp.toPx(),
+                center = sparkPoint
             )
         }
     }
 }
 
 /**
- * 3. Escrow Vault Tag with expanding sonar radar ping
+ * 3. Escrow Vault Tag — dual offset sonar rings, animated scan bar, pulsing lock glow
  */
 @Composable
-private fun ActiveEscrowVaultTag(sonarProgress: Float) {
+private fun ActiveEscrowVaultTag(sonarProgress: Float, scanProgress: Float) {
+    // Second sonar ring offset by half a cycle
+    val sonarProgress2 = (sonarProgress + 0.5f) % 1f
+
     Surface(
         shape = RoundedCornerShape(12.dp),
         color = Color(0xFF1A1230),
-        border = BorderStroke(1.dp, Color(0xFF6B5CB8)),
+        border = BorderStroke(
+            1.dp,
+            Brush.horizontalGradient(
+                listOf(
+                    Color(0xFF6B5CB8).copy(alpha = 0.5f + 0.5f * sonarProgress),
+                    Color(0xFFAE9EF8).copy(alpha = 0.8f),
+                    Color(0xFF6B5CB8).copy(alpha = 0.5f + 0.5f * sonarProgress2)
+                )
+            )
+        ),
         shadowElevation = 6.dp
     ) {
         Box(contentAlignment = Alignment.Center) {
@@ -794,25 +938,40 @@ private fun ActiveEscrowVaultTag(sonarProgress: Float) {
                     Icon(
                         imageVector = Icons.Default.Lock,
                         contentDescription = null,
-                        tint = Color(0xFFAE9EF8),
+                        tint = Color(0xFFAE9EF8).copy(alpha = 0.6f + 0.4f * sonarProgress),
                         modifier = Modifier.size(11.dp)
                     )
 
-                    // Sonar Radar Ring
-                    Canvas(modifier = Modifier.size(22.dp)) {
+                    // Dual offset sonar rings
+                    Canvas(modifier = Modifier.size(26.dp)) {
                         val maxR = size.width / 2f
-                        val currR = maxR * sonarProgress
-                        val alpha = (1f - sonarProgress).coerceIn(0f, 1f)
-                        drawCircle(
-                            color = Color(0xFFAE9EF8).copy(alpha = alpha * 0.6f),
-                            radius = currR,
-                            style = Stroke(width = 1.dp.toPx())
-                        )
+
+                        // Ring 1
+                        val r1 = maxR * sonarProgress
+                        val a1 = (1f - sonarProgress).coerceIn(0f, 1f)
+                        if (r1 > 0f) {
+                            drawCircle(
+                                color = Color(0xFFAE9EF8).copy(alpha = a1 * 0.7f),
+                                radius = r1,
+                                style = Stroke(width = 1.2.dp.toPx())
+                            )
+                        }
+
+                        // Ring 2 (offset phase)
+                        val r2 = maxR * sonarProgress2
+                        val a2 = (1f - sonarProgress2).coerceIn(0f, 1f)
+                        if (r2 > 0f) {
+                            drawCircle(
+                                color = Color(0xFF38BDF8).copy(alpha = a2 * 0.5f),
+                                radius = r2,
+                                style = Stroke(width = 0.8.dp.toPx())
+                            )
+                        }
                     }
                 }
 
                 Text(
-                    text = "ESCROW",
+                    text = "Secured",
                     style = TextStyle(
                         fontFamily = FontFamily.SansSerif,
                         fontSize = 9.sp,
@@ -822,16 +981,31 @@ private fun ActiveEscrowVaultTag(sonarProgress: Float) {
                     )
                 )
             }
+
+            // Animated horizontal scanning bar — sweeps vertically through the entire tag
+            Canvas(modifier = Modifier.matchParentSize()) {
+                val scanY = scanProgress * size.height
+                val scanBrush = Brush.verticalGradient(
+                    colors = listOf(
+                        Color.Transparent,
+                        Color(0xFFAE9EF8).copy(alpha = 0.22f),
+                        Color(0xFFAE9EF8).copy(alpha = 0.12f),
+                        Color.Transparent
+                    ),
+                    startY = scanY - size.height * 0.18f,
+                    endY = scanY + size.height * 0.18f
+                )
+                drawRect(brush = scanBrush)
+            }
         }
     }
 }
 
 /**
- * 4. Genuine 3D Spinning Remittance Coin with specular shine
+ * 4. Genuine 3D Spinning Remittance Coin with animated specular shine sweep
  */
 @Composable
-private fun Spinning3DCoin(rotationY: Float) {
-    // Face angle: when cos(angle) > 0 front ($), else back (₹)
+private fun Spinning3DCoin(rotationY: Float, shine: Float) {
     val rad = rotationY * (PI / 180f).toFloat()
     val isFront = cos(rad) >= 0f
 
@@ -853,7 +1027,7 @@ private fun Spinning3DCoin(rotationY: Float) {
         contentAlignment = Alignment.Center
     ) {
         Text(
-            text = if (isFront) "$" else "₹",
+            text = if (isFront) "$" else "\u20B9",
             modifier = if (!isFront) Modifier.graphicsLayer { scaleX = -1f } else Modifier,
             style = TextStyle(
                 fontFamily = FontFamily.Serif,
@@ -862,61 +1036,145 @@ private fun Spinning3DCoin(rotationY: Float) {
                 color = Color(0xFF451A03)
             )
         )
+        // Specular shine band that sweeps across the coin surface
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val shineX = size.width * (shine * 0.5f + 0.5f)
+            val shineWidth = size.width * 0.35f
+            val shineBrush = Brush.linearGradient(
+                colors = listOf(
+                    Color.Transparent,
+                    Color.White.copy(alpha = 0.35f),
+                    Color.Transparent
+                ),
+                start = Offset(shineX - shineWidth, 0f),
+                end = Offset(shineX + shineWidth, size.height)
+            )
+            drawCircle(
+                brush = shineBrush,
+                radius = size.minDimension / 2f
+            )
+        }
     }
 }
 
 /**
- * 5. Re-engineered Luxury UPI Velocity Hub
+ * 5. UPI Velocity Hub — streaming speed lines + neon scanning line + multi-ring dot glow
  */
 @Composable
-private fun UpiVelocityHub() {
+private fun UpiVelocityHub(scrollPhase: Float, dotPulse: Float) {
+    val dotAlpha = 0.35f + 0.65f * dotPulse
+
     Surface(
         shape = RoundedCornerShape(16.dp),
-        color = Color(0xFF121F24),
+        color = Color(0xFF0E1C20),
         border = BorderStroke(
             1.2.dp,
             Brush.horizontalGradient(
-                listOf(Color(0xFF10B981), Color(0xFF38BDF8))
+                listOf(
+                    Color(0xFF10B981).copy(alpha = 0.5f + 0.5f * dotPulse),
+                    Color(0xFF38BDF8).copy(alpha = 0.7f)
+                )
             )
         ),
         shadowElevation = 8.dp
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(5.dp)
-        ) {
-            // Speed Lightning Glyphs
-            Canvas(modifier = Modifier.size(10.dp, 12.dp)) {
-                val bolt = Path().apply {
-                    moveTo(size.width * 0.65f, 0f)
-                    lineTo(size.width * 0.15f, size.height * 0.55f)
-                    lineTo(size.width * 0.55f, size.height * 0.55f)
-                    lineTo(size.width * 0.35f, size.height)
-                    lineTo(size.width * 0.85f, size.height * 0.45f)
-                    lineTo(size.width * 0.50f, size.height * 0.45f)
-                    close()
+        Box(contentAlignment = Alignment.Center) {
+            // Streaming speed lines behind the content
+            Canvas(modifier = Modifier.size(90.dp, 26.dp)) {
+                val w = size.width
+                val h = size.height
+                // 4 horizontal speed lines that scroll left-to-right
+                val lineLengths = listOf(0.28f, 0.18f, 0.22f, 0.14f)
+                val lineYPositions = listOf(h * 0.25f, h * 0.45f, h * 0.62f, h * 0.80f)
+                val lineAlphas = listOf(0.45f, 0.25f, 0.35f, 0.20f)
+                val lineSpeeds = listOf(1.0f, 1.4f, 0.85f, 1.2f)
+
+                for (i in lineLengths.indices) {
+                    val len = lineLengths[i] * w
+                    val startX = ((scrollPhase * lineSpeeds[i]) % 1.2f - 0.2f) * w
+                    val endX = (startX + len).coerceAtMost(w)
+                    val clampedStart = startX.coerceAtLeast(0f)
+                    if (endX > clampedStart) {
+                        drawLine(
+                            brush = Brush.horizontalGradient(
+                                colors = listOf(
+                                    Color.Transparent,
+                                    Color(0xFF10B981).copy(alpha = lineAlphas[i]),
+                                    Color(0xFF38BDF8).copy(alpha = lineAlphas[i] * 0.6f),
+                                    Color.Transparent
+                                ),
+                                startX = clampedStart,
+                                endX = endX
+                            ),
+                            start = Offset(clampedStart, lineYPositions[i]),
+                            end = Offset(endX, lineYPositions[i]),
+                            strokeWidth = 1.dp.toPx(),
+                            cap = StrokeCap.Round
+                        )
+                    }
                 }
-                drawPath(bolt, color = Color(0xFF34D399))
             }
 
-            Text(
-                text = "UPI RAIL",
-                style = TextStyle(
-                    fontFamily = FontFamily.SansSerif,
-                    fontSize = 9.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    letterSpacing = 0.6.sp,
-                    color = Color.White
-                )
-            )
+            Row(
+                modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(5.dp)
+            ) {
+                // Lightning bolt glyph
+                Canvas(modifier = Modifier.size(10.dp, 12.dp)) {
+                    val bolt = Path().apply {
+                        moveTo(size.width * 0.65f, 0f)
+                        lineTo(size.width * 0.15f, size.height * 0.55f)
+                        lineTo(size.width * 0.55f, size.height * 0.55f)
+                        lineTo(size.width * 0.35f, size.height)
+                        lineTo(size.width * 0.85f, size.height * 0.45f)
+                        lineTo(size.width * 0.50f, size.height * 0.45f)
+                        close()
+                    }
+                    drawPath(
+                        bolt,
+                        brush = Brush.verticalGradient(
+                            listOf(
+                                Color(0xFF34D399),
+                                Color(0xFF6EE7B7).copy(alpha = 0.6f + 0.4f * dotPulse)
+                            )
+                        )
+                    )
+                }
 
-            Box(
-                modifier = Modifier
-                    .size(5.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFF34D399))
-            )
+                Text(
+                    text = "UPI RAIL",
+                    style = TextStyle(
+                        fontFamily = FontFamily.SansSerif,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = 0.6.sp,
+                        color = Color.White
+                    )
+                )
+
+                // Multi-ring pulsing live dot
+                Box(contentAlignment = Alignment.Center) {
+                    Canvas(modifier = Modifier.size(14.dp)) {
+                        // Outer glow ring
+                        drawCircle(
+                            color = Color(0xFF34D399).copy(alpha = dotAlpha * 0.35f),
+                            radius = 6.dp.toPx()
+                        )
+                        // Mid ring
+                        drawCircle(
+                            color = Color(0xFF34D399).copy(alpha = dotAlpha * 0.6f),
+                            radius = 4.dp.toPx(),
+                            style = Stroke(width = 0.8.dp.toPx())
+                        )
+                        // Core dot
+                        drawCircle(
+                            color = Color(0xFF34D399),
+                            radius = 2.5.dp.toPx()
+                        )
+                    }
+                }
+            }
         }
     }
 }
@@ -1046,6 +1304,149 @@ private fun GoogleOfficialLogo(modifier: Modifier = Modifier) {
             drawPath(GooglePaths.greenPath, color = Color(0xFF34A853))
             drawPath(GooglePaths.yellowPath, color = Color(0xFFFBBC05))
             drawPath(GooglePaths.redPath, color = Color(0xFFEA4335))
+        }
+    }
+}
+
+/**
+ * Interactive US and IND Corridor Switching Tab with Animated Sliding Back Pill
+ */
+@Composable
+private fun CorridorSwitchTab(
+    selectedCorridor: String,
+    onCorridorSelected: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val targetIndex = if (selectedCorridor == "US") 0f else 1f
+    val animatedIndex by animateFloatAsState(
+        targetValue = targetIndex,
+        animationSpec = spring(
+            dampingRatio = 0.76f,
+            stiffness = Spring.StiffnessMediumLow
+        ),
+        label = "corridor_pill_slide"
+    )
+
+    val usTextColor by animateColorAsState(
+        targetValue = if (selectedCorridor == "US") Color.White else PayxPalette.TextTertiary,
+        label = "us_text_color"
+    )
+    val indTextColor by animateColorAsState(
+        targetValue = if (selectedCorridor == "IND") Color.White else PayxPalette.TextTertiary,
+        label = "ind_text_color"
+    )
+
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        val tabWidth = 92.dp
+        val tabHeight = 36.dp
+        val padding = 4.dp
+        val containerWidth = (tabWidth * 2) + (padding * 2)
+
+        // Segmented pill container
+        Surface(
+            shape = RoundedCornerShape(24.dp),
+            color = Color(0xFF140F24),
+            border = BorderStroke(1.dp, Color(0xFF2B2245)),
+            shadowElevation = 8.dp,
+            modifier = Modifier.width(containerWidth)
+        ) {
+            Box(
+                modifier = Modifier
+                    .padding(padding)
+                    .height(tabHeight)
+            ) {
+                // 1. Sliding Animated Background Pill
+                Box(
+                    modifier = Modifier
+                        .offset(x = tabWidth * animatedIndex)
+                        .width(tabWidth)
+                        .fillMaxHeight()
+                        .shadow(
+                            elevation = 8.dp,
+                            shape = RoundedCornerShape(20.dp),
+                            spotColor = Color(0x66AE9EF8),
+                            ambientColor = Color(0x33AE9EF8)
+                        )
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(
+                            Brush.horizontalGradient(
+                                listOf(Color(0xFF3B2968), Color(0xFF281A46))
+                            )
+                        )
+                        .border(
+                            1.dp,
+                            Brush.horizontalGradient(
+                                listOf(
+                                    Color(0xFFAE9EF8).copy(alpha = 0.75f),
+                                    Color(0xFF8B5CF6).copy(alpha = 0.45f)
+                                )
+                            ),
+                            RoundedCornerShape(20.dp)
+                        )
+                )
+
+                // 2. Clickable Tab Content Row
+                Row(
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    // US Tab
+                    Box(
+                        modifier = Modifier
+                            .width(tabWidth)
+                            .fillMaxHeight()
+                            .clip(RoundedCornerShape(20.dp))
+                            .clickable { onCorridorSelected("US") },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(7.dp)
+                        ) {
+                            UsaFlag(width = 17.dp, height = 11.dp)
+                            Text(
+                                text = "US",
+                                style = TextStyle(
+                                    fontFamily = FontFamily.SansSerif,
+                                    fontSize = 13.5.sp,
+                                    fontWeight = if (selectedCorridor == "US") FontWeight.Bold else FontWeight.Medium,
+                                    letterSpacing = 0.8.sp,
+                                    color = usTextColor
+                                )
+                            )
+                        }
+                    }
+
+                    // IND Tab
+                    Box(
+                        modifier = Modifier
+                            .width(tabWidth)
+                            .fillMaxHeight()
+                            .clip(RoundedCornerShape(20.dp))
+                            .clickable { onCorridorSelected("IND") },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(7.dp)
+                        ) {
+                            IndiaFlag(width = 17.dp, height = 11.dp)
+                            Text(
+                                text = "IND",
+                                style = TextStyle(
+                                    fontFamily = FontFamily.SansSerif,
+                                    fontSize = 13.5.sp,
+                                    fontWeight = if (selectedCorridor == "IND") FontWeight.Bold else FontWeight.Medium,
+                                    letterSpacing = 0.8.sp,
+                                    color = indTextColor
+                                )
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }
