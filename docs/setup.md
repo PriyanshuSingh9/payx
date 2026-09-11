@@ -15,7 +15,7 @@ development environment across Linux, macOS, and Windows. Follow top to bottom; 
 | Java JDK | 17 (Eclipse Temurin) | required by Gradle 8.14 and AGP 8.x; point `JAVA_HOME` to this JDK |
 | Android Studio | Narwhal (2025.1) or newer | provides SDK Manager and emulator (see section 5) |
 | Neon account | free tier works | pooled `DATABASE_URL` + direct `DIRECT_URL` |
-| Google OAuth client | Web client ID **and** Android client | Web ID verifies tokens at `/auth/google`; Android client is package `com.payx.app` + debug SHA-1 |
+| Google OAuth client | Web client ID **and** Android client | Web ID verifies tokens at `/auth/google`; Android client is package `com.payx.app` + SHA-1 of `android/keystore/debug.keystore` |
 
 ### OS Space and Virtualization Notes
 
@@ -214,9 +214,18 @@ client secret in the app or in env; this flow only uses the client ID.
 In the **PayX** Google Cloud project, create:
 
 - **Web application** client — this ID goes in `GOOGLE_CLIENT_ID`
-- **Android** client — package `com.payx.app`, SHA-1 from this machine's debug keystore:
-  - Linux / macOS: `keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android`
-  - Windows: `keytool -list -v -keystore "%USERPROFILE%\.android\debug.keystore" -alias androiddebugkey -storepass android`
+- **Android** client — package `com.payx.app`, SHA-1 of the **shared** debug
+  keystore at `android/keystore/debug.keystore` (not this machine's
+  `~/.android/debug.keystore`):
+
+```bash
+keytool -list -v -keystore android/keystore/debug.keystore \
+  -alias androiddebugkey -storepass android
+```
+
+Gradle debug builds already sign with that file. After switching to it, uninstall
+any existing `com.payx.app` install (`adb uninstall com.payx.app`) — Android will
+not update an app signed with a different cert.
 
 The emulator/device must have a Google account, Play Services, and a reachable
 backend (`./dev.sh` or `pnpm dev`).
@@ -268,6 +277,7 @@ Both launchers:
 - `PrismaConfigEnvError: Cannot resolve DIRECT_URL` — Ensure `backend/.env` exists and contains valid `DATABASE_URL` and `DIRECT_URL` strings (or export a dummy PostgreSQL connection string for generate-only runs).
 - `anchor test` version mismatch — Anchor CLI minor version must equal `anchor-lang` minor version (0.31.x). Verify with `anchor --version` and switch versions using `avm use 0.31.0` if necessary.
 - Gradle `Unsupported class file version` — Gradle is executing on an incompatible JDK version. Ensure `JAVA_HOME` points to JDK 17 (e.g. Eclipse Temurin 17) and Studio is set to JDK 17 in `Settings -> Build, Execution, Deployment -> Build Tools -> Gradle -> Gradle JDK`.
+- Google Sign-In `DEVELOPER_ERROR` / 10 / reauth failure — the PayX GCP project is missing an Android OAuth client for package `com.payx.app` with the SHA-1 of `android/keystore/debug.keystore`. After adding it, wait a few minutes, then `adb uninstall com.payx.app` and reinstall.
 - Emulator slow or failing to launch:
   - Linux: `/dev/kvm` missing or unreadable. Verify hardware virtualization is enabled in BIOS and user has access to `/dev/kvm`.
   - macOS: Ensure you use the `arm64-v8a` system image on Apple Silicon.
