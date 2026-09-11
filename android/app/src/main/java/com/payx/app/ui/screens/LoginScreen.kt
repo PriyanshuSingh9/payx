@@ -273,8 +273,8 @@ fun LoginScreen(onSignedIn: () -> Unit) {
                                 text = "Continue with Google",
                                 style = TextStyle(
                                     fontFamily = FontFamily.SansSerif,
-                                    fontSize = 15.5.sp,
-                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 16.5.sp,
+                                    fontWeight = FontWeight.Bold,
                                     letterSpacing = (-0.2).sp,
                                     color = Color.White
                                 )
