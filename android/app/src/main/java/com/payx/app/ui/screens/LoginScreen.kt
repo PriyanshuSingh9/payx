@@ -37,6 +37,7 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
@@ -91,7 +92,11 @@ private val PlusJakartaSans = FontFamily(
 )
 
 @Composable
-fun LoginScreen(onSignedIn: () -> Unit) {
+fun LoginScreen(
+    isLoading: Boolean,
+    error: String?,
+    onContinueWithGoogle: (countryCode: String) -> Unit
+) {
     var selectedCorridor by remember { mutableStateOf("US") }
 
     val ambientBackground = Brush.verticalGradient(
@@ -239,7 +244,13 @@ fun LoginScreen(onSignedIn: () -> Unit) {
                 )
 
                 Button(
-                    onClick = onSignedIn,
+                    onClick = {
+                        if (!isLoading) {
+                            val countryCode = if (selectedCorridor == "US") "US" else "IN"
+                            onContinueWithGoogle(countryCode)
+                        }
+                    },
+                    enabled = !isLoading,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(54.dp)
@@ -252,7 +263,9 @@ fun LoginScreen(onSignedIn: () -> Unit) {
                     shape = RoundedCornerShape(27.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color.Transparent,
-                        contentColor = Color.White
+                        contentColor = Color.White,
+                        disabledContainerColor = Color.Transparent,
+                        disabledContentColor = Color.White
                     ),
                     contentPadding = androidx.compose.foundation.layout.PaddingValues()
                 ) {
@@ -262,25 +275,47 @@ fun LoginScreen(onSignedIn: () -> Unit) {
                             .background(buttonGradient),
                         contentAlignment = Alignment.Center
                     ) {
-                        Row(
-                            horizontalArrangement = Arrangement.Center,
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            GoogleOfficialLogo(modifier = Modifier.size(20.dp))
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Text(
-                                text = "Continue with Google",
-                                style = TextStyle(
-                                    fontFamily = FontFamily.SansSerif,
-                                    fontSize = 16.5.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    letterSpacing = (-0.2).sp,
-                                    color = Color.White
-                                )
+                        if (isLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(22.dp),
+                                color = Color.White,
+                                strokeWidth = 2.dp
                             )
+                        } else {
+                            Row(
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                GoogleOfficialLogo(modifier = Modifier.size(20.dp))
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(
+                                    text = "Continue with Google",
+                                    style = TextStyle(
+                                        fontFamily = FontFamily.SansSerif,
+                                        fontSize = 16.5.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        letterSpacing = (-0.2).sp,
+                                        color = Color.White
+                                    )
+                                )
+                            }
                         }
                     }
+                }
+
+                if (!error.isNullOrBlank()) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(
+                        text = error,
+                        style = TextStyle(
+                            fontFamily = FontFamily.SansSerif,
+                            fontSize = 12.sp,
+                            lineHeight = 16.sp,
+                            color = Color(0xFFF87171),
+                            textAlign = TextAlign.Center
+                        )
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))

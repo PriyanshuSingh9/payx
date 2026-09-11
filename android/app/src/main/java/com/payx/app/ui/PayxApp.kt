@@ -1,5 +1,6 @@
 package com.payx.app.ui
 
+import android.app.Activity
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.LinearEasing
@@ -11,11 +12,18 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.payx.app.auth.AuthViewModel
 import com.payx.app.ui.screens.DashboardScreen
 import com.payx.app.ui.screens.LoginScreen
 import com.payx.app.ui.screens.ReceiverScreen
@@ -51,11 +59,30 @@ object Routes {
 private val smoothDecel = CubicBezierEasing(0.16f, 1f, 0.3f, 1f)
 
 @Composable
-fun PayxApp() {
+fun PayxApp(authViewModel: AuthViewModel = viewModel()) {
+    val authState by authViewModel.state.collectAsStateWithLifecycle()
+    val startDestination = remember {
+        if (authViewModel.state.value.user != null) Routes.DASHBOARD else Routes.LOGIN
+    }
     val nav = rememberNavController()
+    val activity = LocalContext.current as Activity
+
+    LaunchedEffect(authState.user) {
+        val route = nav.currentDestination?.route
+        if (authState.user != null && route == Routes.LOGIN) {
+            nav.navigate(Routes.DASHBOARD) {
+                popUpTo(Routes.LOGIN) { inclusive = true }
+            }
+        } else if (authState.user == null && route != null && route != Routes.LOGIN) {
+            nav.navigate(Routes.LOGIN) {
+                popUpTo(0) { inclusive = true }
+            }
+        }
+    }
+
     NavHost(
         navController = nav,
-        startDestination = Routes.LOGIN,
+        startDestination = startDestination,
         enterTransition = {
             fadeIn(animationSpec = tween(300, easing = LinearEasing))
         },
@@ -70,11 +97,13 @@ fun PayxApp() {
                         scaleOut(targetScale = 0.96f, animationSpec = tween(300, easing = smoothDecel))
             }
         ) {
-            LoginScreen(onSignedIn = {
-                nav.navigate(Routes.DASHBOARD) {
-                    popUpTo(Routes.LOGIN) { inclusive = true }
+            LoginScreen(
+                isLoading = authState.isLoading,
+                error = authState.error,
+                onContinueWithGoogle = { country ->
+                    authViewModel.signIn(activity, country)
                 }
-            })
+            )
         }
 
         composable(
@@ -93,6 +122,7 @@ fun PayxApp() {
             }
         ) {
             DashboardScreen(
+                user = authState.user,
                 onSend = { nav.navigate(Routes.SEND) },
                 onTrack = { id -> nav.navigate(Routes.tracker(id)) },
                 onSettings = { nav.navigate(Routes.SETTINGS) }
@@ -203,14 +233,10 @@ fun PayxApp() {
             }
         ) {
             SettingsScreen(
+                user = authState.user,
                 onBack = { nav.popBackStack() },
-                onSignedOut = {
-                    nav.navigate(Routes.LOGIN) {
-                        popUpTo(0) { inclusive = true }
-                    }
-                }
+                onSignedOut = { authViewModel.signOut() }
             )
         }
     }
 }
-

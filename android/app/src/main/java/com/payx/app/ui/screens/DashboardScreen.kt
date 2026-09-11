@@ -60,6 +60,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.payx.app.R
+import com.payx.app.data.SessionUser
 import com.payx.app.ui.components.IndiaFlag
 import com.payx.app.ui.components.UsaFlag
 import kotlinx.coroutines.delay
@@ -76,6 +77,7 @@ private val MontaguSlab = FontFamily(Font(R.font.montagu_slab))
 
 @Composable
 fun DashboardScreen(
+    user: SessionUser?,
     onSend: () -> Unit,
     onTrack: (String) -> Unit,
     onSettings: () -> Unit
@@ -99,7 +101,7 @@ fun DashboardScreen(
         ) {
             // 1. Clean Flat Header with Distinct Typographic Hierarchy
             DashboardHeader(
-                userName = "Priyanshu",
+                userName = user?.firstName ?: "there",
                 balance = "$2,450.00",
                 savedAmount = "$66.85",
                 onSettings = onSettings

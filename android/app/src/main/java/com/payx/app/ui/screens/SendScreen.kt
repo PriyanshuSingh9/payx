@@ -132,21 +132,21 @@ private val sampleRecipients = listOf(
     Recipient(
         id = "1",
         name = "Priya Sharma",
-        email = "priya.sharma@remitflow.demo",
+        email = "priya.sharma@payx.demo",
         avatarInitials = "PS",
         gradientColors = listOf(Color(0xFFE91E63), Color(0xFFF43F5E))
     ),
     Recipient(
         id = "2",
         name = "Rahul Verma",
-        email = "rahul.verma@remitflow.demo",
+        email = "rahul.verma@payx.demo",
         avatarInitials = "RV",
         gradientColors = listOf(Color(0xFF3B82F6), Color(0xFF6366F1))
     ),
     Recipient(
         id = "3",
         name = "Sarah Smith",
-        email = "sarah.smith@remitflow.demo",
+        email = "sarah.smith@payx.demo",
         avatarInitials = "SS",
         gradientColors = listOf(Color(0xFF8B5CF6), Color(0xFFA855F7))
     )

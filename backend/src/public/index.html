@@ -1,0 +1,1080 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PayX | Cross-Border USDC to INR Settlement Pipeline</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #0b0813;
+      --bg-card: #151022;
+      --bg-card-hover: #1e1732;
+      --accent-purple: #9333ea;
+      --accent-light: #c084fc;
+      --accent-cyan: #06b6d4;
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+      --border-color: #2e244d;
+      --status-success: #22c55e;
+      --status-pending: #eab308;
+      --status-failed: #ef4444;
+      --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      background: rgba(21, 16, 34, 0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border-color);
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .brand-logo {
+      font-family: var(--font-mono);
+      font-weight: 800;
+      font-size: 1.4rem;
+      letter-spacing: 2px;
+      color: #fff;
+      background: linear-gradient(135deg, #a855f7, #3b82f6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .brand-badge {
+      background: rgba(147, 51, 234, 0.2);
+      border: 1px solid rgba(147, 51, 234, 0.4);
+      color: var(--accent-light);
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .wallet-status {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+    }
+
+    .wallet-pill {
+      background: #1f1835;
+      border: 1px solid var(--border-color);
+      padding: 0.4rem 0.8rem;
+      border-radius: 9999px;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--status-success);
+      box-shadow: 0 0 8px var(--status-success);
+    }
+
+    .main-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem;
+      width: 100%;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 2rem;
+    }
+
+    .nav-tabs {
+      display: flex;
+      gap: 1rem;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 0.5rem;
+    }
+
+    .tab-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      font-weight: 600;
+      padding: 0.5rem 1rem;
+      cursor: pointer;
+      border-radius: 6px;
+      transition: all 0.2s;
+    }
+
+    .tab-btn.active {
+      color: #fff;
+      background: rgba(147, 51, 234, 0.25);
+      border: 1px solid rgba(147, 51, 234, 0.5);
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+    }
+
+    @media (max-width: 860px) {
+      .grid-2 {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    }
+
+    .card-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+
+    label {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    input, select {
+      background: #0f0c1b;
+      border: 1px solid var(--border-color);
+      color: #fff;
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.2s;
+      font-family: inherit;
+    }
+
+    input:focus, select:focus {
+      border-color: var(--accent-purple);
+      box-shadow: 0 0 0 2px rgba(147, 51, 234, 0.2);
+    }
+
+    .btn {
+      background: linear-gradient(135deg, #9333ea, #7c3aed);
+      color: #fff;
+      border: none;
+      padding: 0.85rem 1.5rem;
+      font-weight: 600;
+      font-size: 0.95rem;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+
+    .btn:hover {
+      opacity: 0.95;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(147, 51, 234, 0.4);
+    }
+
+    .btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-secondary {
+      background: #1f1835;
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+    }
+
+    .btn-secondary:hover {
+      background: #2b2149;
+    }
+
+    .btn-danger {
+      background: rgba(239, 68, 68, 0.2);
+      border: 1px solid rgba(239, 68, 68, 0.5);
+      color: #fca5a5;
+    }
+
+    .btn-danger:hover {
+      background: rgba(239, 68, 68, 0.35);
+    }
+
+    .quote-box {
+      background: rgba(147, 51, 234, 0.08);
+      border: 1px dashed rgba(147, 51, 234, 0.35);
+      border-radius: 8px;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      font-size: 0.85rem;
+    }
+
+    .quote-row {
+      display: flex;
+      justify-content: space-between;
+      color: var(--text-muted);
+    }
+
+    .quote-row.total {
+      color: #fff;
+      font-weight: 700;
+      font-size: 1rem;
+      border-top: 1px solid rgba(147, 51, 234, 0.2);
+      padding-top: 0.5rem;
+      margin-top: 0.25rem;
+    }
+
+    .timeline {
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      padding-left: 1.5rem;
+      gap: 1.25rem;
+    }
+
+    .timeline::before {
+      content: '';
+      position: absolute;
+      left: 7px;
+      top: 6px;
+      bottom: 6px;
+      width: 2px;
+      background: var(--border-color);
+    }
+
+    .timeline-item {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+    }
+
+    .timeline-node {
+      position: absolute;
+      left: -1.5rem;
+      top: 4px;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--bg-card);
+      border: 2px solid var(--border-color);
+    }
+
+    .timeline-item.completed .timeline-node {
+      background: var(--status-success);
+      border-color: var(--status-success);
+      box-shadow: 0 0 6px var(--status-success);
+    }
+
+    .timeline-item.active .timeline-node {
+      background: var(--status-pending);
+      border-color: var(--status-pending);
+      box-shadow: 0 0 6px var(--status-pending);
+    }
+
+    .timeline-item.failed .timeline-node {
+      background: var(--status-failed);
+      border-color: var(--status-failed);
+      box-shadow: 0 0 6px var(--status-failed);
+    }
+
+    .timeline-title {
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: #fff;
+    }
+
+    .timeline-desc {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 0.25rem 0.6rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      font-family: var(--font-mono);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .status-COMPLETED { background: rgba(34, 197, 94, 0.2); color: #86efac; border: 1px solid rgba(34, 197, 94, 0.4); }
+    .status-SETTLEMENT_CONFIRMED, .status-OFFRAMP_CREATED { background: rgba(6, 182, 212, 0.2); color: #67e8f9; border: 1px solid rgba(6, 182, 212, 0.4); }
+    .status-SETTLEMENT_PENDING, .status-OFFRAMP_PROCESSING, .status-FIAT_PAYOUT_PENDING, .status-AWAITING_CONFIRMATION { background: rgba(234, 179, 8, 0.2); color: #fde047; border: 1px solid rgba(234, 179, 8, 0.4); }
+    .status-PAYMENT_FAILED, .status-SETTLEMENT_FAILED, .status-OFFRAMP_FAILED, .status-PAYOUT_FAILED, .status-QUOTE_EXPIRED { background: rgba(239, 68, 68, 0.2); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.4); }
+
+    .console-controls {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 0.75rem;
+    }
+
+    .state-graph {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      background: #0f0c1b;
+      padding: 1rem;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+    }
+
+    .state-chip {
+      padding: 0.3rem 0.6rem;
+      border-radius: 4px;
+      background: #1e1732;
+      border: 1px solid #362957;
+      color: var(--text-muted);
+    }
+
+    .state-chip.active {
+      background: #7c3aed;
+      color: #fff;
+      font-weight: bold;
+      border-color: #a855f7;
+      box-shadow: 0 0 10px rgba(168, 85, 247, 0.5);
+    }
+
+    .history-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+
+    .history-table th {
+      text-align: left;
+      padding: 0.75rem;
+      border-bottom: 1px solid var(--border-color);
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .history-table td {
+      padding: 0.75rem;
+      border-bottom: 1px solid rgba(46, 36, 77, 0.5);
+    }
+
+    .mono {
+      font-family: var(--font-mono);
+    }
+
+    pre {
+      background: #09070f;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 1rem;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: #d1d5db;
+      overflow-x: auto;
+      max-height: 280px;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <span class="brand-logo">PAYX</span>
+      <span class="brand-badge">USDC to INR Pipeline</span>
+    </div>
+    <div class="wallet-status">
+      <div class="wallet-pill">
+        <span class="dot"></span>
+        <span id="senderWalletDisplay">Solana: 7xK9...92PD</span>
+      </div>
+      <div class="wallet-pill">
+        <span>Balance: </span>
+        <strong id="senderBalanceDisplay" style="color: #a855f7; margin-left: 4px;">100.00 USDC</strong>
+      </div>
+    </div>
+  </header>
+
+  <main class="main-container">
+    <div class="nav-tabs">
+      <button class="tab-btn active" id="tabAppBtn" onclick="switchTab('app')">Production Flow</button>
+      <button class="tab-btn" id="tabConsoleBtn" onclick="switchTab('console')">Judge & Dev Console</button>
+      <button class="tab-btn" id="tabHistoryBtn" onclick="switchTab('history')">Payment History</button>
+    </div>
+
+    <!-- TAB 1: PRODUCTION FLOW -->
+    <div id="tabApp" class="grid-2">
+      <!-- Send Payment Screen (PRD Section 21) -->
+      <div class="card">
+        <div class="card-title">
+          <span>Send USDC to India (INR)</span>
+          <span style="font-size: 0.8rem; color: var(--accent-cyan); font-weight: normal;">Instant Bank / UPI</span>
+        </div>
+
+        <div class="form-group">
+          <label>Source Amount (USDC)</label>
+          <input type="number" id="inputAmount" value="100.00" step="1" min="1" oninput="updateLiveQuote()">
+        </div>
+
+        <div class="form-group">
+          <label>Recipient Name</label>
+          <input type="text" id="inputRecipientName" value="Aarav Sharma">
+        </div>
+
+        <div class="form-group">
+          <label>Recipient Phone</label>
+          <input type="text" id="inputRecipientPhone" value="+919876543210">
+        </div>
+
+        <div class="form-group">
+          <label>Destination Rail</label>
+          <select id="inputRailType" onchange="toggleRailInput()">
+            <option value="upi">UPI ID (e.g. name@bank)</option>
+            <option value="bank">Bank Account + IFSC</option>
+          </select>
+        </div>
+
+        <div class="form-group" id="groupUpi">
+          <label>UPI ID</label>
+          <input type="text" id="inputUpiId" value="aarav@oksbi">
+        </div>
+
+        <div class="form-group" id="groupBank" style="display: none;">
+          <label>Account Number & IFSC</label>
+          <div style="display: flex; gap: 0.5rem;">
+            <input type="text" id="inputBankAccount" placeholder="Account Number" style="flex: 2;">
+            <input type="text" id="inputIfsc" placeholder="IFSC Code" style="flex: 1;">
+          </div>
+        </div>
+
+        <!-- Quote Box (PRD Section 7) -->
+        <div class="quote-box" id="liveQuoteBox">
+          <div class="quote-row">
+            <span>Exchange Rate</span>
+            <span class="mono">₹87.20 / USDC</span>
+          </div>
+          <div class="quote-row">
+            <span>Gross Amount</span>
+            <span class="mono" id="liveGross">₹8,720.00</span>
+          </div>
+          <div class="quote-row">
+            <span>Off-Ramp Fee (0.50%)</span>
+            <span class="mono" id="liveFee">₹43.60</span>
+          </div>
+          <div class="quote-row">
+            <span>Estimated Network Fee</span>
+            <span class="mono">0.01 USDC</span>
+          </div>
+          <div class="quote-row total">
+            <span>Recipient Receives</span>
+            <span class="mono" id="liveNet" style="color: #a855f7;">₹8,676.40</span>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 0.75rem;">
+          <button class="btn" style="flex: 1;" id="btnInitiate" onclick="initiatePayment()">
+            <span>Review & Initiate Payment</span>
+          </button>
+          <button class="btn btn-secondary" onclick="executeFullDemo()" title="Run entire 10-step pipeline in 1 click">
+            <span>Run Full Demo</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Tracking & Status Screen (PRD Section 22) -->
+      <div class="card" id="trackerCard">
+        <div class="card-title">
+          <span id="trackerPaymentId">Payment Tracker</span>
+          <span id="trackerStatusBadge" class="status-badge status-CREATED">AWAITING PAYMENT</span>
+        </div>
+
+        <div id="trackerSummary" style="display: flex; justify-content: space-between; background: #0f0c1b; padding: 0.75rem 1rem; border-radius: 8px; border: 1px solid var(--border-color); font-size: 0.85rem;">
+          <div>
+            <div style="color: var(--text-muted); font-size: 0.75rem;">SENDING</div>
+            <strong id="summarySource">100.00 USDC</strong>
+          </div>
+          <div style="text-align: right;">
+            <div style="color: var(--text-muted); font-size: 0.75rem;">RECEIVING</div>
+            <strong id="summaryDest" style="color: #a855f7;">₹8,676.40 INR</strong>
+          </div>
+        </div>
+
+        <!-- Payment Detail Tree (PRD Section 4) -->
+        <div id="trackerTreeDetails" style="background: #0f0c1b; border: 1px solid var(--border-color); border-radius: 8px; padding: 0.9rem; display: flex; flex-direction: column; gap: 0.4rem; font-size: 0.8rem;">
+          <div class="quote-row"><span>Sender:</span> <span class="mono" id="treeSender" style="color: #c084fc;">7xK99...92PD</span></div>
+          <div class="quote-row"><span>Recipient:</span> <span id="treeRecipient">Aarav Sharma</span></div>
+          <div class="quote-row"><span>Destination Rail:</span> <span class="mono" id="treeRail">UPI: aarav@oksbi</span></div>
+          <div class="quote-row"><span>Exchange Rate:</span> <span class="mono" id="treeRate">₹87.20 / USDC</span></div>
+          <div class="quote-row"><span>Fees Breakdown:</span> <span class="mono" id="treeFees">Off-Ramp: ₹43.60 | Network: 0.01 USDC</span></div>
+          <div class="quote-row"><span>Solana Transaction:</span> <span class="mono" id="treeSolana">Pending</span></div>
+          <div class="quote-row"><span>Off-Ramp Order:</span> <span class="mono" id="treeOfframp">Pending</span></div>
+        </div>
+
+        <div id="actionBanner" style="display: none; background: rgba(147, 51, 234, 0.15); border: 1px solid rgba(147, 51, 234, 0.4); padding: 0.75rem 1rem; border-radius: 8px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span id="actionBannerText" style="font-size: 0.85rem;">Confirm to lock rate before quote expires.</span>
+            <button class="btn" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;" id="actionBannerBtn" onclick="confirmActivePayment()">Confirm</button>
+          </div>
+        </div>
+
+        <div class="timeline" id="trackerTimeline">
+          <div class="timeline-item">
+            <div class="timeline-node"></div>
+            <div class="timeline-title">Payment Pipeline Ready</div>
+            <div class="timeline-desc">Initiate a transfer to track real-time blockchain settlement and fiat payout.</div>
+          </div>
+        </div>
+
+        <div id="receiptBox" style="display: none; background: #0f0c1b; border: 1px solid var(--border-color); border-radius: 8px; padding: 1rem; font-size: 0.8rem;">
+          <div style="font-weight: bold; color: var(--status-success); margin-bottom: 0.5rem;">PAYMENT COMPLETED SUCCESSFULLY</div>
+          <div class="quote-row"><span>Solana Signature:</span> <a id="solanaExplorerLink" href="#" target="_blank" class="mono" style="color: var(--accent-cyan);">view</a></div>
+          <div class="quote-row"><span>Bank Reference (UTR):</span> <span id="bankReferenceDisplay" class="mono">UTR-</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: JUDGE & DEV CONSOLE (PRD Section 23 & 25) -->
+    <div id="tabConsole" style="display: none; flex-direction: column; gap: 1.5rem;">
+      <div class="card">
+        <div class="card-title">
+          <span>PAYX DEV CONSOLE — Step-by-Step Simulation (PRD Section 23)</span>
+          <span class="mono" id="consolePaymentId" style="font-size: 0.85rem; color: var(--accent-light);">No active payment</span>
+        </div>
+
+        <p style="font-size: 0.85rem; color: var(--text-muted);">
+          Drive the state machine manually step-by-step or inject failure scenarios for testing.
+        </p>
+
+        <!-- State Machine Visualizer (PRD Section 14) -->
+        <div class="state-graph" id="stateGraph">
+          <div class="state-chip" id="chip-CREATED">1. CREATED</div>
+          <div class="state-chip" id="chip-QUOTE_PENDING">2. QUOTE_PENDING</div>
+          <div class="state-chip" id="chip-AWAITING_CONFIRMATION">3. AWAITING_CONFIRMATION</div>
+          <div class="state-chip" id="chip-SETTLEMENT_PENDING">4. SETTLEMENT_PENDING</div>
+          <div class="state-chip" id="chip-SETTLEMENT_SUBMITTED">5. SETTLEMENT_SUBMITTED</div>
+          <div class="state-chip" id="chip-SETTLEMENT_CONFIRMED">6. SETTLEMENT_CONFIRMED</div>
+          <div class="state-chip" id="chip-OFFRAMP_CREATED">7. OFFRAMP_CREATED</div>
+          <div class="state-chip" id="chip-OFFRAMP_PROCESSING">8. OFFRAMP_PROCESSING</div>
+          <div class="state-chip" id="chip-FIAT_PAYOUT_PENDING">9. FIAT_PAYOUT_PENDING</div>
+          <div class="state-chip" id="chip-COMPLETED">10. COMPLETED</div>
+        </div>
+
+        <div style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Step Drivers (PRD Section 23)</div>
+        <div class="console-controls">
+          <button class="btn btn-secondary" onclick="simulateConsoleStep('create')">1. Create Payment</button>
+          <button class="btn btn-secondary" onclick="simulateConsoleStep('simulate_usdc_received')">2. Simulate USDC Received</button>
+          <button class="btn btn-secondary" onclick="simulateConsoleStep('confirm_solana')">3. Confirm Solana</button>
+          <button class="btn btn-secondary" onclick="simulateConsoleStep('create_offramp')">4. Create Off-Ramp</button>
+          <button class="btn btn-secondary" onclick="simulateConsoleStep('payout_processing')">5. Simulate Payout Proc.</button>
+          <button class="btn btn-secondary" onclick="simulateConsoleStep('payout_success')">6. Simulate Payout Success</button>
+          <button class="btn btn-secondary" onclick="simulateConsoleStep('reconcile')" style="border-color: #06b6d4; color: #67e8f9;">Reconcile Status</button>
+        </div>
+
+        <div style="font-size: 0.8rem; font-weight: 700; color: var(--status-failed); text-transform: uppercase; margin-top: 0.5rem;">Failure Injection Testing (PRD Section 25)</div>
+        <div class="console-controls">
+          <button class="btn btn-danger" onclick="injectConsoleFailure('insufficient_funds')">Test: Insufficient USDC</button>
+          <button class="btn btn-danger" onclick="injectConsoleFailure('quote_expired')">Test: Quote Expiry</button>
+          <button class="btn btn-danger" onclick="injectConsoleFailure('solana_failed')">Test: Solana Rejection</button>
+          <button class="btn btn-danger" onclick="injectConsoleFailure('offramp_failed')">Test: Off-Ramp Rejection</button>
+          <button class="btn btn-danger" onclick="injectConsoleFailure('payout_failed')">Test: Payout Failed</button>
+          <button class="btn btn-secondary" onclick="testWebhookDelayReconcile()">Test: Webhook Delay & Reconcile</button>
+          <button class="btn btn-secondary" onclick="testDuplicateWebhook()">Test: Duplicate Webhook</button>
+        </div>
+
+        <div style="margin-top: 1rem;">
+          <div style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.4rem;">Live State JSON</div>
+          <pre id="consoleJson">// Payment state JSON will appear here</pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3: PAYMENT HISTORY -->
+    <div id="tabHistory" style="display: none;" class="card">
+      <div class="card-title">
+        <span>Payment Transaction History (PRD Section 4)</span>
+        <button class="btn btn-secondary" style="padding: 0.3rem 0.8rem; font-size: 0.8rem;" onclick="loadHistory()">Refresh</button>
+      </div>
+
+      <div style="overflow-x: auto;">
+        <table class="history-table">
+          <thead>
+            <tr>
+              <th>Payment ID</th>
+              <th>Status</th>
+              <th>USDC Sent</th>
+              <th>INR Delivered</th>
+              <th>Recipient</th>
+              <th>Created At</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="historyTableBody">
+            <tr><td colspan="7" style="text-align: center; color: var(--text-muted);">Loading transactions...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    let activePaymentId = null;
+    let activePayment = null;
+    let pollInterval = null;
+
+    function switchTab(tab) {
+      document.getElementById('tabApp').style.display = tab === 'app' ? 'grid' : 'none';
+      document.getElementById('tabConsole').style.display = tab === 'console' ? 'flex' : 'none';
+      document.getElementById('tabHistory').style.display = tab === 'history' ? 'flex' : 'none';
+
+      document.getElementById('tabAppBtn').classList.toggle('active', tab === 'app');
+      document.getElementById('tabConsoleBtn').classList.toggle('active', tab === 'console');
+      document.getElementById('tabHistoryBtn').classList.toggle('active', tab === 'history');
+
+      if (tab === 'history') loadHistory();
+    }
+
+    function toggleRailInput() {
+      const type = document.getElementById('inputRailType').value;
+      document.getElementById('groupUpi').style.display = type === 'upi' ? 'flex' : 'none';
+      document.getElementById('groupBank').style.display = type === 'bank' ? 'flex' : 'none';
+    }
+
+    function updateLiveQuote() {
+      const amount = parseFloat(document.getElementById('inputAmount').value) || 0;
+      const rate = 87.20;
+      const gross = amount * rate;
+      const fee = gross * 0.005;
+      const net = gross - fee;
+
+      document.getElementById('liveGross').innerText = '₹' + gross.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      document.getElementById('liveFee').innerText = '₹' + fee.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      document.getElementById('liveNet').innerText = '₹' + net.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    const CANONICAL_DEMO_WALLET = '7xK999999999999999999999999999999999999992PD';
+
+    async function initiatePayment() {
+      const amount = parseFloat(document.getElementById('inputAmount').value);
+      const name = document.getElementById('inputRecipientName').value;
+      const phone = document.getElementById('inputRecipientPhone').value;
+      const railType = document.getElementById('inputRailType').value;
+
+      const recipient = { name, phone };
+      if (railType === 'upi') {
+        recipient.upiId = document.getElementById('inputUpiId').value;
+      } else {
+        recipient.bankAccount = document.getElementById('inputBankAccount').value;
+        recipient.ifsc = document.getElementById('inputIfsc').value;
+      }
+
+      const res = await fetch('/api/v1/payments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          senderWallet: CANONICAL_DEMO_WALLET,
+          sourceAmount: amount,
+          recipient,
+          mode: 'full_simulation'
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        alert('Error initiating payment: ' + (data.error || 'Unknown error'));
+        return;
+      }
+
+      renderPayment(data.payment);
+      startPolling(data.payment.id);
+    }
+
+    async function confirmActivePayment() {
+      if (!activePaymentId) return;
+      const res = await fetch(`/api/v1/payments/${activePaymentId}/confirm`, { method: 'POST' });
+      const data = await res.json();
+      renderPayment(data.payment);
+
+      if (data.payment.status !== 'SETTLEMENT_PENDING') {
+        // Quote expired or confirmation prevented
+        return;
+      }
+
+      // Auto-advance through Solana settlement and Off-Ramp
+      setTimeout(async () => {
+        const settleRes = await fetch(`/api/v1/payments/${activePaymentId}/settle`, { method: 'POST' });
+        const settleData = await settleRes.json();
+        renderPayment(settleData.payment);
+
+        setTimeout(async () => {
+          const offrampRes = await fetch(`/api/v1/payments/${activePaymentId}/offramp`, { method: 'POST' });
+          const offrampData = await offrampRes.json();
+          renderPayment(offrampData.payment);
+
+          // Simulate provider webhook status updates
+          setTimeout(async () => {
+            await fetch(`/api/v1/payments/${activePaymentId}/simulate-step`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ step: 'payout_processing' })
+            });
+            const pRes = await fetch(`/api/v1/payments/${activePaymentId}`);
+            const pData = await pRes.json();
+            renderPayment(pData.payment);
+
+            setTimeout(async () => {
+              await fetch(`/api/v1/payments/${activePaymentId}/simulate-step`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ step: 'payout_success' })
+              });
+              const doneRes = await fetch(`/api/v1/payments/${activePaymentId}`);
+              const doneData = await doneRes.json();
+              renderPayment(doneData.payment);
+            }, 2000);
+          }, 1800);
+        }, 1500);
+      }, 1500);
+    }
+
+    async function refreshActiveQuote() {
+      if (!activePaymentId) return;
+      const res = await fetch(`/api/v1/payments/${activePaymentId}/quote`, { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) {
+        alert('Error refreshing quote: ' + (data.error || 'Unknown error'));
+        return;
+      }
+      renderPayment(data.payment);
+    }
+
+    async function executeFullDemo() {
+      const btn = document.getElementById('btnInitiate');
+      btn.disabled = true;
+      try {
+        const res = await fetch('/api/v1/payments/execute', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            senderWallet: CANONICAL_DEMO_WALLET,
+            sourceAmount: 100,
+            recipient: {
+              name: 'Aarav Sharma',
+              phone: '+919876543210',
+              upiId: 'aarav@oksbi'
+            },
+            mode: 'full_simulation'
+          })
+        });
+        const data = await res.json();
+        renderPayment(data.payment);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    function renderPayment(p) {
+      activePaymentId = p.id;
+      activePayment = p;
+
+      document.getElementById('trackerPaymentId').innerText = `Payment #${p.id}`;
+      const badge = document.getElementById('trackerStatusBadge');
+      badge.innerText = p.status;
+      badge.className = `status-badge status-${p.status}`;
+
+      document.getElementById('summarySource').innerText = `${p.sourceAmount.toFixed(2)} USDC`;
+      document.getElementById('summaryDest').innerText = `₹${(p.destinationAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })} INR`;
+
+      // Populate PRD Section 4 Tree details
+      const treeSender = document.getElementById('treeSender');
+      if (treeSender) treeSender.innerText = p.senderWallet || CANONICAL_DEMO_WALLET;
+
+      const treeRecipient = document.getElementById('treeRecipient');
+      if (treeRecipient) treeRecipient.innerText = `${p.recipient?.name || 'Aarav Sharma'} (${p.recipient?.phone || ''})`;
+
+      const treeRail = document.getElementById('treeRail');
+      if (treeRail) {
+        treeRail.innerText = p.recipient?.upiId
+          ? `UPI: ${p.recipient.upiId}`
+          : `Bank: ${p.recipient?.bankAccount || ''} (IFSC: ${p.recipient?.ifsc || ''})`;
+      }
+
+      const treeRate = document.getElementById('treeRate');
+      if (treeRate) treeRate.innerText = `₹${(p.exchangeRate || 87.20).toFixed(2)} / USDC`;
+
+      const treeFees = document.getElementById('treeFees');
+      if (treeFees) {
+        const offFee = p.fees?.offRampFee !== undefined ? p.fees.offRampFee : 43.60;
+        const netFee = p.fees?.networkFee !== undefined ? p.fees.networkFee : 0.01;
+        treeFees.innerText = `Off-Ramp: ₹${offFee.toFixed(2)} | Network: ${netFee} USDC`;
+      }
+
+      const treeSolana = document.getElementById('treeSolana');
+      if (treeSolana) {
+        if (p.blockchainTransaction?.transactionSignature) {
+          treeSolana.innerText = `${p.blockchainTransaction.transactionSignature.substring(0, 14)}... (${p.blockchainTransaction.confirmationStatus})`;
+        } else {
+          treeSolana.innerText = 'Pending';
+        }
+      }
+
+      const treeOfframp = document.getElementById('treeOfframp');
+      if (treeOfframp) {
+        if (p.offRampOrder?.providerOrderId) {
+          treeOfframp.innerText = `${p.offRampOrder.provider.toUpperCase()} #${p.offRampOrder.providerOrderId} (${p.offRampOrder.status})`;
+        } else {
+          treeOfframp.innerText = 'Pending';
+        }
+      }
+
+      const banner = document.getElementById('actionBanner');
+      const bannerText = document.getElementById('actionBannerText');
+      const bannerBtn = document.getElementById('actionBannerBtn');
+      if (p.status === 'AWAITING_CONFIRMATION') {
+        banner.style.display = 'block';
+        bannerText.innerText = `Rate locked at ₹${p.exchangeRate}. Expires in 30s. Click Confirm to settle.`;
+        bannerBtn.innerText = 'Confirm';
+        bannerBtn.onclick = confirmActivePayment;
+      } else if (p.status === 'QUOTE_EXPIRED') {
+        banner.style.display = 'block';
+        bannerText.innerText = 'Off-ramp quote expired before confirmation. Request a fresh quote.';
+        bannerBtn.innerText = 'Refresh Quote';
+        bannerBtn.onclick = refreshActiveQuote;
+      } else {
+        banner.style.display = 'none';
+      }
+
+      // Render timeline
+      const timelineContainer = document.getElementById('trackerTimeline');
+      timelineContainer.innerHTML = '';
+      (p.timeline || []).forEach(evt => {
+        const item = document.createElement('div');
+        let stateClass = 'completed';
+        if (evt.status === p.status) stateClass = (p.status.includes('FAILED') || p.status.includes('EXPIRED')) ? 'failed' : 'active';
+        item.className = `timeline-item ${stateClass}`;
+        item.innerHTML = `
+          <div class="timeline-node"></div>
+          <div class="timeline-title">${evt.title}</div>
+          <div class="timeline-desc">${evt.description}</div>
+        `;
+        timelineContainer.appendChild(item);
+      });
+
+      // Receipt box
+      const receiptBox = document.getElementById('receiptBox');
+      if (p.status === 'COMPLETED') {
+        receiptBox.style.display = 'block';
+        const explorerLink = document.getElementById('solanaExplorerLink');
+        if (p.blockchainTransaction?.transactionSignature) {
+          explorerLink.href = p.blockchainTransaction.explorerUrl || `https://explorer.solana.com/tx/${p.blockchainTransaction.transactionSignature}?cluster=devnet`;
+          explorerLink.innerText = p.blockchainTransaction.transactionSignature.substring(0, 18) + '...';
+        }
+        document.getElementById('bankReferenceDisplay').innerText = p.offRampOrder?.payoutReference || 'UTR88291038';
+      } else {
+        receiptBox.style.display = 'none';
+      }
+
+      // Sync Dev Console
+      document.getElementById('consolePaymentId').innerText = `Payment: ${p.id}`;
+      document.getElementById('consoleJson').innerText = JSON.stringify(p, null, 2);
+
+      // Highlight active node in state graph
+      const chips = document.querySelectorAll('.state-chip');
+      chips.forEach(c => c.classList.remove('active'));
+      const activeChip = document.getElementById(`chip-${p.status}`);
+      if (activeChip) activeChip.classList.add('active');
+    }
+
+    async function simulateConsoleStep(step) {
+      if (step === 'create') {
+        await initiatePayment();
+        return;
+      }
+      if (!activePaymentId) {
+        alert('Please create or select a payment first.');
+        return;
+      }
+      const res = await fetch(`/api/v1/payments/${activePaymentId}/simulate-step`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ step })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert('Error: ' + (data.error || 'Step failed'));
+        return;
+      }
+      renderPayment(data.payment);
+    }
+
+    async function injectConsoleFailure(failureType) {
+      if (failureType === 'insufficient_funds') {
+        const res = await fetch('/api/v1/payments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            senderWallet: CANONICAL_DEMO_WALLET,
+            sourceAmount: 100,
+            senderUsdcBalance: 20, // Insufficient!
+            recipient: { name: 'Aarav Sharma', phone: '+919876543210', upiId: 'aarav@oksbi' }
+          })
+        });
+        const data = await res.json();
+        renderPayment(data.payment);
+        return;
+      }
+
+      if (!activePaymentId) {
+        alert('Please create a payment first before injecting failure.');
+        return;
+      }
+      const res = await fetch(`/api/v1/payments/${activePaymentId}/fail`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ failureType })
+      });
+      const data = await res.json();
+      renderPayment(data.payment);
+    }
+
+    async function testWebhookDelayReconcile() {
+      if (!activePaymentId) {
+        alert('Please create and advance a payment first.');
+        return;
+      }
+      const res = await fetch(`/api/v1/payments/${activePaymentId}/reconcile`, {
+        method: 'POST'
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert('Error reconciling: ' + (data.error || 'Failed'));
+        return;
+      }
+      renderPayment(data.payment);
+      alert('Reconciliation Result: Reconciled = ' + data.reconciled + ' | Status = ' + data.payment.status);
+    }
+
+    async function testDuplicateWebhook() {
+      const eventId = 'EVT-TEST-DUP-001';
+      const orderId = activePayment?.offRampOrder?.providerOrderId || 'ONM-MOCK-TEST';
+      // First submission
+      await fetch('/webhooks/onmeta', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ eventId, orderId, status: 'payoutSuccess' })
+      });
+      // Second submission (duplicate)
+      const dupRes = await fetch('/webhooks/onmeta', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ eventId, orderId, status: 'payoutSuccess' })
+      });
+      const dupData = await dupRes.json();
+      alert('Duplicate Webhook Result: ' + JSON.stringify(dupData));
+    }
+
+    async function loadHistory() {
+      const res = await fetch('/api/v1/payments');
+      const data = await res.json();
+      const tbody = document.getElementById('historyTableBody');
+      tbody.innerHTML = '';
+      if (!data.payments || data.payments.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--text-muted);">No payments recorded yet.</td></tr>';
+        return;
+      }
+      data.payments.forEach(p => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="mono" style="color: var(--accent-light); cursor: pointer;" onclick="fetchAndRender('${p.id}')">${p.id}</td>
+          <td><span class="status-badge status-${p.status}">${p.status}</span></td>
+          <td class="mono">${p.sourceAmount} USDC</td>
+          <td class="mono">₹${(p.destinationAmount || 0).toLocaleString('en-IN')}</td>
+          <td>${p.recipient?.name || 'N/A'}</td>
+          <td style="color: var(--text-muted); font-size: 0.75rem;">${new Date(p.createdAt).toLocaleTimeString()}</td>
+          <td><button class="btn btn-secondary" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;" onclick="fetchAndRender('${p.id}')">View</button></td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    async function fetchAndRender(id) {
+      const res = await fetch(`/api/v1/payments/${id}`);
+      const data = await res.json();
+      renderPayment(data.payment);
+      switchTab('app');
+    }
+
+    function startPolling(id) {
+      if (pollInterval) clearInterval(pollInterval);
+      pollInterval = setInterval(async () => {
+        if (!activePaymentId) return;
+        const res = await fetch(`/api/v1/payments/${activePaymentId}`);
+        if (res.ok) {
+          const data = await res.json();
+          renderPayment(data.payment);
+          if (data.payment.status === 'COMPLETED' || data.payment.status.includes('FAILED')) {
+            clearInterval(pollInterval);
+          }
+        }
+      }, 2000);
+    }
+
+    updateLiveQuote();
+  </script>
+</body>
+</html>

@@ -24,10 +24,7 @@ export const env = {
   enableDemoBootstrap: (read("ENABLE_DEMO_BOOTSTRAP") ?? "true").toLowerCase() !== "false",
   enableBlockchain: (read("ENABLE_BLOCKCHAIN") ?? "true").toLowerCase() !== "false",
   enableDemoAdmin: (read("ENABLE_DEMO_ADMIN") ?? "false").toLowerCase() === "true",
-  googleClientId: requireInProduction(
-    "GOOGLE_CLIENT_ID",
-    "612184936512-j4tl40a3lmd793k0cirue0t2lca8660k.apps.googleusercontent.com"
-  ),
+  googleClientId: requireInProduction("GOOGLE_CLIENT_ID"),
   jwtSecret: requireInProduction("JWT_SECRET", "super_secret_dev_key_for_payx"),
   corsOrigin: requireInProduction("CORS_ORIGIN", "*"),
 
