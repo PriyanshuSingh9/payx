@@ -1,0 +1,16 @@
+{
+  "name": "payx",
+  "private": true,
+  "version": "0.1.0",
+  "description": "PayX universal cross-currency payment platform on Solana",
+  "packageManager": "pnpm@10.0.0",
+  "scripts": {
+    "setup": "pnpm --dir backend install",
+    "dev": "pnpm --dir backend dev",
+    "build": "pnpm --dir backend build",
+    "typecheck": "pnpm --dir backend typecheck",
+    "test": "pnpm --dir backend test",
+    "db:generate": "pnpm --dir backend db:generate",
+    "db:migrate": "pnpm --dir backend db:migrate"
+  }
+}

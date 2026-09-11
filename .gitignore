@@ -1,0 +1,54 @@
+# =========================
+# NODE / PNPM
+# =========================
+node_modules/
+dist/
+backend/prisma/generated/
+*.tsbuildinfo
+pnpm-lock.yaml
+.pnpm-store/
+
+# =========================
+# ENV / SECRETS
+# =========================
+.env
+.env.*
+*.pem
+*.key
+*.mnemonic
+wallet.json
+client_secret_*.json
+target/deploy/*-keypair.json
+
+# =========================
+# RUST / ANCHOR
+# =========================
+target/
+programs/payx_escrow/.anchor/
+programs/payx_escrow/test-ledger/
+.anchor/
+.DS_Store
+
+# =========================
+# ANDROID / KOTLIN
+# =========================
+build/
+.gradle/
+local.properties
+*.apk
+*.aab
+android/*/.gradle/
+
+# =========================
+# GENERAL IDE
+# =========================
+.idea/
+.vscode/
+*.iml
+.DS_Store
+*.swp
+
+# =========================
+# LOGS
+# =========================
+*.log

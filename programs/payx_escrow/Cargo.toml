@@ -1,0 +1,17 @@
+[package]
+name = "payx_escrow"
+version = "0.1.0"
+description = "PayX escrow program: trustless SPL USDC custody for cross-currency payouts"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "payx_escrow"
+
+[features]
+no-entrypoint = []
+cpi = ["no-entrypoint"]
+
+[dependencies]
+anchor-lang = "0.31.0"
+anchor-spl = "0.31.0"
