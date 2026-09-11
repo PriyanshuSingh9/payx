@@ -11,13 +11,14 @@ object PayxPalette {
     val DarkSurfaceElevated = Color(0xFF221E30)
     val BorderSubtle = Color(0xFF2E283F)
 
-    val VividPurple = Color(0xFFA855F7)
-    val NeonViolet = Color(0xFFB866FC)
-    val SoftLavender = Color(0xFFD8B4FE)
-    val LightLavender = Color(0xFFEDE4F9)
+    // Primary brand: #AE9EF8 and tonal range
+    val VividPurple = Color(0xFFAE9EF8)
+    val NeonViolet = Color(0xFFC4BAF9)
+    val SoftLavender = Color(0xFFD8D0FB)
+    val LightLavender = Color(0xFFEDE9FD)
 
-    val CardGradientStart = Color(0xFFB55CF8)
-    val CardGradientEnd = Color(0xFF7E2AE8)
+    val CardGradientStart = Color(0xFFAE9EF8)
+    val CardGradientEnd = Color(0xFF8478D6)
 
     val CoralAccent = Color(0xFFFF5B79)
     val CyberGreen = Color(0xFF00E676)
