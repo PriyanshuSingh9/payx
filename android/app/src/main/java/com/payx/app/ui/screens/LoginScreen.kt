@@ -67,11 +67,13 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.core.graphics.PathParser
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.payx.app.R
 import com.payx.app.ui.components.IndiaFlag
 import com.payx.app.ui.components.UsaFlag
 import com.payx.app.ui.theme.PayxPalette
@@ -79,6 +81,14 @@ import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.sin
+
+private val MontaguSlab = FontFamily(
+    Font(R.font.montagu_slab)
+)
+
+private val PlusJakartaSans = FontFamily(
+    Font(R.font.plus_jakarta_sans)
+)
 
 @Composable
 fun LoginScreen(onSignedIn: () -> Unit) {
@@ -178,7 +188,7 @@ fun LoginScreen(onSignedIn: () -> Unit) {
                 Text(
                     text = "Global Wealth,\nSeamlessly Curated.",
                     style = TextStyle(
-                        fontFamily = FontFamily.Serif,
+                        fontFamily = MontaguSlab,
                         fontWeight = FontWeight.Normal,
                         fontSize = 34.sp,
                         lineHeight = 40.sp,
@@ -199,7 +209,7 @@ fun LoginScreen(onSignedIn: () -> Unit) {
                 Text(
                     text = "Instant non-custodial remittance protocol powered by on-chain custody and automated fiat settlement.",
                     style = TextStyle(
-                        fontFamily = FontFamily.SansSerif,
+                        fontFamily = PlusJakartaSans,
                         fontWeight = FontWeight.Normal,
                         fontSize = 13.sp,
                         lineHeight = 19.sp,
@@ -787,63 +797,31 @@ private fun ReactiveCorridorCapsule(
 }
 
 /**
- * 2. High-Voltage Crackling Lightning Prism — authentic, iconic electric lightning bolt
+ * 2. Minted Golden Lightning Coin — identical styling and background gradient to the 3D currency coin
  */
 @Composable
 private fun HighVoltageLightningPrism(phase: Float, glow: Float) {
-    val flicker = 0.85f + 0.15f * glow
-
     Box(
         modifier = Modifier
-            .size(50.dp)
-            .shadow(
-                elevation = (8f + 8f * glow).dp,
-                shape = RoundedCornerShape(16.dp),
-                spotColor = Color(0xFFFDE047).copy(alpha = 0.60f * glow),
-                ambientColor = Color(0xFFF59E0B).copy(alpha = 0.30f * glow)
-            )
-            .clip(RoundedCornerShape(16.dp))
+            .size(46.dp)
+            .clip(CircleShape)
             .background(
-                Brush.radialGradient(
-                    colorStops = arrayOf(
-                        0.0f to Color(0xFF261908),
-                        0.6f to Color(0xFF140C04),
-                        1.0f to Color(0xFF090602)
+                Brush.linearGradient(
+                    listOf(
+                        Color(0xFFFDE047),
+                        Color(0xFFF59E0B),
+                        Color(0xFFB45309)
                     )
                 )
             )
-            .border(
-                1.5.dp,
-                Brush.linearGradient(
-                    listOf(
-                        Color(0xFFFDE047).copy(alpha = 0.40f + 0.60f * glow),
-                        Color(0xFFF59E0B).copy(alpha = 0.50f),
-                        Color(0xFFFDE047).copy(alpha = 0.30f + 0.70f * glow)
-                    )
-                ),
-                RoundedCornerShape(16.dp)
-            ),
+            .border(1.5.dp, Color(0xFFFEF3C7), CircleShape)
+            .shadow(12.dp, CircleShape, spotColor = Color(0x99F59E0B)),
         contentAlignment = Alignment.Center
     ) {
-        Canvas(modifier = Modifier.size(30.dp)) {
+        Canvas(modifier = Modifier.size(24.dp)) {
             val w = size.width
             val h = size.height
 
-            // 1. Warm radial electric glow behind the bolt
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colorStops = arrayOf(
-                        0.0f to Color(0xFFFDE047).copy(alpha = 0.45f * glow),
-                        0.45f to Color(0xFFF59E0B).copy(alpha = 0.18f * glow),
-                        1.0f to Color.Transparent
-                    ),
-                    center = Offset(w * 0.50f, h * 0.50f)
-                ),
-                radius = w * 0.75f,
-                center = Offset(w * 0.50f, h * 0.50f)
-            )
-
-            // 2. Iconic Sharp Lightning Bolt Silhouette
             // Classic 6-point electric bolt geometry
             val boltPath = Path().apply {
                 moveTo(w * 0.62f, h * 0.06f) // Top sharp apex
@@ -855,51 +833,42 @@ private fun HighVoltageLightningPrism(phase: Float, glow: Float) {
                 close()
             }
 
-            // 3. Electric gradient fill — hot white at top to electric yellow to golden amber
+            // Minted bolt stamped in the same dark amber-brown as the $ / ₹ symbol
             drawPath(
                 path = boltPath,
-                brush = Brush.verticalGradient(
-                    colorStops = arrayOf(
-                        0.0f to Color.White.copy(alpha = flicker),
-                        0.28f to Color(0xFFFEF08A).copy(alpha = flicker),
-                        0.68f to Color(0xFFFACC15).copy(alpha = flicker),
-                        1.0f to Color(0xFFF59E0B).copy(alpha = flicker * 0.90f)
-                    ),
-                    startY = 0f,
-                    endY = h
-                )
+                color = Color(0xFF451A03)
             )
 
-            // 4. Razor-sharp white outer stroke
-            drawPath(
-                path = boltPath,
-                color = Color.White.copy(alpha = 0.90f * flicker),
-                style = Stroke(width = 1.4.dp.toPx(), cap = StrokeCap.Round)
-            )
-
-            // 5. White-hot center spine highlight
-            val spinePath = Path().apply {
-                moveTo(w * 0.60f, h * 0.12f)
-                lineTo(w * 0.50f, h * 0.49f)
-                lineTo(w * 0.41f, h * 0.86f)
+            // Embossed edge highlight
+            val highlightPath = Path().apply {
+                moveTo(w * 0.62f, h * 0.10f)
+                lineTo(w * 0.29f, h * 0.51f)
+                lineTo(w * 0.46f, h * 0.51f)
+                lineTo(w * 0.39f, h * 0.90f)
             }
             drawPath(
-                path = spinePath,
-                color = Color.White,
-                style = Stroke(width = 1.5.dp.toPx(), cap = StrokeCap.Round)
+                path = highlightPath,
+                color = Color(0xFFFFE082).copy(alpha = 0.50f),
+                style = Stroke(width = 0.9.dp.toPx(), cap = StrokeCap.Round)
             )
+        }
 
-            // 6. Tiny electric discharge spark at bottom needle tip
-            val sparkPoint = Offset(w * 0.38f, h * 0.94f)
-            drawCircle(
-                color = Color.White,
-                radius = 1.6.dp.toPx(),
-                center = sparkPoint
+        // Specular shine band that sweeps across the coin surface
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val shineX = size.width * (glow * 0.5f + 0.5f)
+            val shineWidth = size.width * 0.35f
+            val shineBrush = Brush.linearGradient(
+                colors = listOf(
+                    Color.Transparent,
+                    Color.White.copy(alpha = 0.35f),
+                    Color.Transparent
+                ),
+                start = Offset(shineX - shineWidth, 0f),
+                end = Offset(shineX + shineWidth, size.height)
             )
             drawCircle(
-                color = Color(0xFFFDE047).copy(alpha = 0.7f * glow),
-                radius = 3.5.dp.toPx(),
-                center = sparkPoint
+                brush = shineBrush,
+                radius = size.minDimension / 2f
             )
         }
     }
