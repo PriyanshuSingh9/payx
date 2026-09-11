@@ -98,6 +98,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -1023,6 +1024,26 @@ private fun SwipeToConfirmButton(
         label = "shimmerTranslate"
     )
 
+    val arrowWavePhase by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 3f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1400, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "arrowWavePhase"
+    )
+
+    val thumbIdleNudge by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 3f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 850, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "thumbIdleNudge"
+    )
+
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -1203,16 +1224,66 @@ private fun SwipeToConfirmButton(
                             )
                         )
 
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(10.dp))
 
-                        Row(horizontalArrangement = Arrangement.spacedBy((-3).dp)) {
-                            listOf(0.4f, 0.7f, 1.0f).forEach { alphaVal ->
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                                    contentDescription = null,
-                                    tint = PayxPalette.VividPurple.copy(alpha = alphaVal),
-                                    modifier = Modifier.size(13.dp)
-                                )
+                        // Modern Animated Chevrons (Directional Wave)
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(5.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            for (i in 0..2) {
+                                val distance = (arrowWavePhase - i).let { d ->
+                                    val mod = d % 3f
+                                    if (mod < 0f) mod + 3f else mod
+                                }
+                                val waveProximity = (1f - (distance / 1.1f)).coerceIn(0f, 1f)
+                                val chevronAlpha = (0.42f + waveProximity * 0.58f).coerceIn(0f, 1f)
+                                val shiftX = waveProximity * 1.5f
+
+                                Canvas(
+                                    modifier = Modifier
+                                        .size(width = 8.dp, height = 12.dp)
+                                        .graphicsLayer {
+                                            translationX = shiftX
+                                        }
+                                ) {
+                                    val strokeWidth = 2.dp.toPx()
+                                    val path = Path().apply {
+                                        moveTo(1.dp.toPx(), 1.dp.toPx())
+                                        lineTo(size.width - 1.dp.toPx(), size.height / 2f)
+                                        lineTo(1.dp.toPx(), size.height - 1.dp.toPx())
+                                    }
+
+                                    // Subtle bloom halo when wave crests
+                                    if (waveProximity > 0.35f) {
+                                        drawPath(
+                                            path = path,
+                                            color = Color(0xFFC084FC).copy(alpha = waveProximity * 0.5f),
+                                            style = Stroke(
+                                                width = strokeWidth + 2.dp.toPx(),
+                                                cap = StrokeCap.Round,
+                                                join = StrokeJoin.Round
+                                            )
+                                        )
+                                    }
+
+                                    // Sharp crisp chevron
+                                    val color = if (waveProximity > 0.3f) {
+                                        Color.White.copy(alpha = chevronAlpha)
+                                    } else {
+                                        PayxPalette.VividPurple.copy(alpha = chevronAlpha)
+                                    }
+
+                                    drawPath(
+                                        path = path,
+                                        color = color,
+                                        style = Stroke(
+                                            width = strokeWidth,
+                                            cap = StrokeCap.Round,
+                                            join = StrokeJoin.Round
+                                        )
+                                    )
+                                }
                             }
                         }
                     }
@@ -1269,16 +1340,48 @@ private fun SwipeToConfirmButton(
                             modifier = Modifier.size(24.dp)
                         )
                     } else {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                            contentDescription = "Swipe to Send",
-                            tint = Color.White,
+                        // Single Crisp Aerodynamic Thumb Arrow
+                        Canvas(
                             modifier = Modifier
-                                .size(22.dp)
+                                .size(24.dp, 18.dp)
                                 .graphicsLayer {
-                                    rotationZ = progress * 45f
+                                    val idle = if (progress < 0.05f) thumbIdleNudge else 0f
+                                    translationX = idle
+                                    rotationZ = progress * 20f
                                 }
-                        )
+                        ) {
+                            val centerY = size.height / 2f
+                            val strokeWidth = 2.6.dp.toPx()
+                            val arrowTipX = size.width - 2.5.dp.toPx()
+                            val arrowHeadWidth = 7.dp.toPx()
+                            val arrowHeadHeight = 6.5.dp.toPx()
+                            val shaftStartX = 2.5.dp.toPx()
+
+                            // Main Precision Shaft
+                            drawLine(
+                                color = Color.White,
+                                start = Offset(shaftStartX, centerY),
+                                end = Offset(arrowTipX, centerY),
+                                strokeWidth = strokeWidth,
+                                cap = StrokeCap.Round
+                            )
+
+                            // Clean Arrowhead
+                            val headPath = Path().apply {
+                                moveTo(arrowTipX - arrowHeadWidth, centerY - arrowHeadHeight)
+                                lineTo(arrowTipX, centerY)
+                                lineTo(arrowTipX - arrowHeadWidth, centerY + arrowHeadHeight)
+                            }
+                            drawPath(
+                                path = headPath,
+                                color = Color.White,
+                                style = Stroke(
+                                    width = strokeWidth,
+                                    cap = StrokeCap.Round,
+                                    join = StrokeJoin.Round
+                                )
+                            )
+                        }
                     }
                 }
             }
