@@ -1,10 +1,19 @@
 package com.payx.app.ui.screens
 
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,18 +38,41 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.payx.app.R
 import com.payx.app.ui.components.IndiaFlag
 import com.payx.app.ui.components.UsaFlag
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+
+private val PlusJakartaSans = FontFamily(
+    Font(R.font.plus_jakarta_sans, FontWeight.Normal),
+    Font(R.font.plus_jakarta_sans, FontWeight.Medium),
+    Font(R.font.plus_jakarta_sans, FontWeight.SemiBold),
+    Font(R.font.plus_jakarta_sans, FontWeight.Bold)
+)
+
+private val MontaguSlab = FontFamily(Font(R.font.montagu_slab))
 
 @Composable
 fun DashboardScreen(
@@ -49,8 +81,7 @@ fun DashboardScreen(
     onSettings: () -> Unit
 ) {
     val scrollState = rememberScrollState()
-
-    // Pure clean matte obsidian background with zero purplish glow
+    val sendAgainScrollState = rememberScrollState()
     val screenBackground = Color(0xFF09090D)
 
     Box(
@@ -63,10 +94,10 @@ fun DashboardScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(scrollState)
-                .padding(bottom = 100.dp),
+                .padding(bottom = 104.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // 1. Clean Flat Minimal Header (No semi-circle, no purple aura)
+            // 1. Clean Flat Header with Distinct Typographic Hierarchy
             DashboardHeader(
                 userName = "Priyanshu",
                 balance = "$2,450.00",
@@ -74,71 +105,67 @@ fun DashboardScreen(
                 onSettings = onSettings
             )
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(26.dp))
 
-            // 2. Real-time Exchange Rate Ticker Pill
-            CorridorRateCapsule()
-
-            Spacer(modifier = Modifier.height(32.dp))
-
-            // 3. Quick Send Contacts Tray ("Send Again")
+            // 2. Quick Send Contacts Tray ("Send Again") with Updated Payees
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp)
+                modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
                     text = "Send Again",
                     style = TextStyle(
-                        fontFamily = FontFamily.SansSerif,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFF7E7B8D)
-                    )
+                        fontFamily = PlusJakartaSans,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = (-0.3).sp,
+                        color = Color.White
+                    ),
+                    modifier = Modifier.padding(horizontal = 20.dp)
                 )
 
                 Spacer(modifier = Modifier.height(14.dp))
 
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(sendAgainScrollState)
+                        .padding(horizontal = 20.dp),
+                    horizontalArrangement = Arrangement.spacedBy(22.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    QuickContactItem(
-                        initials = "PS",
+                    SendAgainContact(
+                        initial = "P",
                         name = "Priya",
-                        rail = "UPI",
-                        color = Color(0xFF7C3AED),
+                        backgroundColor = Color(0xFFE91E63),
+                        showActiveDot = true,
                         onClick = { onTrack("tx_priya_500") }
                     )
 
-                    QuickContactItem(
-                        initials = "RV",
+                    SendAgainContact(
+                        initial = "R",
                         name = "Rahul",
-                        rail = "IMPS",
-                        color = Color(0xFF4F46E5),
+                        backgroundColor = Color(0xFF2E7D32),
                         onClick = { onTrack("tx_rahul_250") }
                     )
 
-                    QuickContactItem(
-                        initials = "AS",
-                        name = "Arjun",
-                        rail = "UPI",
-                        color = Color(0xFF9333EA),
+                    SendAgainContact(
+                        initial = "S",
+                        name = "Sarah",
+                        backgroundColor = Color(0xFFF4511E),
                         onClick = onSend
                     )
 
-                    QuickAddContactItem(onClick = onSend)
+                    SendAgainAddContact(onClick = onSend)
                 }
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(28.dp))
 
-            // 4. Recent Activity Section
+            // 3. Recent Activity Section with Synchronized Identities
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 24.dp)
+                    .padding(horizontal = 20.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -148,9 +175,10 @@ fun DashboardScreen(
                     Text(
                         text = "Recent Activity",
                         style = TextStyle(
-                            fontFamily = FontFamily.SansSerif,
-                            fontSize = 17.sp,
+                            fontFamily = PlusJakartaSans,
+                            fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
+                            letterSpacing = (-0.3).sp,
                             color = Color.White
                         )
                     )
@@ -158,8 +186,8 @@ fun DashboardScreen(
                     Text(
                         text = "See all",
                         style = TextStyle(
-                            fontFamily = FontFamily.SansSerif,
-                            fontSize = 12.sp,
+                            fontFamily = PlusJakartaSans,
+                            fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = Color(0xFFAE9EF8)
                         ),
@@ -167,7 +195,7 @@ fun DashboardScreen(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
                 // Card 1: Priya Sharma
                 TransactionCard(
@@ -175,8 +203,8 @@ fun DashboardScreen(
                     subtitle = "Yesterday, 17:45 • Solana Settled",
                     fiatAmount = "-$500.00",
                     inrEquivalent = "≈ ₹41,950",
-                    initials = "PS",
-                    avatarColor = Color(0xFF7C3AED),
+                    initial = "P",
+                    avatarColor = Color(0xFFE91E63),
                     onClick = { onTrack("tx_priya_500") }
                 )
 
@@ -188,14 +216,14 @@ fun DashboardScreen(
                     subtitle = "Apr 11, 14:20 • Solana Settled",
                     fiatAmount = "-$250.00",
                     inrEquivalent = "≈ ₹20,975",
-                    initials = "RV",
-                    avatarColor = Color(0xFF4F46E5),
+                    initial = "R",
+                    avatarColor = Color(0xFF2E7D32),
                     onClick = { onTrack("tx_rahul_250") }
                 )
             }
         }
 
-        // 5. Clean Bottom Navigation Dock with Central Transfer Pill
+        // 4. Solid Bottom Navigation Dock with Animated Transfer Action
         BottomNavigationDock(
             onSend = onSend,
             onSettings = onSettings,
@@ -205,8 +233,7 @@ fun DashboardScreen(
 }
 
 /**
- * Clean Flat Minimal Header
- * Displays user greeting, corridor switcher, balance, and savings badge with zero curves or background glows.
+ * Clean Flat Header with High-Impact Typographic Hierarchy
  */
 @Composable
 private fun DashboardHeader(
@@ -219,7 +246,7 @@ private fun DashboardHeader(
         modifier = Modifier
             .fillMaxWidth()
             .statusBarsPadding()
-            .padding(horizontal = 24.dp),
+            .padding(horizontal = 20.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Spacer(modifier = Modifier.height(12.dp))
@@ -230,7 +257,7 @@ private fun DashboardHeader(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Left: User Greeting & Avatar
+            // Left: User Greeting & Avatar with two-tier hierarchy
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -238,135 +265,129 @@ private fun DashboardHeader(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(32.dp)
+                        .size(36.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFF1E1D26))
-                        .border(1.dp, Color(0xFF2E2C3A), CircleShape),
+                        .background(Color(0xFF16151E))
+                        .border(1.dp, Color(0xFF2E2C3D), CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = userName.take(1),
                         style = TextStyle(
-                            fontSize = 13.sp,
+                            fontFamily = PlusJakartaSans,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFAE9EF8)
+                        )
+                    )
+                }
+
+                Column {
+                    Text(
+                        text = "Hello,",
+                        style = TextStyle(
+                            fontFamily = PlusJakartaSans,
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF7E7B8D)
+                        )
+                    )
+                    Text(
+                        text = userName,
+                        style = TextStyle(
+                            fontFamily = PlusJakartaSans,
+                            fontSize = 15.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color.White
                         )
                     )
                 }
-
-                Text(
-                    text = "Hello, $userName",
-                    style = TextStyle(
-                        fontFamily = FontFamily.SansSerif,
-                        fontSize = 15.5.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color.White
-                    )
-                )
             }
 
             // Right: Minimalist Corridor Flags Chip
             Surface(
-                shape = RoundedCornerShape(14.dp),
-                color = Color(0xFF14131A),
-                border = BorderStroke(1.dp, Color(0xFF22212C))
+                shape = RoundedCornerShape(12.dp),
+                color = Color(0xFF121118),
+                border = BorderStroke(1.dp, Color(0xFF22202E))
             ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    UsaFlag(width = 15.dp, height = 10.dp)
+                    UsaFlag(width = 16.dp, height = 11.dp)
                     Text(
                         text = "⇄",
                         style = TextStyle(
                             fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
+                            fontWeight = FontWeight.SemiBold,
                             color = Color(0xFFAE9EF8)
                         )
                     )
-                    IndiaFlag(width = 15.dp, height = 10.dp)
+                    IndiaFlag(width = 16.dp, height = 11.dp)
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(38.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
-        // Center: Balance & Context
+        // Center: Section Sub-label with Wide Tracking
         Text(
             text = "TOTAL TRANSFERRED",
             style = TextStyle(
-                fontFamily = FontFamily.SansSerif,
+                fontFamily = PlusJakartaSans,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.SemiBold,
-                letterSpacing = 1.2.sp,
-                color = Color(0xFF7E7B8D)
+                letterSpacing = 1.8.sp,
+                color = Color(0xFF8E8B9C)
             )
         )
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Big, Confident, Solid Balance
+        // Big, Confident, Hero Balance
         Text(
             text = balance,
             style = TextStyle(
-                fontFamily = FontFamily.SansSerif,
-                fontSize = 42.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = (-0.8).sp,
+                fontFamily = MontaguSlab,
+                fontSize = 46.sp,
+                fontWeight = FontWeight.Medium,
+                letterSpacing = (-1.5).sp,
                 color = Color.White
             )
         )
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
-        // Clean Savings Badge
-        Surface(
-            shape = RoundedCornerShape(14.dp),
-            color = Color(0xFF14131A),
-            border = BorderStroke(1.dp, Color(0xFF22212C))
-        ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(5.dp)
-            ) {
-                Text(
-                    text = "Saved $savedAmount",
-                    style = TextStyle(
-                        fontFamily = FontFamily.SansSerif,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF34D399)
-                    )
-                )
-                Text(
-                    text = "vs bank wire fees",
-                    style = TextStyle(
-                        fontFamily = FontFamily.SansSerif,
-                        fontSize = 11.5.sp,
-                        fontWeight = FontWeight.Normal,
-                        color = Color(0xFF7E7B8D)
-                    )
-                )
-            }
-        }
-    }
-}
-
-/**
- * Clean Realtime Exchange Rate Pill
- */
-@Composable
-private fun CorridorRateCapsule() {
-    Surface(
-        shape = RoundedCornerShape(18.dp),
-        color = Color(0xFF14131A),
-        border = BorderStroke(1.dp, Color(0xFF22212C))
-    ) {
+        // Adjusted Saved Metric (Removed 'vs bank wire fees')
         Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(5.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFF34D399))
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = "Saved $savedAmount",
+                style = TextStyle(
+                    fontFamily = PlusJakartaSans,
+                    fontSize = 13.5.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFF34D399)
+                )
+            )
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // Exchange Rate Bridge Line
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
         ) {
             UsaFlag(width = 16.dp, height = 11.dp)
 
@@ -375,9 +396,10 @@ private fun CorridorRateCapsule() {
             Text(
                 text = "1 USD",
                 style = TextStyle(
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
+                    fontFamily = PlusJakartaSans,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFFD4D2E0)
                 )
             )
 
@@ -386,7 +408,9 @@ private fun CorridorRateCapsule() {
             Text(
                 text = "⇄",
                 style = TextStyle(
+                    fontFamily = PlusJakartaSans,
                     fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
                     color = Color(0xFFAE9EF8)
                 )
             )
@@ -396,7 +420,8 @@ private fun CorridorRateCapsule() {
             Text(
                 text = "₹92.90",
                 style = TextStyle(
-                    fontSize = 12.sp,
+                    fontFamily = PlusJakartaSans,
+                    fontSize = 13.5.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White
                 )
@@ -405,143 +430,126 @@ private fun CorridorRateCapsule() {
             Spacer(modifier = Modifier.width(7.dp))
 
             IndiaFlag(width = 16.dp, height = 11.dp)
-
-            Spacer(modifier = Modifier.width(10.dp))
-
-            Box(
-                modifier = Modifier
-                    .size(5.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFF34D399))
-            )
-
-            Spacer(modifier = Modifier.width(5.dp))
-
-            Text(
-                text = "Real-time",
-                style = TextStyle(
-                    fontSize = 10.5.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFF34D399)
-                )
-            )
         }
     }
 }
 
 /**
- * Quick Send Contact Avatar Item
+ * Send Again Solid Circular Contact
+ * Matches the reference style with vibrant solid flat colors and top-right indicator dot.
  */
 @Composable
-private fun QuickContactItem(
-    initials: String,
+private fun SendAgainContact(
+    initial: String,
     name: String,
-    rail: String,
-    color: Color,
+    backgroundColor: Color,
+    showActiveDot: Boolean = false,
     onClick: () -> Unit
 ) {
+    val screenBackground = Color(0xFF09090D)
+
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
             .clickable(onClick = onClick)
-            .padding(2.dp)
+            .padding(horizontal = 2.dp)
     ) {
         Box(
-            modifier = Modifier
-                .size(48.dp)
-                .clip(CircleShape)
-                .background(Color(0xFF14131A))
-                .border(1.dp, Color(0xFF24222E), CircleShape),
+            modifier = Modifier.size(56.dp),
             contentAlignment = Alignment.Center
         ) {
-            Text(
-                text = initials,
-                style = TextStyle(
-                    fontFamily = FontFamily.SansSerif,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
+            // Main solid circular avatar
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(CircleShape)
+                    .background(backgroundColor),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = initial,
+                    style = TextStyle(
+                        fontFamily = PlusJakartaSans,
+                        fontSize = 23.sp,
+                        fontWeight = FontWeight.Normal,
+                        color = Color.White
+                    )
                 )
-            )
+            }
+
+            // Top-right subtle status dot
+            if (showActiveDot) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .size(12.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF93C5FD))
+                        .border(2.dp, screenBackground, CircleShape)
+                )
+            }
         }
 
-        Spacer(modifier = Modifier.height(6.dp))
+        Spacer(modifier = Modifier.height(9.dp))
 
         Text(
             text = name,
             style = TextStyle(
-                fontFamily = FontFamily.SansSerif,
-                fontSize = 12.sp,
+                fontFamily = PlusJakartaSans,
+                fontSize = 13.5.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = Color.White
-            )
-        )
-
-        Text(
-            text = rail,
-            style = TextStyle(
-                fontFamily = FontFamily.SansSerif,
-                fontSize = 10.sp,
-                color = Color(0xFF6B6878)
             )
         )
     }
 }
 
 /**
- * Quick Add Contact Item
+ * Send Again Add Contact Button
  */
 @Composable
-private fun QuickAddContactItem(onClick: () -> Unit) {
+private fun SendAgainAddContact(onClick: () -> Unit) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
             .clickable(onClick = onClick)
-            .padding(2.dp)
+            .padding(horizontal = 2.dp)
     ) {
         Box(
             modifier = Modifier
-                .size(48.dp)
+                .size(56.dp)
                 .clip(CircleShape)
-                .background(Color(0xFF111016))
-                .border(1.dp, Color(0xFF24222E), CircleShape),
+                .background(Color(0xFF14131C))
+                .border(1.dp, Color(0xFF2E2C3D), CircleShape),
             contentAlignment = Alignment.Center
         ) {
             Text(
                 text = "+",
                 style = TextStyle(
-                    fontSize = 20.sp,
+                    fontFamily = PlusJakartaSans,
+                    fontSize = 24.sp,
                     fontWeight = FontWeight.Normal,
                     color = Color(0xFFAE9EF8)
                 )
             )
         }
 
-        Spacer(modifier = Modifier.height(6.dp))
+        Spacer(modifier = Modifier.height(9.dp))
 
         Text(
             text = "New",
             style = TextStyle(
-                fontFamily = FontFamily.SansSerif,
-                fontSize = 12.sp,
+                fontFamily = PlusJakartaSans,
+                fontSize = 13.5.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = Color(0xFF8E8B9C)
-            )
-        )
-
-        Text(
-            text = "Direct",
-            style = TextStyle(
-                fontFamily = FontFamily.SansSerif,
-                fontSize = 10.sp,
-                color = Color(0xFF6B6878)
             )
         )
     }
 }
 
 /**
- * Clean Transaction Card
+ * Clean Transaction Card with High Typographic Clarity
  */
 @Composable
 private fun TransactionCard(
@@ -549,14 +557,14 @@ private fun TransactionCard(
     subtitle: String,
     fiatAmount: String,
     inrEquivalent: String,
-    initials: String,
+    initial: String,
     avatarColor: Color,
     onClick: () -> Unit
 ) {
     Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = Color(0xFF14131A),
-        border = BorderStroke(1.dp, Color(0xFF22212C)),
+        shape = RoundedCornerShape(18.dp),
+        color = Color(0xFF121118),
+        border = BorderStroke(1.dp, Color(0xFF201E2B)),
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
@@ -572,20 +580,19 @@ private fun TransactionCard(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Avatar circle
+                // Avatar circle matching payee identity
                 Box(
                     modifier = Modifier
-                        .size(40.dp)
+                        .size(44.dp)
                         .clip(CircleShape)
-                        .background(avatarColor.copy(alpha = 0.18f))
-                        .border(1.dp, avatarColor.copy(alpha = 0.35f), CircleShape),
+                        .background(avatarColor),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = initials,
+                        text = initial,
                         style = TextStyle(
-                            fontFamily = FontFamily.SansSerif,
-                            fontSize = 13.5.sp,
+                            fontFamily = PlusJakartaSans,
+                            fontSize = 17.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color.White
                         )
@@ -596,19 +603,19 @@ private fun TransactionCard(
                     Text(
                         text = title,
                         style = TextStyle(
-                            fontFamily = FontFamily.SansSerif,
-                            fontSize = 14.5.sp,
+                            fontFamily = PlusJakartaSans,
+                            fontSize = 15.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = Color.White
                         )
                     )
-                    Spacer(modifier = Modifier.height(2.dp))
+                    Spacer(modifier = Modifier.height(3.dp))
                     Text(
                         text = subtitle,
                         style = TextStyle(
-                            fontFamily = FontFamily.SansSerif,
+                            fontFamily = PlusJakartaSans,
                             fontSize = 11.5.sp,
-                            color = Color(0xFF6B6878)
+                            color = Color(0xFF7E7B8D)
                         )
                     )
                 }
@@ -618,18 +625,20 @@ private fun TransactionCard(
                 Text(
                     text = fiatAmount,
                     style = TextStyle(
-                        fontFamily = FontFamily.SansSerif,
-                        fontSize = 15.5.sp,
+                        fontFamily = PlusJakartaSans,
+                        fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
+                        letterSpacing = (-0.3).sp,
                         color = Color.White
                     )
                 )
-                Spacer(modifier = Modifier.height(2.dp))
+                Spacer(modifier = Modifier.height(3.dp))
                 Text(
                     text = inrEquivalent,
                     style = TextStyle(
-                        fontFamily = FontFamily.SansSerif,
-                        fontSize = 11.5.sp,
+                        fontFamily = PlusJakartaSans,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
                         color = Color(0xFF8E8B9C)
                     )
                 )
@@ -639,7 +648,7 @@ private fun TransactionCard(
 }
 
 /**
- * Solid Bottom Navigation Dock
+ * Solid Bottom Navigation Dock with Premium Animated Transfer Action
  */
 @Composable
 private fun BottomNavigationDock(
@@ -647,16 +656,40 @@ private fun BottomNavigationDock(
     onSettings: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val coroutineScope = rememberCoroutineScope()
+    var isTransferring by remember { mutableStateOf(false) }
+
+    // Arrow flight across the entire button width to exit the right edge
+    val arrowFlightEasing = remember { CubicBezierEasing(0.32f, 0f, 0.20f, 1f) }
+
+    val arrowOffsetX by animateDpAsState(
+        targetValue = if (isTransferring) 126.dp else 0.dp,
+        animationSpec = tween(durationMillis = 360, easing = arrowFlightEasing),
+        label = "arrowOffsetX"
+    )
+
+    val arrowScale by animateFloatAsState(
+        targetValue = if (isTransferring) 1.12f else 1f,
+        animationSpec = tween(durationMillis = 260, easing = arrowFlightEasing),
+        label = "arrowScale"
+    )
+
+    val buttonScale by animateFloatAsState(
+        targetValue = if (isTransferring) 0.95f else 1f,
+        animationSpec = tween(durationMillis = 130, easing = arrowFlightEasing),
+        label = "buttonScale"
+    )
+
     Surface(
-        color = Color(0xFF0F0E14),
-        border = BorderStroke(1.dp, Color(0xFF1C1B24)),
+        color = Color(0xFF0C0B10),
+        border = BorderStroke(1.dp, Color(0xFF1B1A24)),
         modifier = modifier.fillMaxWidth()
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
-                .padding(horizontal = 28.dp, vertical = 9.dp),
+                .padding(horizontal = 30.dp, vertical = 10.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -673,43 +706,74 @@ private fun BottomNavigationDock(
                 Icon(
                     imageVector = Icons.Default.Home,
                     contentDescription = "Home",
-                    tint = Color.White,
+                    tint = Color(0xFFAE9EF8),
                     modifier = Modifier.size(23.dp)
                 )
                 Spacer(modifier = Modifier.height(3.dp))
                 Text(
                     text = "Home",
                     style = TextStyle(
+                        fontFamily = PlusJakartaSans,
                         fontSize = 10.5.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFFAE9EF8)
                     )
                 )
             }
 
-            // Center Solid TRANSFER Pill Button
+            // Center Animated TRANSFER Pill Button
             Box(
                 modifier = Modifier
+                    .width(148.dp)
                     .height(46.dp)
+                    .graphicsLayer {
+                        scaleX = buttonScale
+                        scaleY = buttonScale
+                    }
                     .clip(RoundedCornerShape(23.dp))
                     .background(Color(0xFFAE9EF8))
-                    .clickable(onClick = onSend)
-                    .padding(horizontal = 26.dp),
+                    .clickable(
+                        enabled = !isTransferring,
+                        onClick = {
+                            if (!isTransferring) {
+                                isTransferring = true
+                                coroutineScope.launch {
+                                    // Trigger page navigation exactly when arrow completes crossing the button
+                                    delay(370)
+                                    onSend()
+                                    delay(400)
+                                    isTransferring = false
+                                }
+                            }
+                        }
+                    ),
                 contentAlignment = Alignment.Center
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
+                    horizontalArrangement = Arrangement.Center,
+                    modifier = Modifier.fillMaxSize()
                 ) {
-                    Text(
-                        text = "TRANSFER",
-                        style = TextStyle(
-                            fontFamily = FontFamily.SansSerif,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 0.8.sp,
-                            color = Color(0xFF130B24)
+                    // Dart Arrow on the left with animated rear thruster wake
+                    Box(
+                        modifier = Modifier.graphicsLayer {
+                            translationX = arrowOffsetX.toPx()
+                            scaleX = arrowScale
+                            scaleY = arrowScale
+                        },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        TransferDartArrowWithThruster(
+                            color = Color(0xFF0F0A1C),
+                            isTransferring = isTransferring
                         )
+                    }
+
+                    Spacer(modifier = Modifier.width(6.dp))
+
+                    // TRANSFER text that cascades down character-by-character
+                    StaggeredTransferText(
+                        isTransferring = isTransferring
                     )
                 }
             }
@@ -731,6 +795,7 @@ private fun BottomNavigationDock(
                 Text(
                     text = "Settings",
                     style = TextStyle(
+                        fontFamily = PlusJakartaSans,
                         fontSize = 10.5.sp,
                         fontWeight = FontWeight.Medium,
                         color = Color(0xFF6B6878)
@@ -738,5 +803,201 @@ private fun BottomNavigationDock(
                 )
             }
         }
+    }
+}
+
+/**
+ * Staggered Character-by-Character Cascading Wave for TRANSFER text
+ */
+@Composable
+private fun StaggeredTransferText(
+    isTransferring: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val text = "TRANSFER"
+    val fastAccelerate = remember { CubicBezierEasing(0.38f, 0f, 0.24f, 1f) }
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center,
+        modifier = modifier
+    ) {
+        text.forEachIndexed { index, char ->
+            val charOffsetY by animateDpAsState(
+                targetValue = if (isTransferring) 32.dp else 0.dp,
+                animationSpec = tween(
+                    durationMillis = 180,
+                    delayMillis = index * 16,
+                    easing = fastAccelerate
+                ),
+                label = "charOffsetY_$index"
+            )
+
+            val charAlpha by animateFloatAsState(
+                targetValue = if (isTransferring) 0f else 1f,
+                animationSpec = tween(
+                    durationMillis = 140,
+                    delayMillis = index * 16,
+                    easing = LinearEasing
+                ),
+                label = "charAlpha_$index"
+            )
+
+            val charScale by animateFloatAsState(
+                targetValue = if (isTransferring) 0.80f else 1f,
+                animationSpec = tween(
+                    durationMillis = 180,
+                    delayMillis = index * 16,
+                    easing = fastAccelerate
+                ),
+                label = "charScale_$index"
+            )
+
+            Text(
+                text = char.toString(),
+                style = TextStyle(
+                    fontFamily = PlusJakartaSans,
+                    fontSize = 12.5.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.8.sp,
+                    color = Color(0xFF0F0A1C)
+                ),
+                modifier = Modifier.graphicsLayer {
+                    translationY = charOffsetY.toPx()
+                    alpha = charAlpha
+                    scaleX = charScale
+                    scaleY = charScale
+                }
+            )
+        }
+    }
+}
+
+/**
+ * Premium Solid Dart Arrow with Dynamic Back-Side Thrust Wake Trails
+ */
+@Composable
+private fun TransferDartArrowWithThruster(
+    color: Color,
+    isTransferring: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val smoothDecel = remember { CubicBezierEasing(0.16f, 1f, 0.3f, 1f) }
+
+    // Dynamic thruster wake trail stretch & fade
+    val trailProgress by animateFloatAsState(
+        targetValue = if (isTransferring) 1f else 0f,
+        animationSpec = tween(durationMillis = 320, easing = smoothDecel),
+        label = "trailProgress"
+    )
+
+    val trailAlpha by animateFloatAsState(
+        targetValue = if (isTransferring) 1f else 0f,
+        animationSpec = tween(durationMillis = 260, easing = LinearEasing),
+        label = "trailAlpha"
+    )
+
+    Canvas(modifier = modifier.size(32.dp, 16.dp)) {
+        val dartWidth = 15.dp.toPx()
+        val dartHeight = 13.dp.toPx()
+        val dartLeft = size.width - dartWidth
+        val dartTop = (size.height - dartHeight) / 2f
+        val dartCenterY = size.height / 2f
+
+        val notchX = dartLeft + dartWidth * 0.36f
+        val topWingX = dartLeft + dartWidth * 0.05f
+        val topWingY = dartTop + dartHeight * 0.06f
+        val botWingX = dartLeft + dartWidth * 0.05f
+        val botWingY = dartTop + dartHeight * 0.94f
+
+        // Draw animated rear supersonic thrust wake & particles when transferring
+        if (trailProgress > 0.01f && trailAlpha > 0.01f) {
+            val maxTrailPx = 14.dp.toPx() * trailProgress
+            val strokeWidth = 1.6.dp.toPx()
+
+            // Center main thruster jet streak
+            drawLine(
+                brush = Brush.horizontalGradient(
+                    colors = listOf(
+                        Color.Transparent,
+                        color.copy(alpha = 0.5f * trailAlpha),
+                        color.copy(alpha = 0.85f * trailAlpha)
+                    ),
+                    startX = (notchX - maxTrailPx).coerceAtLeast(0f),
+                    endX = notchX
+                ),
+                start = Offset((notchX - maxTrailPx).coerceAtLeast(0f), dartCenterY),
+                end = Offset(notchX, dartCenterY),
+                strokeWidth = strokeWidth * 1.25f,
+                cap = StrokeCap.Round
+            )
+
+            // Top wing vortex trail
+            val topTrailPx = maxTrailPx * 0.65f
+            drawLine(
+                brush = Brush.horizontalGradient(
+                    colors = listOf(
+                        Color.Transparent,
+                        color.copy(alpha = 0.35f * trailAlpha),
+                        color.copy(alpha = 0.7f * trailAlpha)
+                    ),
+                    startX = (topWingX - topTrailPx).coerceAtLeast(0f),
+                    endX = topWingX
+                ),
+                start = Offset((topWingX - topTrailPx).coerceAtLeast(0f), topWingY),
+                end = Offset(topWingX, topWingY),
+                strokeWidth = strokeWidth,
+                cap = StrokeCap.Round
+            )
+
+            // Bottom wing vortex trail
+            val botTrailPx = maxTrailPx * 0.65f
+            drawLine(
+                brush = Brush.horizontalGradient(
+                    colors = listOf(
+                        Color.Transparent,
+                        color.copy(alpha = 0.35f * trailAlpha),
+                        color.copy(alpha = 0.7f * trailAlpha)
+                    ),
+                    startX = (botWingX - botTrailPx).coerceAtLeast(0f),
+                    endX = botWingX
+                ),
+                start = Offset((botWingX - botTrailPx).coerceAtLeast(0f), botWingY),
+                end = Offset(botWingX, botWingY),
+                strokeWidth = strokeWidth,
+                cap = StrokeCap.Round
+            )
+
+            // Dynamic mini exhaust spark particles
+            val spark1X = notchX - (maxTrailPx * 0.45f)
+            if (spark1X > 0f) {
+                drawCircle(
+                    color = color.copy(alpha = 0.65f * trailAlpha),
+                    radius = 1.1.dp.toPx(),
+                    center = Offset(spark1X, dartCenterY)
+                )
+            }
+            val spark2X = notchX - (maxTrailPx * 0.8f)
+            if (spark2X > 0f) {
+                drawCircle(
+                    color = color.copy(alpha = 0.35f * trailAlpha),
+                    radius = 0.85.dp.toPx(),
+                    center = Offset(spark2X, dartCenterY)
+                )
+            }
+        }
+
+        // Draw solid stealth dart arrow matching reference geometry
+        val dartPath = Path().apply {
+            moveTo(dartLeft + dartWidth * 0.95f, dartCenterY)
+            lineTo(topWingX, topWingY)
+            lineTo(notchX, dartCenterY)
+            lineTo(botWingX, botWingY)
+            close()
+        }
+        drawPath(
+            path = dartPath,
+            color = color
+        )
     }
 }
