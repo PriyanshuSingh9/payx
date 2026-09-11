@@ -22,12 +22,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ChevronRight
@@ -49,13 +52,14 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.payx.app.ui.components.IndiaFlag
@@ -66,8 +70,7 @@ data class Recipient(
     val id: String,
     val name: String,
     val email: String,
-    val avatarInitials: String,
-    val avatarBgColor: Color
+    val avatarInitials: String
 )
 
 private val sampleRecipients = listOf(
@@ -75,22 +78,19 @@ private val sampleRecipients = listOf(
         id = "1",
         name = "Priya Sharma",
         email = "priya.sharma@remitflow.demo",
-        avatarInitials = "PS",
-        avatarBgColor = Color(0xFF6B46C1)
+        avatarInitials = "PS"
     ),
     Recipient(
         id = "2",
         name = "Rahul Verma",
         email = "rahul.verma@remitflow.demo",
-        avatarInitials = "RV",
-        avatarBgColor = Color(0xFF2B6CB0)
+        avatarInitials = "RV"
     ),
     Recipient(
         id = "3",
         name = "Sarah Smith",
         email = "sarah.smith@remitflow.demo",
-        avatarInitials = "SS",
-        avatarBgColor = Color(0xFF97266D)
+        avatarInitials = "SS"
     )
 )
 
@@ -101,11 +101,34 @@ fun SendScreen(
 ) {
     var selectedRecipient by remember { mutableStateOf<Recipient?>(null) }
 
+    val ambientBackground = Brush.verticalGradient(
+        colorStops = arrayOf(
+            0.0f to Color(0xFF191328),
+            0.35f to Color(0xFF110E1A),
+            0.70f to PayxPalette.Obsidian,
+            1.0f to PayxPalette.Obsidian
+        )
+    )
+
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(PayxPalette.Obsidian)
+            .background(ambientBackground)
     ) {
+        // Subtle topography lines matching LoginScreen
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val purpleGlow = Color(0x14B866FC)
+            val path1 = Path().apply {
+                moveTo(0f, size.height * 0.18f)
+                cubicTo(
+                    size.width * 0.35f, size.height * 0.12f,
+                    size.width * 0.7f, size.height * 0.28f,
+                    size.width, size.height * 0.22f
+                )
+            }
+            drawPath(path1, color = purpleGlow, style = Stroke(width = 1.5.dp.toPx()))
+        }
+
         AnimatedContent(
             targetState = selectedRecipient,
             transitionSpec = { fadeIn() togetherWith fadeOut() },
@@ -130,7 +153,7 @@ fun SendScreen(
 }
 
 // -----------------------------------------------------------------------------
-// STEP 1: "Send To" (Image 2)
+// STEP 1: "Send To" (Image 2 in Login Purple Theme)
 // -----------------------------------------------------------------------------
 @Composable
 private fun SendToScreen(
@@ -191,8 +214,8 @@ private fun SendToScreen(
         // Search Bar Capsule: "Search by name or email"
         Surface(
             shape = RoundedCornerShape(18.dp),
-            color = PayxPalette.DarkSurfaceElevated,
-            border = BorderStroke(1.dp, PayxPalette.BorderSubtle),
+            color = Color(0xFF1C172B),
+            border = BorderStroke(1.dp, Color(0xFF2E2544)),
             modifier = Modifier.fillMaxWidth()
         ) {
             Row(
@@ -203,7 +226,7 @@ private fun SendToScreen(
                 Icon(
                     imageVector = Icons.Default.Search,
                     contentDescription = "Search",
-                    tint = PayxPalette.TextTertiary,
+                    tint = PayxPalette.SoftLavender,
                     modifier = Modifier.size(20.dp)
                 )
 
@@ -274,20 +297,17 @@ private fun RecipientItemRow(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            // Circular Avatar with Initials and Gradient Border
+            // Circular Avatar with Login Theme Purple Gradient
             Box(
                 modifier = Modifier
                     .size(52.dp)
                     .clip(CircleShape)
                     .background(
                         Brush.linearGradient(
-                            listOf(
-                                recipient.avatarBgColor,
-                                recipient.avatarBgColor.copy(alpha = 0.6f)
-                            )
+                            listOf(PayxPalette.CardGradientStart, PayxPalette.CardGradientEnd)
                         )
                     )
-                    .border(1.dp, Color(0x33FFFFFF), CircleShape),
+                    .border(1.dp, Color(0x44B55CF8), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
@@ -339,7 +359,7 @@ private fun RecipientItemRow(
 }
 
 // -----------------------------------------------------------------------------
-// STEP 2: "Send Money" (Image 3)
+// STEP 2: "Send Money" (Image 3 with Centered $ 2000 and Login Purple Theme)
 // -----------------------------------------------------------------------------
 @Composable
 private fun SendMoneyScreen(
@@ -403,26 +423,29 @@ private fun SendMoneyScreen(
 
             Spacer(modifier = Modifier.height(28.dp))
 
-            // Recipient Profile Avatar
+            // Recipient Profile Avatar with Login Theme Purple Gradient
             Box(
                 modifier = Modifier
-                    .size(72.dp)
+                    .size(76.dp)
+                    .shadow(
+                        elevation = 12.dp,
+                        shape = CircleShape,
+                        spotColor = Color(0x55A855F7),
+                        ambientColor = Color(0x33A855F7)
+                    )
                     .clip(CircleShape)
                     .background(
                         Brush.linearGradient(
-                            listOf(
-                                recipient.avatarBgColor,
-                                recipient.avatarBgColor.copy(alpha = 0.6f)
-                            )
+                            listOf(PayxPalette.CardGradientStart, PayxPalette.CardGradientEnd)
                         )
                     )
-                    .border(2.dp, PayxPalette.BorderSubtle, CircleShape),
+                    .border(2.dp, Color(0x55B55CF8), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = recipient.avatarInitials,
                     style = TextStyle(
-                        fontSize = 26.sp,
+                        fontSize = 28.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.White
                     )
@@ -455,10 +478,13 @@ private fun SendMoneyScreen(
 
             Spacer(modifier = Modifier.height(36.dp))
 
-            // Editable Large Amount Display: $ 2000
+            // EXACTLY CENTERED AMOUNT DISPLAY ($ 2000)
             Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 16.dp),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = "$",
@@ -470,7 +496,7 @@ private fun SendMoneyScreen(
                     )
                 )
 
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(10.dp))
 
                 BasicTextField(
                     value = amountInput,
@@ -485,31 +511,22 @@ private fun SendMoneyScreen(
                         fontWeight = FontWeight.Normal,
                         color = PayxPalette.TextPrimary
                     ),
+                    cursorBrush = SolidColor(PayxPalette.VividPurple),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    cursorBrush = SolidColor(Color.Transparent),
                     singleLine = true,
-                    decorationBox = { innerTextField ->
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            innerTextField()
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Box(
-                                modifier = Modifier
-                                    .height(44.dp)
-                                    .width(2.dp)
-                                    .background(Color(0xFF2A5E44))
-                            )
-                        }
-                    }
+                    modifier = Modifier
+                        .widthIn(min = 24.dp)
+                        .width(androidx.compose.foundation.layout.IntrinsicSize.Min)
                 )
             }
 
             Spacer(modifier = Modifier.height(36.dp))
 
-            // FEE BREAKDOWN Card
+            // FEE BREAKDOWN Card in Login Dark Theme
             Surface(
                 shape = RoundedCornerShape(24.dp),
-                color = PayxPalette.DarkSurfaceElevated,
-                border = BorderStroke(1.dp, PayxPalette.BorderSubtle),
+                color = Color(0xFF171324),
+                border = BorderStroke(1.dp, Color(0xFF2B223E)),
                 shadowElevation = 10.dp,
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -539,7 +556,7 @@ private fun SendMoneyScreen(
                                 modifier = Modifier
                                     .size(6.dp)
                                     .clip(CircleShape)
-                                    .background(PayxPalette.CyberGreen)
+                                    .background(PayxPalette.VividPurple)
                             )
                             Spacer(modifier = Modifier.width(5.dp))
                             Text(
@@ -548,7 +565,7 @@ private fun SendMoneyScreen(
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
                                     letterSpacing = 1.sp,
-                                    color = PayxPalette.CyberGreen
+                                    color = PayxPalette.SoftLavender
                                 )
                             )
                         }
@@ -564,11 +581,11 @@ private fun SendMoneyScreen(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    // Total fees row inside highlighted capsule
+                    // Total fees row inside highlighted purple capsule
                     Surface(
                         shape = RoundedCornerShape(12.dp),
-                        color = Color(0xFF221C30),
-                        border = BorderStroke(1.dp, Color(0xFF332A46)),
+                        color = Color(0xFF221A36),
+                        border = BorderStroke(1.dp, Color(0xFF382A56)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
@@ -609,7 +626,7 @@ private fun SendMoneyScreen(
                     Spacer(modifier = Modifier.height(18.dp))
 
                     HorizontalDivider(
-                        color = Color(0xFF282238),
+                        color = Color(0xFF282038),
                         thickness = 0.5.dp
                     )
 
@@ -655,27 +672,37 @@ private fun SendMoneyScreen(
             }
         }
 
-        // Bottom Action Button: Full Width SEND MONEY Pill
+        // Bottom Action Button: Matching Login Screen "Continue with Google" Gradient Button
         Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
                 .navigationBarsPadding()
                 .padding(horizontal = 24.dp, vertical = 20.dp)
-                .height(54.dp)
-                .shadow(14.dp, RoundedCornerShape(28.dp))
-                .clip(RoundedCornerShape(28.dp))
-                .background(PayxPalette.NeonLime)
+                .height(58.dp)
+                .shadow(
+                    elevation = 14.dp,
+                    shape = RoundedCornerShape(29.dp),
+                    spotColor = Color(0x66A855F7),
+                    ambientColor = Color(0x33A855F7)
+                )
+                .clip(RoundedCornerShape(29.dp))
+                .background(
+                    Brush.horizontalGradient(
+                        listOf(PayxPalette.CardGradientStart, PayxPalette.CardGradientEnd)
+                    )
+                )
                 .clickable(onClick = onConfirm),
             contentAlignment = Alignment.Center
         ) {
             Text(
                 text = "SEND MONEY",
                 style = TextStyle(
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    letterSpacing = 1.sp,
-                    color = Color.Black
+                    fontFamily = FontFamily.SansSerif,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = 0.5.sp,
+                    color = Color.White
                 )
             )
         }

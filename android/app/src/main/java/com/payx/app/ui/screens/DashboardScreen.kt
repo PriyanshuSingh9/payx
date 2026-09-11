@@ -58,11 +58,44 @@ fun DashboardScreen(
 ) {
     val scrollState = rememberScrollState()
 
+    val ambientBackground = Brush.verticalGradient(
+        colorStops = arrayOf(
+            0.0f to Color(0xFF191328),
+            0.35f to Color(0xFF110E1A),
+            0.70f to PayxPalette.Obsidian,
+            1.0f to PayxPalette.Obsidian
+        )
+    )
+
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(PayxPalette.Obsidian)
+            .background(ambientBackground)
     ) {
+        // Decorative background topography curves matching LoginScreen
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val purpleGlow = Color(0x14B866FC)
+            val path1 = Path().apply {
+                moveTo(0f, size.height * 0.20f)
+                cubicTo(
+                    size.width * 0.35f, size.height * 0.14f,
+                    size.width * 0.7f, size.height * 0.28f,
+                    size.width, size.height * 0.24f
+                )
+            }
+            drawPath(path1, color = purpleGlow, style = Stroke(width = 1.5.dp.toPx()))
+
+            val path2 = Path().apply {
+                moveTo(0f, size.height * 0.26f)
+                cubicTo(
+                    size.width * 0.4f, size.height * 0.18f,
+                    size.width * 0.65f, size.height * 0.34f,
+                    size.width, size.height * 0.28f
+                )
+            }
+            drawPath(path2, color = Color(0x0EB55CF8), style = Stroke(width = 1.2.dp.toPx()))
+        }
+
         // Main Scrollable Content
         Column(
             modifier = Modifier
@@ -93,13 +126,17 @@ fun DashboardScreen(
 
                 Spacer(modifier = Modifier.width(10.dp))
 
-                // Profile Avatar Circle with Letter P
+                // Profile Avatar Circle with Letter P in Login Theme Gradient
                 Box(
                     modifier = Modifier
-                        .size(36.dp)
+                        .size(38.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFF0F3624))
-                        .border(1.dp, Color(0xFF1E5C3E), CircleShape),
+                        .background(
+                            Brush.linearGradient(
+                                listOf(PayxPalette.CardGradientStart, PayxPalette.CardGradientEnd)
+                            )
+                        )
+                        .border(1.dp, Color(0x55B55CF8), CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
@@ -126,16 +163,16 @@ fun DashboardScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(48.dp))
+            Spacer(modifier = Modifier.height(44.dp))
 
-            // 2. Central Hero: Savings Aura & Big Savings Total
+            // 2. Central Hero: Purple Glow Aura & Big Savings Total
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(32.dp)),
                 contentAlignment = Alignment.Center
             ) {
-                // Cyber glow aura background
+                // Purple radial glow aura background
                 Canvas(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -145,8 +182,8 @@ fun DashboardScreen(
                     drawCircle(
                         brush = Brush.radialGradient(
                             colors = listOf(
-                                Color(0x3300E676),
-                                Color(0x22A855F7),
+                                Color(0x40B55CF8),
+                                Color(0x227E2AE8),
                                 Color(0x0A0E0C15),
                                 Color.Transparent
                             ),
@@ -173,25 +210,35 @@ fun DashboardScreen(
 
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    // Savings Pill: [$66.85] -> on a transfer of
+                    // Savings Pill: [$66.85] -> on a transfer of (in sleek purple gradient)
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.Center
                     ) {
                         Surface(
                             shape = RoundedCornerShape(14.dp),
-                            color = PayxPalette.NeonLime,
-                            shadowElevation = 4.dp
+                            color = Color.Transparent,
+                            border = BorderStroke(1.dp, Color(0x66B55CF8)),
+                            shadowElevation = 6.dp
                         ) {
-                            Text(
-                                text = "$66.85",
-                                style = TextStyle(
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = Color.Black
-                                ),
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                            )
+                            Box(
+                                modifier = Modifier
+                                    .background(
+                                        Brush.horizontalGradient(
+                                            listOf(PayxPalette.CardGradientStart, PayxPalette.CardGradientEnd)
+                                        )
+                                    )
+                                    .padding(horizontal = 12.dp, vertical = 5.dp)
+                            ) {
+                                Text(
+                                    text = "$66.85",
+                                    style = TextStyle(
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White
+                                    )
+                                )
+                            }
                         }
 
                         Spacer(modifier = Modifier.width(8.dp))
@@ -284,12 +331,12 @@ fun DashboardScreen(
 
                     Spacer(modifier = Modifier.width(14.dp))
 
-                    // Pulsing LIVE dot
+                    // Pulsing Purple LIVE dot
                     Box(
                         modifier = Modifier
                             .size(6.dp)
                             .clip(CircleShape)
-                            .background(PayxPalette.CyberGreen)
+                            .background(PayxPalette.VividPurple)
                     )
 
                     Spacer(modifier = Modifier.width(6.dp))
@@ -300,7 +347,7 @@ fun DashboardScreen(
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                             letterSpacing = 1.sp,
-                            color = PayxPalette.CyberGreen
+                            color = PayxPalette.SoftLavender
                         )
                     )
                 }
@@ -330,7 +377,7 @@ fun DashboardScreen(
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 1.sp,
-                        color = PayxPalette.TextTertiary
+                        color = PayxPalette.SoftLavender
                     ),
                     modifier = Modifier.clickable { }
                 )
@@ -357,7 +404,7 @@ fun DashboardScreen(
             )
         }
 
-        // 5. Bottom Navigation Bar with Center Neon TRANSFER Pill
+        // 5. Bottom Navigation Bar with Center Violet Gradient TRANSFER Pill
         Surface(
             color = PayxPalette.DarkSurface,
             border = BorderStroke(1.dp, PayxPalette.BorderSubtle),
@@ -400,15 +447,24 @@ fun DashboardScreen(
                     )
                 }
 
-                // Center High-Energy Transfer Pill Button
+                // Center High-Energy Transfer Pill Button with Login Theme Gradient
                 Box(
                     modifier = Modifier
-                        .height(48.dp)
-                        .shadow(12.dp, RoundedCornerShape(26.dp))
+                        .height(50.dp)
+                        .shadow(
+                            elevation = 14.dp,
+                            shape = RoundedCornerShape(26.dp),
+                            spotColor = Color(0x66A855F7),
+                            ambientColor = Color(0x33A855F7)
+                        )
                         .clip(RoundedCornerShape(26.dp))
-                        .background(PayxPalette.NeonLime)
+                        .background(
+                            Brush.horizontalGradient(
+                                listOf(PayxPalette.CardGradientStart, PayxPalette.CardGradientEnd)
+                            )
+                        )
                         .clickable(onClick = onSend)
-                        .padding(horizontal = 26.dp),
+                        .padding(horizontal = 28.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Row(
@@ -422,10 +478,10 @@ fun DashboardScreen(
                         Text(
                             text = "TRANSFER",
                             style = TextStyle(
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.ExtraBold,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
                                 letterSpacing = 1.sp,
-                                color = Color.Black
+                                color = Color.White
                             )
                         )
                     }
@@ -478,13 +534,13 @@ private fun TransactionRow(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            // Dark Green Circle with Upward Arrow
+            // Sleek Dark Purple Circle with Soft Violet Upward Arrow
             Box(
                 modifier = Modifier
                     .size(46.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFF1B382A))
-                    .border(1.dp, Color(0xFF28543E), CircleShape),
+                    .background(Color(0xFF231A36))
+                    .border(1.dp, Color(0xFF382956), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 UpwardTransactionArrow()
@@ -527,7 +583,7 @@ private fun UpwardTransactionArrow() {
     Canvas(modifier = Modifier.size(16.dp)) {
         val stroke = 2.dp.toPx()
         val cap = StrokeCap.Round
-        val color = Color.White
+        val color = Color(0xFFD8B4FE)
 
         // Vertical stem
         drawLine(
@@ -568,6 +624,6 @@ private fun TransferArrowIcon() {
             lineTo(size.width * 0.3f, size.height * 0.5f)
             close()
         }
-        drawPath(path = path, color = Color.Black)
+        drawPath(path = path, color = Color.White)
     }
 }

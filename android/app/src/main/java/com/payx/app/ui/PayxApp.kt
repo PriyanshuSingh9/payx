@@ -46,7 +46,17 @@ fun PayxApp() {
                 onSubmitted = { id -> nav.navigate(Routes.tracker(id)) }
             )
         }
-        composable(Routes.TRACKER) { TrackerScreen(onDone = { nav.popBackStack() }) }
+        composable(Routes.TRACKER) { backStackEntry ->
+            val id = backStackEntry.arguments?.getString("transferId") ?: "px-demo-transfer"
+            TrackerScreen(
+                transferId = id,
+                onDone = {
+                    nav.navigate(Routes.DASHBOARD) {
+                        popUpTo(Routes.DASHBOARD) { inclusive = false }
+                    }
+                }
+            )
+        }
         composable(Routes.RECEIVER) { ReceiverScreen() }
         composable(Routes.SETTINGS) { SettingsScreen(onSignedOut = { nav.navigate(Routes.LOGIN) }) }
     }
