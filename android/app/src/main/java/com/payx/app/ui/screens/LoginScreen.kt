@@ -1,5 +1,4 @@
 package com.payx.app.ui.screens
-
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -38,6 +37,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -52,9 +52,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.asComposePath
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
+import androidx.core.graphics.PathParser
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -73,8 +76,8 @@ import kotlin.math.sin
 fun LoginScreen(onSignedIn: () -> Unit) {
     val ambientBackground = Brush.verticalGradient(
         colorStops = arrayOf(
-            0.0f to Color(0xFF181226),
-            0.35f to Color(0xFF100D18),
+            0.0f to Color(0xFF17122E),
+            0.35f to Color(0xFF0E0B1E),
             0.70f to PayxPalette.Obsidian,
             1.0f to PayxPalette.Obsidian
         )
@@ -87,7 +90,7 @@ fun LoginScreen(onSignedIn: () -> Unit) {
     ) {
         // Ambient background topography curves
         Canvas(modifier = Modifier.fillMaxSize()) {
-            val purpleGlow = Color(0x18B866FC)
+            val purpleGlow = Color(0x18C4BAF9)
             val path1 = Path().apply {
                 moveTo(0f, size.height * 0.16f)
                 cubicTo(
@@ -106,7 +109,7 @@ fun LoginScreen(onSignedIn: () -> Unit) {
                     size.width, size.height * 0.46f
                 )
             }
-            drawPath(path2, color = Color(0x10A855F7), style = Stroke(width = 1.2.dp.toPx()))
+            drawPath(path2, color = Color(0x10AE9EF8), style = Stroke(width = 1.2.dp.toPx()))
         }
 
         Column(
@@ -247,8 +250,8 @@ fun LoginScreen(onSignedIn: () -> Unit) {
                         .shadow(
                             elevation = 14.dp,
                             shape = RoundedCornerShape(28.dp),
-                            spotColor = Color(0x66A855F7),
-                            ambientColor = Color(0x33A855F7)
+                            spotColor = Color(0x66AE9EF8),
+                            ambientColor = Color(0x33AE9EF8)
                         ),
                     shape = RoundedCornerShape(28.dp),
                     colors = ButtonDefaults.buttonColors(
@@ -268,7 +271,8 @@ fun LoginScreen(onSignedIn: () -> Unit) {
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            GoogleWhiteGlyph(modifier = Modifier.size(20.dp))
+                            // Google G logo — no white background, rendered directly
+                            GoogleOfficialLogo(modifier = Modifier.size(22.dp))
                             Spacer(modifier = Modifier.width(12.dp))
                             Text(
                                 text = "Continue with Google",
@@ -302,16 +306,8 @@ private fun PayxAnimatedGlobeCluster(modifier: Modifier = Modifier) {
     val globeRotation by transition.animateFloat(
         initialValue = 0f,
         targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(6000, easing = LinearEasing), RepeatMode.Restart),
+        animationSpec = infiniteRepeatable(tween(14000, easing = LinearEasing), RepeatMode.Restart),
         label = "globeRotation"
-    )
-
-    // 2. Flight Arc Beam Travel (0f to 1f)
-    val beamProgress by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(2400, easing = LinearEasing), RepeatMode.Restart),
-        label = "beamProgress"
     )
 
     // 3. Gyroscope Trajectory Ring Rotation
@@ -362,31 +358,45 @@ private fun PayxAnimatedGlobeCluster(modifier: Modifier = Modifier) {
         label = "upiPulse"
     )
 
-    // Float offsets for organic natural drift
+    // Float offsets for organic natural drift — each uses a unique CubicBezier easing and period
+    // so components never look like they share the same clock
+    val floatEase1 = androidx.compose.animation.core.CubicBezierEasing(0.37f, 0f, 0.63f, 1f)
+    val floatEase2 = androidx.compose.animation.core.CubicBezierEasing(0.45f, 0.05f, 0.55f, 0.95f)
+    val floatEase3 = androidx.compose.animation.core.CubicBezierEasing(0.25f, 0.46f, 0.45f, 0.94f)
+
     val float1 by transition.animateFloat(
-        initialValue = -8f,
-        targetValue = 8f,
-        animationSpec = infiniteRepeatable(tween(2600, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        initialValue = -10f,
+        targetValue = 10f,
+        animationSpec = infiniteRepeatable(
+            tween(3200, easing = floatEase1), RepeatMode.Reverse
+        ),
         label = "float1"
     )
     val float2 by transition.animateFloat(
-        initialValue = 9f,
-        targetValue = -9f,
-        animationSpec = infiniteRepeatable(tween(3100, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        initialValue = 11f,
+        targetValue = -11f,
+        animationSpec = infiniteRepeatable(
+            tween(2700, easing = floatEase2), RepeatMode.Reverse
+        ),
         label = "float2"
     )
     val float3 by transition.animateFloat(
-        initialValue = -7f,
-        targetValue = 7f,
-        animationSpec = infiniteRepeatable(tween(2900, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        initialValue = -9f,
+        targetValue = 9f,
+        animationSpec = infiniteRepeatable(
+            tween(3800, easing = floatEase3), RepeatMode.Reverse
+        ),
         label = "float3"
     )
 
-    // Twinkle scale
+    // Twinkle scale — asymmetric easing gives a sharp blink-in / slow fade-out feel
+    val sparkleEase = androidx.compose.animation.core.CubicBezierEasing(0.17f, 0.67f, 0.83f, 0.67f)
     val sparkleScale by transition.animateFloat(
-        initialValue = 0.6f,
-        targetValue = 1.35f,
-        animationSpec = infiniteRepeatable(tween(1200, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        initialValue = 0.5f,
+        targetValue = 1.45f,
+        animationSpec = infiniteRepeatable(
+            tween(1600, easing = sparkleEase), RepeatMode.Reverse
+        ),
         label = "sparkleScale"
     )
 
@@ -399,7 +409,7 @@ private fun PayxAnimatedGlobeCluster(modifier: Modifier = Modifier) {
             drawCircle(
                 brush = Brush.radialGradient(
                     colors = listOf(
-                        Color(0xFFB55CF8).copy(alpha = 0.38f),
+                        Color(0xFFAE9EF8).copy(alpha = 0.38f),
                         Color(0xFF38BDF8).copy(alpha = 0.15f),
                         Color.Transparent
                     )
@@ -420,9 +430,9 @@ private fun PayxAnimatedGlobeCluster(modifier: Modifier = Modifier) {
             drawOval(
                 brush = Brush.linearGradient(
                     listOf(
-                        Color(0xFFB55CF8).copy(alpha = 0.70f),
+                        Color(0xFFAE9EF8).copy(alpha = 0.70f),
                         Color(0xFF38BDF8).copy(alpha = 0.20f),
-                        Color(0xFFB55CF8).copy(alpha = 0.60f)
+                        Color(0xFFAE9EF8).copy(alpha = 0.60f)
                     )
                 ),
                 style = Stroke(width = 1.6.dp.toPx(), pathEffect = dashEffect)
@@ -437,53 +447,29 @@ private fun PayxAnimatedGlobeCluster(modifier: Modifier = Modifier) {
 
             drawCircle(color = Color.White, radius = 3.5.dp.toPx(), center = Offset(px, py))
             drawCircle(
-                color = Color(0xFF38BDF8),
+                color = Color(0xFFC4BAF9),
                 radius = 8.dp.toPx(),
                 center = Offset(px, py),
                 style = Stroke(width = 1.5.dp.toPx())
             )
         }
 
-        // LAYER 2: THE ANIMATED 3D SPINNING HOLOGRAPHIC GLOBE
+        // LAYER 2: THE ANIMATED 3D NATURAL EARTH PARTICLE GLOBE
         Box(
             modifier = Modifier
-                .size(142.dp)
+                .size(150.dp)
                 .shadow(
-                    elevation = 24.dp,
+                    elevation = 28.dp,
                     shape = CircleShape,
-                    spotColor = Color(0x99B55CF8),
-                    ambientColor = Color(0x44B55CF8)
+                    spotColor = Color(0xAAAE9EF8),
+                    ambientColor = Color(0x448478D6)
                 )
                 .clip(CircleShape)
-                .background(
-                    Brush.radialGradient(
-                        colors = listOf(
-                            Color(0xFF281A42),
-                            Color(0xFF140D24),
-                            Color(0xFF090610)
-                        )
-                    )
-                )
-                .border(
-                    BorderStroke(
-                        2.dp,
-                        Brush.sweepGradient(
-                            listOf(
-                                Color(0xFFB55CF8),
-                                Color(0xFF38BDF8),
-                                Color(0xFF7E2AE8),
-                                Color(0xFF34D399),
-                                Color(0xFFB55CF8)
-                            )
-                        )
-                    ),
-                    CircleShape
-                ),
+                .background(Color(0xFF070512)),
             contentAlignment = Alignment.Center
         ) {
             SpinningHolographicGlobeCanvas(
                 globeRotation = globeRotation,
-                beamProgress = beamProgress,
                 modifier = Modifier.fillMaxSize()
             )
         }
@@ -547,7 +533,7 @@ private fun PayxAnimatedGlobeCluster(modifier: Modifier = Modifier) {
                 .offset(x = (-14).dp, y = (-106).dp)
                 .scale(sparkleScale)
         ) {
-            PrismDiamond(color = Color(0xFFC084FC), size = 16.dp)
+            PrismDiamond(color = Color(0xFFAE9EF8), size = 16.dp)
         }
 
         Box(
@@ -571,28 +557,47 @@ private fun PayxAnimatedGlobeCluster(modifier: Modifier = Modifier) {
 }
 
 /**
- * 3D Spinning Holographic Wireframe Globe with cross-border remittance beam
+ * 3D Rotating Natural Earth Particle Matrix Globe with Atmospheric Rim Glow
  */
 @Composable
 private fun SpinningHolographicGlobeCanvas(
     globeRotation: Float,
-    beamProgress: Float,
     modifier: Modifier = Modifier
 ) {
+    val points = remember { GlobeData.points }
+    val density = LocalDensity.current.density
+
     Canvas(modifier = modifier) {
         val w = size.width
         val h = size.height
         val cx = w / 2f
         val cy = h / 2f
-        val r = (w / 2f) * 0.92f
+        val r = (w / 2f) * 0.88f
 
-        // Ambient edge fresnel glow
+        // 1. Atmospheric Outer Rim Halo (brand #AE9EF8 bloom)
         drawCircle(
             brush = Brush.radialGradient(
                 colors = listOf(
                     Color.Transparent,
-                    Color(0xFF38BDF8).copy(alpha = 0.08f),
-                    Color(0xFFB55CF8).copy(alpha = 0.35f)
+                    Color(0xFF8478D6).copy(alpha = 0.05f),
+                    Color(0xFFAE9EF8).copy(alpha = 0.28f),
+                    Color(0xFFC4BAF9).copy(alpha = 0.60f),
+                    Color.Transparent
+                ),
+                center = Offset(cx, cy),
+                radius = r * 1.15f
+            ),
+            radius = r * 1.15f,
+            center = Offset(cx, cy)
+        )
+
+        // 2. Deep Cosmic Sphere Body
+        drawCircle(
+            brush = Brush.radialGradient(
+                colors = listOf(
+                    Color(0xFF0C091D),
+                    Color(0xFF070514),
+                    Color(0xFF03020A)
                 ),
                 center = Offset(cx, cy),
                 radius = r
@@ -601,112 +606,66 @@ private fun SpinningHolographicGlobeCanvas(
             center = Offset(cx, cy)
         )
 
-        // Equator
-        drawLine(
-            color = Color(0xFF38BDF8).copy(alpha = 0.35f),
-            start = Offset(cx - r, cy),
-            end = Offset(cx + r, cy),
-            strokeWidth = 1.2.dp.toPx()
-        )
-
-        // Latitudes (Horizontal parallels)
-        val latRatios = listOf(0.40f, 0.72f)
-        for (ratio in latRatios) {
-            val yOffset = r * ratio
-            val parallelHalfW = (r * r - yOffset * yOffset).let { if (it > 0) kotlin.math.sqrt(it) else 0f }
-
-            // North parallel
-            drawOval(
-                color = Color(0xFFB55CF8).copy(alpha = 0.25f),
-                topLeft = Offset(cx - parallelHalfW, cy - yOffset - 1.5.dp.toPx()),
-                size = Size(parallelHalfW * 2f, 3.dp.toPx()),
-                style = Stroke(width = 1.dp.toPx())
-            )
-            // South parallel
-            drawOval(
-                color = Color(0xFFB55CF8).copy(alpha = 0.25f),
-                topLeft = Offset(cx - parallelHalfW, cy + yOffset - 1.5.dp.toPx()),
-                size = Size(parallelHalfW * 2f, 3.dp.toPx()),
-                style = Stroke(width = 1.dp.toPx())
-            )
-        }
-
-        // Longitudes: Rotating 3D Meridians
-        val meridianCount = 6
-        for (i in 0 until meridianCount) {
-            val phase = ((i.toFloat() / meridianCount.toFloat()) + globeRotation) % 1f
-            val angleRad = phase * 2f * PI
-            val cosVal = cos(angleRad).toFloat()
-            val sinVal = sin(angleRad).toFloat()
-
-            // Only draw lines with proper depth: higher alpha on front hemisphere (sinVal > 0)
-            val isFront = sinVal >= 0f
-            val alpha = if (isFront) 0.55f else 0.15f
-            val meridianW = abs(cosVal) * r
-
-            drawOval(
-                color = if (isFront) Color(0xFF38BDF8).copy(alpha = alpha) else Color(0xFFB55CF8).copy(alpha = alpha),
-                topLeft = Offset(cx - meridianW, cy - r),
-                size = Size(meridianW * 2f, r * 2f),
-                style = Stroke(width = if (isFront) 1.2.dp.toPx() else 0.8.dp.toPx())
-            )
-        }
-
-        // Cross-Border Active Remittance Flight Beam: USA (North-West) to India (South-East)
-        val pStart = Offset(cx - r * 0.46f, cy - r * 0.28f) // North America node
-        val pEnd = Offset(cx + r * 0.44f, cy + r * 0.22f)   // India node
-        val pControl = Offset(cx, cy - r * 0.82f)          // High atmospheric orbit arc
-
-        val flightPath = Path().apply {
-            moveTo(pStart.x, pStart.y)
-            quadraticTo(pControl.x, pControl.y, pEnd.x, pEnd.y)
-        }
-
-        // Background Flight Track (dashed cyan/purple)
-        drawPath(
-            path = flightPath,
-            brush = Brush.horizontalGradient(
-                listOf(Color(0xFF38BDF8).copy(alpha = 0.4f), Color(0xFF34D399).copy(alpha = 0.7f))
+        // 3. Inner Atmospheric Rim Glow
+        drawCircle(
+            brush = Brush.radialGradient(
+                colors = listOf(
+                    Color.Transparent,
+                    Color.Transparent,
+                    Color(0xFFAE9EF8).copy(alpha = 0.22f),
+                    Color(0xFFD8D0FB).copy(alpha = 0.60f)
+                ),
+                center = Offset(cx, cy),
+                radius = r
             ),
-            style = Stroke(
-                width = 1.8.dp.toPx(),
-                pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 6f), 0f),
-                cap = StrokeCap.Round
-            )
+            radius = r,
+            center = Offset(cx, cy)
         )
 
-        // Traveling Energy Photon Beam along Quadratic Bezier
-        val t = beamProgress
-        val bx = (1 - t) * (1 - t) * pStart.x + 2 * (1 - t) * t * pControl.x + t * t * pEnd.x
-        val by = (1 - t) * (1 - t) * pStart.y + 2 * (1 - t) * t * pControl.y + t * t * pEnd.y
-        val beamCenter = Offset(bx, by)
-
-        // Trailing glow
+        // 4. Atmospheric Boundary Ring
         drawCircle(
-            color = Color(0xFF34D399).copy(alpha = 0.4f),
-            radius = 6.dp.toPx(),
-            center = beamCenter
-        )
-        drawCircle(
-            color = Color.White,
-            radius = 2.8.dp.toPx(),
-            center = beamCenter
+            color = Color(0xFFD8D0FB).copy(alpha = 0.85f),
+            radius = r,
+            center = Offset(cx, cy),
+            style = Stroke(width = 1.4.dp.toPx())
         )
 
-        // USA Node Beacon
-        drawCircle(color = Color(0xFF38BDF8), radius = 3.2.dp.toPx(), center = pStart)
-        drawCircle(color = Color(0xFF38BDF8).copy(alpha = 0.4f), radius = 6.dp.toPx(), center = pStart, style = Stroke(1.dp.toPx()))
+        // 5. Rotating 3D Natural Earth Particle Point Cloud
+        val rotAngle = globeRotation * (2f * PI.toFloat())
+        val tilt = -0.28f // ~-16 degrees axial tilt
+        val cosTilt = cos(tilt)
+        val sinTilt = sin(tilt)
 
-        // India Destination Pulse Radar
-        drawCircle(color = Color(0xFF34D399), radius = 3.6.dp.toPx(), center = pEnd)
-        val pingR = 4.dp.toPx() + (beamProgress * 12.dp.toPx())
-        val pingAlpha = (1f - beamProgress).coerceIn(0f, 1f)
-        drawCircle(
-            color = Color(0xFF34D399).copy(alpha = pingAlpha * 0.7f),
-            radius = pingR,
-            center = pEnd,
-            style = Stroke(1.2.dp.toPx())
-        )
+        val pointCount = points.size / 2
+        for (i in 0 until pointCount) {
+            val latRad = points[i * 2]
+            val lonRad = points[i * 2 + 1]
+
+            val lonRot = lonRad + rotAngle
+            val cosLat = cos(latRad)
+            val x0 = cosLat * sin(lonRot)
+            val y0 = -sin(latRad)
+            val z0 = cosLat * cos(lonRot)
+
+            // Apply axial tilt
+            val x = x0
+            val y = y0 * cosTilt - z0 * sinTilt
+            val z = y0 * sinTilt + z0 * cosTilt
+
+            // Render front hemisphere
+            if (z > 0.02f) {
+                val px = cx + x * r
+                val py = cy + y * r
+                val alpha = (0.20f + 0.80f * z).coerceIn(0.12f, 1f)
+                val ptRadius = (0.75f + 0.85f * z) * density
+
+                drawCircle(
+                    color = Color(0xFFD8D0FB).copy(alpha = alpha),
+                    radius = ptRadius,
+                    center = Offset(px, py)
+                )
+            }
+        }
     }
 }
 
@@ -717,8 +676,8 @@ private fun SpinningHolographicGlobeCanvas(
 private fun ReactiveCorridorCapsule(shimmerOffset: Float) {
     Surface(
         shape = RoundedCornerShape(18.dp),
-        color = Color(0xFF1B132A),
-        border = BorderStroke(1.dp, Color(0xFF4C3672)),
+        color = Color(0xFF1A1230),
+        border = BorderStroke(1.dp, Color(0xFF7060B8)),
         shadowElevation = 8.dp
     ) {
         Box(contentAlignment = Alignment.Center) {
@@ -828,8 +787,8 @@ private fun HighVoltageLightningPrism(intensity: Float) {
 private fun ActiveEscrowVaultTag(sonarProgress: Float) {
     Surface(
         shape = RoundedCornerShape(12.dp),
-        color = Color(0xFF1C142B),
-        border = BorderStroke(1.dp, Color(0xFF3F2B60)),
+        color = Color(0xFF1A1230),
+        border = BorderStroke(1.dp, Color(0xFF6B5CB8)),
         shadowElevation = 6.dp
     ) {
         Box(contentAlignment = Alignment.Center) {
@@ -842,7 +801,7 @@ private fun ActiveEscrowVaultTag(sonarProgress: Float) {
                     Icon(
                         imageVector = Icons.Default.Lock,
                         contentDescription = null,
-                        tint = Color(0xFFC084FC),
+                        tint = Color(0xFFAE9EF8),
                         modifier = Modifier.size(11.dp)
                     )
 
@@ -852,7 +811,7 @@ private fun ActiveEscrowVaultTag(sonarProgress: Float) {
                         val currR = maxR * sonarProgress
                         val alpha = (1f - sonarProgress).coerceIn(0f, 1f)
                         drawCircle(
-                            color = Color(0xFFC084FC).copy(alpha = alpha * 0.6f),
+                            color = Color(0xFFAE9EF8).copy(alpha = alpha * 0.6f),
                             radius = currR,
                             style = Stroke(width = 1.dp.toPx())
                         )
@@ -902,6 +861,7 @@ private fun Spinning3DCoin(rotationY: Float) {
     ) {
         Text(
             text = if (isFront) "$" else "₹",
+            modifier = if (!isFront) Modifier.graphicsLayer { scaleX = -1f } else Modifier,
             style = TextStyle(
                 fontFamily = FontFamily.Serif,
                 fontSize = 18.sp,
@@ -991,7 +951,7 @@ private fun PrismDiamond(color: Color, size: androidx.compose.ui.unit.Dp) {
 }
 
 /**
- * Premium PayX Top Header Logo
+ * Official PayX Top Header Logo matching wallet design in purple obsidian theme
  */
 @Composable
 private fun PayxHeaderLogo(modifier: Modifier = Modifier) {
@@ -1001,69 +961,103 @@ private fun PayxHeaderLogo(modifier: Modifier = Modifier) {
             .clip(RoundedCornerShape(12.dp))
             .background(
                 Brush.linearGradient(
-                    listOf(Color(0xFF2E1C4E), Color(0xFF1B112E))
+                    listOf(Color(0xFF231660), Color(0xFF130E2E))
                 )
             )
-            .border(1.dp, Color(0xFF4C3078), RoundedCornerShape(12.dp)),
+            .border(1.2.dp, Color(0xFF907EC8), RoundedCornerShape(12.dp)),
         contentAlignment = Alignment.Center
     ) {
-        Canvas(modifier = Modifier.size(20.dp)) {
-            val neonPurple = Color(0xFFD8B4FE)
-            val strokeWidth = 2.2.dp.toPx()
+        Canvas(modifier = Modifier.size(24.dp)) {
+            val w = size.width
+            val h = size.height
+            val walletW = w * 0.90f
+            val walletH = h * 0.74f
+            val left = (w - walletW) / 2f
+            val top = (h - walletH) / 2f
+            val right = left + walletW
+            val bottom = top + walletH
 
+            val stroke = walletH * 0.22f
+            val outerR = 4.5.dp.toPx()
+            val innerR = 2.dp.toPx()
+
+            val walletBrush = Brush.linearGradient(
+                listOf(Color(0xFFEDE9FD), Color(0xFFD8D0FB), Color(0xFFAE9EF8))
+            )
+            val bgColor = Color(0xFF160D26)
+
+            // Outer wallet body ("C" shape)
             drawRoundRect(
-                color = neonPurple,
-                topLeft = Offset(size.width * 0.10f, size.height * 0.22f),
-                size = Size(size.width * 0.80f, size.height * 0.62f),
-                cornerRadius = CornerRadius(4.dp.toPx(), 4.dp.toPx()),
-                style = Stroke(width = strokeWidth)
+                brush = walletBrush,
+                topLeft = Offset(left, top),
+                size = Size(walletW, walletH),
+                cornerRadius = CornerRadius(outerR, outerR)
             )
 
-            // Right flap
-            val flapW = size.width * 0.36f
-            val flapH = size.height * 0.28f
-            val flapL = size.width * 0.54f
-            val flapT = size.height * 0.39f
+            // Cavity cutout (inside cavity)
+            drawRoundRect(
+                color = bgColor,
+                topLeft = Offset(left + stroke, top + stroke),
+                size = Size(walletW - stroke + 2.dp.toPx(), walletH - stroke * 2f),
+                cornerRadius = CornerRadius(innerR, innerR)
+            )
+
+            // Wallet Flap
+            val gapY = walletH * 0.08f
+            val flapLeft = left + stroke + (walletW * 0.10f)
+            val flapTop = top + stroke + gapY
+            val flapBottom = bottom - stroke - gapY
+            val flapRight = right
+            val flapW = flapRight - flapLeft
+            val flapH = flapBottom - flapTop
 
             drawRoundRect(
-                color = Color(0xFF22153B),
-                topLeft = Offset(flapL, flapT),
+                brush = walletBrush,
+                topLeft = Offset(flapLeft, flapTop),
                 size = Size(flapW, flapH),
-                cornerRadius = CornerRadius(3.dp.toPx(), 3.dp.toPx())
+                cornerRadius = CornerRadius(3.5.dp.toPx(), 3.5.dp.toPx())
             )
-            drawRoundRect(
-                color = neonPurple,
-                topLeft = Offset(flapL, flapT),
-                size = Size(flapW, flapH),
-                cornerRadius = CornerRadius(3.dp.toPx(), 3.dp.toPx()),
-                style = Stroke(width = strokeWidth)
+
+            // Snap Button Hole
+            val snapCenter = Offset((flapLeft + flapRight) / 2f, (flapTop + flapBottom) / 2f)
+            val snapR = walletH * 0.075f
+            drawCircle(
+                color = bgColor,
+                radius = snapR,
+                center = snapCenter
             )
         }
     }
 }
 
-@Composable
-private fun GoogleWhiteGlyph(modifier: Modifier = Modifier) {
-    Canvas(modifier = modifier) {
-        val stroke = 2.8.dp.toPx()
-        val r = (size.minDimension - stroke) / 2f
-        val center = Offset(size.width / 2f, size.height / 2f)
+/**
+ * Official Google 4-Color Paths
+ */
+private object GooglePaths {
+    val bluePath = PathParser.createPathFromPathData("M 23.75 12.27 c 0 -0.7 -.06 -1.4 -.19 -2.07 H 12 v 4.51 h 6.6 c -0.29 1.52 -1.14 2.82 -2.4 3.68 v 3.05 h 3.88 c 2.27 -2.09 3.66 -5.17 3.66 -9.17 z").asComposePath()
+    val greenPath = PathParser.createPathFromPathData("M 12 24 c 3.24 0 5.95 -1.08 7.93 -2.91 l -3.88 -3.05 c -1.08 0.72 -2.45 1.16 -4.05 1.16 c -3.12 0 -5.77 -2.1 -6.72 -4.93 H 1.25 v 3.15 C 3.26 21.36 7.33 24 12 24 z").asComposePath()
+    val yellowPath = PathParser.createPathFromPathData("M 5.28 14.27 c -0.25 -0.72 -0.38 -1.49 -0.38 -2.27 s 0.13 -1.55 0.38 -2.27 V 6.58 H 1.25 C 0.45 8.18 0 9.99 0 12 s 0.45 3.82 1.25 5.42 l 4.03 -3.15 z").asComposePath()
+    val redPath = PathParser.createPathFromPathData("M 12 4.75 c 1.77 0 3.35 0.61 4.6 1.8 l 3.42 -3.42 C 17.95 1.19 15.24 0 12 0 C 7.33 0 3.26 2.64 1.25 6.58 l 4.03 3.15 c 0.95 -2.83 3.6 -4.98 6.72 -4.98 z").asComposePath()
+}
 
-        drawArc(
-            color = Color.White,
-            startAngle = 40f,
-            sweepAngle = 280f,
-            useCenter = false,
-            topLeft = Offset(center.x - r, center.y - r),
-            size = Size(r * 2f, r * 2f),
-            style = Stroke(width = stroke, cap = StrokeCap.Round)
+/**
+ * Official Google "G" 4-Color Vector Logo
+ * Draws a contained dark disc first so the inner arc gap shows dark, not white.
+ */
+@Composable
+private fun GoogleOfficialLogo(modifier: Modifier = Modifier) {
+    Canvas(modifier = modifier) {
+        val s = size.minDimension / 24f
+        // Dark disc — prevents button surface bleeding through inner arc cutout
+        drawCircle(
+            color = Color(0xFF211660),
+            radius = size.minDimension / 2f
         )
-        drawLine(
-            color = Color.White,
-            start = Offset(center.x - 0.5.dp.toPx(), center.y),
-            end = Offset(center.x + r, center.y),
-            strokeWidth = stroke,
-            cap = StrokeCap.Round
-        )
+        scale(scaleX = s, scaleY = s, pivot = Offset.Zero) {
+            drawPath(GooglePaths.bluePath, color = Color(0xFF4285F4))
+            drawPath(GooglePaths.greenPath, color = Color(0xFF34A853))
+            drawPath(GooglePaths.yellowPath, color = Color(0xFFFBBC05))
+            drawPath(GooglePaths.redPath, color = Color(0xFFEA4335))
+        }
     }
 }
