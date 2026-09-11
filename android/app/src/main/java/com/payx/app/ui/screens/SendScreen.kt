@@ -27,14 +27,15 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.activity.compose.BackHandler
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.Backspace
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
@@ -49,13 +50,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -458,6 +464,9 @@ private fun SendMoneyScreen(
     var isProcessingPayment by remember { mutableStateOf(false) }
 
     val haptics = LocalHapticFeedback.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val focusManager = LocalFocusManager.current
+    val focusRequester = remember { FocusRequester() }
     val scrollState = rememberScrollState()
 
     BackHandler(enabled = isAmountConfirmed) {
@@ -466,6 +475,20 @@ private fun SendMoneyScreen(
 
     LaunchedEffect(isAmountConfirmed) {
         scrollState.scrollTo(0)
+        if (!isAmountConfirmed) {
+            delay(200)
+            try {
+                focusRequester.requestFocus()
+                keyboardController?.show()
+            } catch (_: Exception) {
+                delay(150)
+                try {
+                    focusRequester.requestFocus()
+                    keyboardController?.show()
+                } catch (_: Exception) {
+                }
+            }
+        }
     }
 
     // Animate scale on input change
@@ -475,18 +498,6 @@ private fun SendMoneyScreen(
         animationSpec = tween(durationMillis = 100),
         finishedListener = { scaleTrigger = false },
         label = "amountScale"
-    )
-
-    // Cursor blink animation
-    val infiniteTransition = rememberInfiniteTransition(label = "cursorBlink")
-    val cursorAlpha by infiniteTransition.animateFloat(
-        initialValue = 1f,
-        targetValue = 0f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 500, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "cursorAlpha"
     )
 
     val amountDouble = amountInput.toDoubleOrNull() ?: 0.0
@@ -505,8 +516,12 @@ private fun SendMoneyScreen(
                 .fillMaxSize()
                 .statusBarsPadding()
                 .navigationBarsPadding()
+                .imePadding()
                 .verticalScroll(scrollState)
-                .padding(horizontal = 24.dp),
+                .padding(horizontal = 24.dp)
+                .graphicsLayer {
+                    alpha = if (isProcessingPayment) 0f else 1f
+                },
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Spacer(modifier = Modifier.height(8.dp))
@@ -518,6 +533,8 @@ private fun SendMoneyScreen(
             ) {
                 Surface(
                     onClick = {
+                        keyboardController?.hide()
+                        focusManager.clearFocus()
                         if (isAmountConfirmed) {
                             isAmountConfirmed = false
                         } else {
@@ -553,13 +570,13 @@ private fun SendMoneyScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(if (isAmountConfirmed) 24.dp else 16.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
             // Recipient Profile Avatar with India Flag Badge
             Box {
                 Box(
                     modifier = Modifier
-                        .size(if (isAmountConfirmed) 76.dp else 68.dp)
+                        .size(76.dp)
                         .shadow(
                             elevation = 12.dp,
                             shape = CircleShape,
@@ -575,7 +592,7 @@ private fun SendMoneyScreen(
                         text = recipient.avatarInitials,
                         style = TextStyle(
                             fontFamily = PlusJakartaSans,
-                            fontSize = if (isAmountConfirmed) 28.sp else 24.sp,
+                            fontSize = 28.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color.White
                         )
@@ -595,7 +612,7 @@ private fun SendMoneyScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
             // Recipient Name
             Text(
@@ -608,7 +625,7 @@ private fun SendMoneyScreen(
                 )
             )
 
-            Spacer(modifier = Modifier.height(3.dp))
+            Spacer(modifier = Modifier.height(4.dp))
 
             // Recipient Email
             Text(
@@ -621,15 +638,19 @@ private fun SendMoneyScreen(
                 )
             )
 
-            Spacer(modifier = Modifier.height(if (isAmountConfirmed) 28.dp else 16.dp))
+            Spacer(modifier = Modifier.height(32.dp))
 
             // EXACTLY CENTERED DYNAMIC AMOUNT DISPLAY
             Box(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
                     .clip(RoundedCornerShape(16.dp))
-                    .clickable(enabled = isAmountConfirmed) {
-                        isAmountConfirmed = false
+                    .clickable {
+                        if (isAmountConfirmed) {
+                            isAmountConfirmed = false
+                        }
+                        focusRequester.requestFocus()
+                        keyboardController?.show()
                     }
             ) {
                 Box(
@@ -647,7 +668,7 @@ private fun SendMoneyScreen(
 
                 Row(
                     modifier = Modifier
-                        .padding(vertical = 10.dp, horizontal = 16.dp)
+                        .padding(vertical = 12.dp, horizontal = 20.dp)
                         .graphicsLayer {
                             scaleX = amountScale
                             scaleY = amountScale
@@ -655,7 +676,7 @@ private fun SendMoneyScreen(
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    val isEntered = amountInput.isNotEmpty()
+                    val isEntered = amountInput.isNotEmpty() && amountInput != "0"
                     val amountColor = if (isEntered) Color.White else Color(0xFF5A5672)
 
                     Text(
@@ -670,330 +691,253 @@ private fun SendMoneyScreen(
 
                     Spacer(modifier = Modifier.width(10.dp))
 
-                    Text(
-                        text = if (isEntered) amountInput else "0",
-                        style = TextStyle(
-                            fontFamily = MontaguSlab,
-                            fontSize = 48.sp,
-                            fontWeight = FontWeight.Normal,
-                            color = amountColor
-                        )
-                    )
-
                     if (!isAmountConfirmed) {
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Box(
+                        BasicTextField(
+                            value = amountInput,
+                            onValueChange = { input ->
+                                val digitsOnly = input.filter { it.isDigit() }
+                                if (digitsOnly.length <= 6) {
+                                    amountInput = if (digitsOnly.startsWith("0") && digitsOnly.length > 1) {
+                                        digitsOnly.trimStart('0')
+                                    } else {
+                                        digitsOnly
+                                    }
+                                    scaleTrigger = true
+                                }
+                            },
+                            textStyle = TextStyle(
+                                fontFamily = MontaguSlab,
+                                fontSize = 48.sp,
+                                fontWeight = FontWeight.Normal,
+                                color = amountColor
+                            ),
+                            cursorBrush = SolidColor(PayxPalette.VividPurple),
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Number,
+                                imeAction = ImeAction.Done
+                            ),
+                            keyboardActions = KeyboardActions(
+                                onDone = {
+                                    if (amountDouble > 0.0) {
+                                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        keyboardController?.hide()
+                                        focusManager.clearFocus()
+                                        isAmountConfirmed = true
+                                    }
+                                }
+                            ),
+                            singleLine = true,
                             modifier = Modifier
-                                .width(3.dp)
-                                .height(40.dp)
-                                .clip(RoundedCornerShape(2.dp))
-                                .background(PayxPalette.VividPurple.copy(alpha = cursorAlpha))
+                                .widthIn(min = 28.dp)
+                                .width(IntrinsicSize.Min)
+                                .focusRequester(focusRequester),
+                            decorationBox = { innerTextField ->
+                                if (amountInput.isEmpty()) {
+                                    Text(
+                                        text = "0",
+                                        style = TextStyle(
+                                            fontFamily = MontaguSlab,
+                                            fontSize = 48.sp,
+                                            fontWeight = FontWeight.Normal,
+                                            color = Color(0xFF5A5672)
+                                        )
+                                    )
+                                }
+                                innerTextField()
+                            }
+                        )
+                    } else {
+                        Text(
+                            text = if (amountInput.isNotEmpty()) amountInput else "0",
+                            style = TextStyle(
+                                fontFamily = MontaguSlab,
+                                fontSize = 48.sp,
+                                fontWeight = FontWeight.Normal,
+                                color = Color.White
+                            )
                         )
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(if (isAmountConfirmed) 24.dp else 14.dp))
+            Spacer(modifier = Modifier.height(28.dp))
 
-            // DYNAMIC CONTENT: PHASE 1 (Numpad + Tick) vs PHASE 2 (Fee Breakdown + Swipe to Send)
-            AnimatedContent(
-                targetState = isAmountConfirmed,
-                transitionSpec = {
-                    if (targetState) {
-                        (slideInVertically(animationSpec = tween(320, easing = FastOutSlowInEasing)) { it / 4 } +
-                                fadeIn(animationSpec = tween(320)))
-                            .togetherWith(
-                                slideOutVertically(animationSpec = tween(220, easing = LinearEasing)) { -it / 4 } +
-                                        fadeOut(animationSpec = tween(220))
-                            )
-                    } else {
-                        (slideInVertically(animationSpec = tween(320, easing = FastOutSlowInEasing)) { -it / 4 } +
-                                fadeIn(animationSpec = tween(320)))
-                            .togetherWith(
-                                slideOutVertically(animationSpec = tween(220, easing = LinearEasing)) { it / 4 } +
-                                        fadeOut(animationSpec = tween(220))
-                            )
-                    }
-                },
-                label = "SendPhaseContent"
-            ) { confirmed ->
-                if (!confirmed) {
-                    // PHASE 1: NUMPAD + PROMINENT TICK BUTTON
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally
+            // FEE BREAKDOWN CARD & SWIPE TO SEND SLIDER (Revealed once amount is confirmed via keyboard)
+            AnimatedVisibility(
+                visible = isAmountConfirmed,
+                enter = slideInVertically(
+                    animationSpec = tween(340, easing = FastOutSlowInEasing),
+                    initialOffsetY = { it / 3 }
+                ) + fadeIn(animationSpec = tween(340)),
+                exit = slideOutVertically(
+                    animationSpec = tween(220, easing = LinearEasing),
+                    targetOffsetY = { it / 3 }
+                ) + fadeOut(animationSpec = tween(220))
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    // FEE BREAKDOWN Card
+                    Surface(
+                        shape = RoundedCornerShape(24.dp),
+                        color = Color(0xFF14131C),
+                        border = BorderStroke(1.dp, Color(0xFF1F1D2B)),
+                        shadowElevation = 8.dp,
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        NumericKeypad(
-                            onDigit = { digit ->
-                                if (digit == ".") {
-                                    if (!amountInput.contains(".")) {
-                                        amountInput = if (amountInput.isEmpty()) "0." else "$amountInput."
-                                        scaleTrigger = true
-                                    }
-                                } else {
-                                    val parts = amountInput.split(".")
-                                    if (parts.size == 2 && parts[1].length >= 2) {
-                                        return@NumericKeypad
-                                    }
-                                    if (amountInput == "0") {
-                                        amountInput = digit
-                                    } else if (amountInput.length < 7) {
-                                        amountInput += digit
-                                    }
-                                    scaleTrigger = true
-                                }
-                            },
-                            onBackspace = {
-                                if (amountInput.isNotEmpty()) {
-                                    amountInput = amountInput.dropLast(1)
-                                    scaleTrigger = true
-                                }
-                            }
-                        )
-
-                        Spacer(modifier = Modifier.height(18.dp))
-
-                        // Prominent Tick Button
-                        val canConfirm = amountDouble > 0.0
-                        val tickScale by animateFloatAsState(
-                            targetValue = if (canConfirm) 1f else 0.92f,
-                            animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
-                            label = "tickScale"
-                        )
-
-                        Surface(
-                            onClick = {
-                                if (canConfirm) {
-                                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    isAmountConfirmed = true
-                                }
-                            },
-                            enabled = canConfirm,
-                            shape = CircleShape,
-                            color = Color.Transparent,
+                        Column(
                             modifier = Modifier
-                                .size(64.dp)
-                                .graphicsLayer {
-                                    scaleX = tickScale
-                                    scaleY = tickScale
-                                }
-                                .then(
-                                    if (canConfirm) {
-                                        Modifier.shadow(
-                                            elevation = 16.dp,
-                                            shape = CircleShape,
-                                            spotColor = Color(0x6634D399),
-                                            ambientColor = Color(0x4434D399)
-                                        )
-                                    } else Modifier
-                                )
-                                .background(
-                                    brush = if (canConfirm) {
-                                        Brush.linearGradient(
-                                            colors = listOf(
-                                                Color(0xFF34D399),
-                                                Color(0xFF059669)
-                                            )
-                                        )
-                                    } else {
-                                        SolidColor(Color(0xFF1B1926))
-                                    },
-                                    shape = CircleShape
-                                )
-                                .border(
-                                    width = 1.dp,
-                                    brush = if (canConfirm) {
-                                        Brush.linearGradient(
-                                            colors = listOf(
-                                                Color(0xFF6EE7B7),
-                                                Color(0xFF059669)
-                                            )
-                                        )
-                                    } else {
-                                        SolidColor(Color(0xFF282538))
-                                    },
-                                    shape = CircleShape
-                                )
+                                .fillMaxWidth()
+                                .padding(20.dp)
                         ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    imageVector = Icons.Default.Check,
-                                    contentDescription = "Confirm Amount",
-                                    tint = if (canConfirm) Color.White else Color(0xFF4A4660),
-                                    modifier = Modifier.size(32.dp)
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(16.dp))
-                    }
-                } else {
-                    // PHASE 2: FEE BREAKDOWN CARD & SWIPE TO SEND SLIDER
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        // FEE BREAKDOWN Card
-                        Surface(
-                            shape = RoundedCornerShape(24.dp),
-                            color = Color(0xFF14131C),
-                            border = BorderStroke(1.dp, Color(0xFF1F1D2B)),
-                            shadowElevation = 8.dp,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(20.dp)
+                            // Header Row: FEE BREAKDOWN • LIVE
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                // Header Row: FEE BREAKDOWN • LIVE
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
+                                Text(
+                                    text = "FEE BREAKDOWN",
+                                    style = TextStyle(
+                                        fontFamily = PlusJakartaSans,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        letterSpacing = 1.2.sp,
+                                        color = Color(0xFF6B6880)
+                                    )
+                                )
+
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(6.dp)
+                                            .clip(CircleShape)
+                                            .background(PayxPalette.VividPurple)
+                                    )
+                                    Spacer(modifier = Modifier.width(5.dp))
                                     Text(
-                                        text = "FEE BREAKDOWN",
+                                        text = "LIVE",
                                         style = TextStyle(
                                             fontFamily = PlusJakartaSans,
                                             fontSize = 11.sp,
                                             fontWeight = FontWeight.Bold,
-                                            letterSpacing = 1.2.sp,
-                                            color = Color(0xFF6B6880)
+                                            letterSpacing = 1.sp,
+                                            color = Color(0xFF9881F5)
                                         )
                                     )
-
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(6.dp)
-                                                .clip(CircleShape)
-                                                .background(PayxPalette.VividPurple)
-                                        )
-                                        Spacer(modifier = Modifier.width(5.dp))
-                                        Text(
-                                            text = "LIVE",
-                                            style = TextStyle(
-                                                fontFamily = PlusJakartaSans,
-                                                fontSize = 11.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                letterSpacing = 1.sp,
-                                                color = Color(0xFF9881F5)
-                                            )
-                                        )
-                                    }
                                 }
+                            }
 
-                                Spacer(modifier = Modifier.height(18.dp))
+                            Spacer(modifier = Modifier.height(18.dp))
 
-                                // You send row
-                                BreakdownRow(
-                                    label = "You send",
-                                    value = "$${usdFormatter.format(amountDouble)}",
-                                    valueColor = Color.White
-                                )
+                            // You send row
+                            BreakdownRow(
+                                label = "You send",
+                                value = "$${usdFormatter.format(amountDouble)}",
+                                valueColor = Color.White
+                            )
 
-                                Spacer(modifier = Modifier.height(12.dp))
+                            Spacer(modifier = Modifier.height(12.dp))
 
-                                // Total fees row inside highlighted capsule
-                                Surface(
-                                    shape = RoundedCornerShape(12.dp),
-                                    color = Color(0xFF1B1926),
-                                    border = BorderStroke(1.dp, Color(0xFF2B273D)),
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(horizontal = 14.dp, vertical = 10.dp),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Text(
-                                            text = "Total fees (3.25%)",
-                                            style = TextStyle(
-                                                fontFamily = PlusJakartaSans,
-                                                fontSize = 13.sp,
-                                                fontWeight = FontWeight.Medium,
-                                                color = Color(0xFFE2E0EC)
-                                            )
-                                        )
-
-                                        Text(
-                                            text = "-$${usdFormatter.format(feeAmount)}",
-                                            style = TextStyle(
-                                                fontFamily = PlusJakartaSans,
-                                                fontSize = 13.sp,
-                                                fontWeight = FontWeight.SemiBold,
-                                                color = Color.White
-                                            )
-                                        )
-                                    }
-                                }
-
-                                Spacer(modifier = Modifier.height(14.dp))
-
-                                // Exchange rate row
-                                BreakdownRow(
-                                    label = "Exchange rate",
-                                    value = "1 USD = ₹92.90",
-                                    valueColor = Color.White
-                                )
-
-                                Spacer(modifier = Modifier.height(18.dp))
-
-                                // Priya receives row (Prominent) - Neon Green
+                            // Total fees row inside highlighted capsule
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = Color(0xFF1B1926),
+                                border = BorderStroke(1.dp, Color(0xFF2B273D)),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
                                 Row(
-                                    modifier = Modifier.fillMaxWidth(),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 14.dp, vertical = 10.dp),
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
-                                        text = "${recipient.name.substringBefore(" ")} receives",
+                                        text = "Total fees (3.25%)",
                                         style = TextStyle(
                                             fontFamily = PlusJakartaSans,
-                                            fontSize = 15.sp,
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = Color.White
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            color = Color(0xFFE2E0EC)
                                         )
                                     )
 
                                     Text(
-                                        text = "₹${inrFormatter.format(receiveInr)}",
+                                        text = "-$${usdFormatter.format(feeAmount)}",
                                         style = TextStyle(
-                                            fontFamily = MontaguSlab,
-                                            fontSize = 21.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = Color(0xFF34D399)
+                                            fontFamily = PlusJakartaSans,
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = Color.White
                                         )
                                     )
                                 }
+                            }
 
-                                Spacer(modifier = Modifier.height(10.dp))
+                            Spacer(modifier = Modifier.height(14.dp))
 
-                                // Footnote: Estimated delivery
+                            // Exchange rate row
+                            BreakdownRow(
+                                label = "Exchange rate",
+                                value = "1 USD = ₹92.90",
+                                valueColor = Color.White
+                            )
+
+                            Spacer(modifier = Modifier.height(18.dp))
+
+                            // Priya receives row (Prominent) - Neon Green
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
                                 Text(
-                                    text = "Estimated delivery: 5-10 minutes via UPI",
+                                    text = "${recipient.name.substringBefore(" ")} receives",
                                     style = TextStyle(
                                         fontFamily = PlusJakartaSans,
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Normal,
-                                        color = Color(0xFF7E7B94)
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Color.White
+                                    )
+                                )
+
+                                Text(
+                                    text = "₹${inrFormatter.format(receiveInr)}",
+                                    style = TextStyle(
+                                        fontFamily = MontaguSlab,
+                                        fontSize = 21.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF34D399)
                                     )
                                 )
                             }
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            // Footnote: Estimated delivery
+                            Text(
+                                text = "Estimated delivery: 5-10 minutes via UPI",
+                                style = TextStyle(
+                                    fontFamily = PlusJakartaSans,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Normal,
+                                    color = Color(0xFF7E7B94)
+                                )
+                            )
                         }
-
-                        Spacer(modifier = Modifier.height(24.dp))
-
-                        // Slide to Send Interaction
-                        SwipeToConfirmButton(
-                            onConfirm = { isProcessingPayment = true },
-                            modifier = Modifier.fillMaxWidth()
-                        )
-
-                        Spacer(modifier = Modifier.height(16.dp))
                     }
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    // Slide to Send Interaction
+                    SwipeToConfirmButton(
+                        onConfirm = { isProcessingPayment = true },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
                 }
             }
         }
@@ -1012,108 +956,6 @@ private fun SendMoneyScreen(
                     onConfirm(inrFormatter.format(receiveInr), usdFormatter.format(amountDouble))
                 }
             )
-        }
-    }
-}
-
-@Composable
-private fun NumericKeypad(
-    onDigit: (String) -> Unit,
-    onBackspace: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val keys = listOf(
-        listOf("1", "2", "3"),
-        listOf("4", "5", "6"),
-        listOf("7", "8", "9"),
-        listOf(".", "0", "backspace")
-    )
-
-    Column(
-        modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        keys.forEach { row ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                row.forEach { key ->
-                    when (key) {
-                        "backspace" -> {
-                            KeypadButton(
-                                modifier = Modifier.weight(1f),
-                                onClick = onBackspace
-                            ) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.Backspace,
-                                    contentDescription = "Backspace",
-                                    tint = Color(0xFFB4B0C8),
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            }
-                        }
-                        "." -> {
-                            KeypadButton(
-                                modifier = Modifier.weight(1f),
-                                onClick = { onDigit(".") }
-                            ) {
-                                Text(
-                                    text = ".",
-                                    style = TextStyle(
-                                        fontFamily = PlusJakartaSans,
-                                        fontSize = 28.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color.White
-                                    )
-                                )
-                            }
-                        }
-                        else -> {
-                            KeypadButton(
-                                modifier = Modifier.weight(1f),
-                                onClick = { onDigit(key) }
-                            ) {
-                                Text(
-                                    text = key,
-                                    style = TextStyle(
-                                        fontFamily = PlusJakartaSans,
-                                        fontSize = 24.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = Color.White
-                                    )
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun KeypadButton(
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit,
-    content: @Composable () -> Unit
-) {
-    val haptics = LocalHapticFeedback.current
-    Surface(
-        onClick = {
-            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-            onClick()
-        },
-        shape = RoundedCornerShape(18.dp),
-        color = Color(0xFF14131C),
-        border = BorderStroke(1.dp, Color(0xFF1F1D2B)),
-        modifier = modifier.height(54.dp)
-    ) {
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier.fillMaxSize()
-        ) {
-            content()
         }
     }
 }
@@ -1197,7 +1039,83 @@ private fun SwipeToConfirmButton(
                     )
                 ),
                 shape = RoundedCornerShape(32.dp)
-            ),
+            )
+            .pointerInput(maxDrag, isConfirmed) {
+                if (maxDrag > 0 && !isConfirmed) {
+                    detectHorizontalDragGestures(
+                        onDragEnd = {
+                            if (!isConfirmed) {
+                                if (dragOffset.value > maxDrag * 0.65f) {
+                                    coroutineScope.launch {
+                                        isConfirmed = true
+                                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        dragOffset.animateTo(
+                                            targetValue = maxDrag,
+                                            animationSpec = spring(
+                                                dampingRatio = Spring.DampingRatioLowBouncy,
+                                                stiffness = Spring.StiffnessMedium
+                                            )
+                                        )
+                                        delay(120)
+                                        onConfirm()
+                                    }
+                                } else {
+                                    coroutineScope.launch {
+                                        hasPassedMidpoint = false
+                                        dragOffset.animateTo(
+                                            targetValue = 0f,
+                                            animationSpec = spring(
+                                                dampingRatio = Spring.DampingRatioMediumBouncy,
+                                                stiffness = Spring.StiffnessLow
+                                            )
+                                        )
+                                    }
+                                }
+                            }
+                        },
+                        onDragCancel = {
+                            if (!isConfirmed) {
+                                coroutineScope.launch {
+                                    hasPassedMidpoint = false
+                                    dragOffset.animateTo(
+                                        targetValue = 0f,
+                                        animationSpec = spring(
+                                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                                            stiffness = Spring.StiffnessLow
+                                        )
+                                    )
+                                }
+                            }
+                        }
+                    ) { change, dragAmount ->
+                        change.consume()
+                        coroutineScope.launch {
+                            val newOffset = (dragOffset.value + dragAmount).coerceIn(0f, maxDrag)
+                            if (!hasPassedMidpoint && newOffset > maxDrag * 0.5f) {
+                                hasPassedMidpoint = true
+                                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            } else if (hasPassedMidpoint && newOffset < maxDrag * 0.4f) {
+                                hasPassedMidpoint = false
+                            }
+                            dragOffset.snapTo(newOffset)
+
+                            if (newOffset >= maxDrag * 0.85f && !isConfirmed) {
+                                isConfirmed = true
+                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                dragOffset.animateTo(
+                                    targetValue = maxDrag,
+                                    animationSpec = spring(
+                                        dampingRatio = Spring.DampingRatioLowBouncy,
+                                        stiffness = Spring.StiffnessMedium
+                                    )
+                                )
+                                delay(120)
+                                onConfirm()
+                            }
+                        }
+                    }
+                }
+            },
         contentAlignment = Alignment.CenterStart
     ) {
         // Dynamic Glowing Progress Trail behind the thumb
@@ -1287,16 +1205,16 @@ private fun SwipeToConfirmButton(
 
                         Spacer(modifier = Modifier.width(8.dp))
 
-                        Text(
-                            text = "›››",
-                            style = TextStyle(
-                                fontFamily = PlusJakartaSans,
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = PayxPalette.SoftLavender.copy(alpha = 0.7f),
-                                letterSpacing = 2.sp
-                            )
-                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy((-3).dp)) {
+                            listOf(0.4f, 0.7f, 1.0f).forEach { alphaVal ->
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                    contentDescription = null,
+                                    tint = PayxPalette.VividPurple.copy(alpha = alphaVal),
+                                    modifier = Modifier.size(13.dp)
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -1314,83 +1232,7 @@ private fun SwipeToConfirmButton(
                     shape = CircleShape,
                     spotColor = if (isConfirmed) Color(0xFF34D399) else PayxPalette.VividPurple,
                     ambientColor = if (isConfirmed) Color(0xFF34D399) else PayxPalette.VividPurple
-                )
-                .pointerInput(maxDrag, isConfirmed) {
-                    if (maxDrag > 0 && !isConfirmed) {
-                        detectHorizontalDragGestures(
-                            onDragEnd = {
-                                if (!isConfirmed) {
-                                    if (dragOffset.value > maxDrag * 0.72f) {
-                                        coroutineScope.launch {
-                                            isConfirmed = true
-                                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            dragOffset.animateTo(
-                                                targetValue = maxDrag,
-                                                animationSpec = spring(
-                                                    dampingRatio = Spring.DampingRatioLowBouncy,
-                                                    stiffness = Spring.StiffnessMedium
-                                                )
-                                            )
-                                            delay(120)
-                                            onConfirm()
-                                        }
-                                    } else {
-                                        coroutineScope.launch {
-                                            hasPassedMidpoint = false
-                                            dragOffset.animateTo(
-                                                targetValue = 0f,
-                                                animationSpec = spring(
-                                                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                                                    stiffness = Spring.StiffnessLow
-                                                )
-                                            )
-                                        }
-                                    }
-                                }
-                            },
-                            onDragCancel = {
-                                if (!isConfirmed) {
-                                    coroutineScope.launch {
-                                        hasPassedMidpoint = false
-                                        dragOffset.animateTo(
-                                            targetValue = 0f,
-                                            animationSpec = spring(
-                                                dampingRatio = Spring.DampingRatioMediumBouncy,
-                                                stiffness = Spring.StiffnessLow
-                                            )
-                                        )
-                                    }
-                                }
-                            }
-                        ) { change, dragAmount ->
-                            change.consume()
-                            coroutineScope.launch {
-                                val newOffset = (dragOffset.value + dragAmount).coerceIn(0f, maxDrag)
-                                if (!hasPassedMidpoint && newOffset > maxDrag * 0.5f) {
-                                    hasPassedMidpoint = true
-                                    haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                } else if (hasPassedMidpoint && newOffset < maxDrag * 0.4f) {
-                                    hasPassedMidpoint = false
-                                }
-                                dragOffset.snapTo(newOffset)
-
-                                if (newOffset >= maxDrag * 0.94f && !isConfirmed) {
-                                    isConfirmed = true
-                                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    dragOffset.animateTo(
-                                        targetValue = maxDrag,
-                                        animationSpec = spring(
-                                            dampingRatio = Spring.DampingRatioLowBouncy,
-                                            stiffness = Spring.StiffnessMedium
-                                        )
-                                    )
-                                    delay(120)
-                                    onConfirm()
-                                }
-                            }
-                        }
-                    }
-                },
+                ),
             color = Color.Transparent
         ) {
             Box(
@@ -1548,7 +1390,7 @@ private fun FastArrowPaymentOverlay(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xF908080C))
+            .background(Color(0xFF09090D))
             .clickable(enabled = false) {}, // Scrim captures touches
         contentAlignment = Alignment.Center
     ) {
@@ -1663,22 +1505,22 @@ private fun FastArrowPaymentOverlay(
                     brush = Brush.verticalGradient(
                         colors = listOf(
                             Color.White,
-                            Color(0xFF6EE7B7),
+                            Color(0xFF67E8F9),
                             Color(0xFF34D399),
                             PayxPalette.VividPurple,
                             Color.Transparent
                         ),
-                        startY = currentY + 26.dp.toPx(),
+                        startY = currentY + 38.dp.toPx(),
                         endY = currentY + plumeLength * 0.85f
                     ),
-                    start = Offset(centerX, currentY + 26.dp.toPx()),
+                    start = Offset(centerX, currentY + 38.dp.toPx()),
                     end = Offset(centerX, currentY + plumeLength * 0.85f),
-                    strokeWidth = 8.5.dp.toPx() * enginePulse,
+                    strokeWidth = 9.dp.toPx() * enginePulse,
                     cap = StrokeCap.Round
                 )
 
                 // 5. Supersonic Mach Shock Diamonds
-                val diamondDistances = listOf(30.dp, 62.dp, 100.dp, 145.dp, 195.dp)
+                val diamondDistances = listOf(48.dp, 82.dp, 122.dp, 168.dp, 220.dp)
                 diamondDistances.forEachIndexed { index, dist ->
                     val dy = currentY + dist.toPx()
                     val discRadius = (16.dp - (index * 2.2).dp).toPx() * enginePulse
@@ -1698,54 +1540,225 @@ private fun FastArrowPaymentOverlay(
                     )
                 }
 
-                // 6. Supersonic Dart Arrow (Needle Nose & Swept Wings)
-                val arrowHalfWidth = 22.dp.toPx()
-                val arrowLength = 46.dp.toPx()
-                val notchDepth = 14.dp.toPx()
+                // 6. Supersonic Aerospace Interceptor Craft
+                val arrowHalfWidth = 26.dp.toPx()
+                val arrowLength = 54.dp.toPx()
+                val notchDepth = 15.dp.toPx()
+                val canardHalfWidth = 14.dp.toPx()
+                val canardY = currentY + 19.dp.toPx()
+                val canardNotchY = currentY + 24.dp.toPx()
+                val fuselageNotchWidth = 8.dp.toPx()
+                val engineNozzleOffset = 7.dp.toPx()
 
-                val arrowPath = Path().apply {
+                // Atmospheric Hypersonic Bow Shock Wave ahead of needle tip
+                val shockWavePath = Path().apply {
+                    moveTo(centerX - 28.dp.toPx(), currentY + 12.dp.toPx())
+                    quadraticTo(
+                        centerX, currentY - 8.dp.toPx(),
+                        centerX + 28.dp.toPx(), currentY + 12.dp.toPx()
+                    )
+                }
+                drawPath(
+                    path = shockWavePath,
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            Color.White.copy(alpha = 0.75f * enginePulse),
+                            Color(0xFF6EE7B7).copy(alpha = 0.35f * enginePulse),
+                            Color.Transparent
+                        ),
+                        center = Offset(centerX, currentY),
+                        radius = 32.dp.toPx()
+                    ),
+                    style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round)
+                )
+
+                // Left Specular Hull Facet
+                val leftFacetPath = Path().apply {
                     moveTo(centerX, currentY) // Needle tip
-                    lineTo(centerX + arrowHalfWidth, currentY + arrowLength) // Right wingtip
-                    lineTo(centerX, currentY + arrowLength - notchDepth) // Thruster notch center
-                    lineTo(centerX - arrowHalfWidth, currentY + arrowLength) // Left wingtip
+                    lineTo(centerX - canardHalfWidth, canardY) // Left forward canard
+                    lineTo(centerX - fuselageNotchWidth, canardNotchY) // Canard inset
+                    lineTo(centerX - arrowHalfWidth, currentY + arrowLength) // Left swept wingtip
+                    lineTo(centerX - 12.dp.toPx(), currentY + arrowLength - 5.dp.toPx()) // Inboard cut
+                    lineTo(centerX - engineNozzleOffset, currentY + arrowLength - 3.dp.toPx()) // Left nozzle
+                    lineTo(centerX, currentY + arrowLength - notchDepth) // Center keel notch
                     close()
                 }
 
-                // Body Gradient Fill
                 drawPath(
-                    path = arrowPath,
-                    brush = Brush.verticalGradient(
+                    path = leftFacetPath,
+                    brush = Brush.linearGradient(
                         colors = listOf(
                             Color.White,
-                            Color(0xFF6EE7B7),
+                            Color(0xFFA7F3D0),
                             Color(0xFF34D399),
-                            Color(0xFF059669)
+                            Color(0xFF0D9488)
                         ),
-                        startY = currentY,
-                        endY = currentY + arrowLength
+                        start = Offset(centerX - arrowHalfWidth, currentY),
+                        end = Offset(centerX, currentY + arrowLength)
                     )
                 )
 
-                // Razor-sharp Central Titanium Spine Highlight
+                // Right Shadow Hull Facet
+                val rightFacetPath = Path().apply {
+                    moveTo(centerX, currentY) // Needle tip
+                    lineTo(centerX + canardHalfWidth, canardY) // Right forward canard
+                    lineTo(centerX + fuselageNotchWidth, canardNotchY) // Canard inset
+                    lineTo(centerX + arrowHalfWidth, currentY + arrowLength) // Right swept wingtip
+                    lineTo(centerX + 12.dp.toPx(), currentY + arrowLength - 5.dp.toPx()) // Inboard cut
+                    lineTo(centerX + engineNozzleOffset, currentY + arrowLength - 3.dp.toPx()) // Right nozzle
+                    lineTo(centerX, currentY + arrowLength - notchDepth) // Center keel notch
+                    close()
+                }
+
+                drawPath(
+                    path = rightFacetPath,
+                    brush = Brush.linearGradient(
+                        colors = listOf(
+                            Color(0xFF6EE7B7),
+                            Color(0xFF10B981),
+                            Color(0xFF047857),
+                            Color(0xFF064E3B)
+                        ),
+                        start = Offset(centerX, currentY),
+                        end = Offset(centerX + arrowHalfWidth, currentY + arrowLength)
+                    )
+                )
+
+                // Outer Laser Rim Contour (Razor Bevel)
+                val fullHullOutline = Path().apply {
+                    moveTo(centerX, currentY)
+                    lineTo(centerX + canardHalfWidth, canardY)
+                    lineTo(centerX + fuselageNotchWidth, canardNotchY)
+                    lineTo(centerX + arrowHalfWidth, currentY + arrowLength)
+                    lineTo(centerX + 12.dp.toPx(), currentY + arrowLength - 5.dp.toPx())
+                    lineTo(centerX + engineNozzleOffset, currentY + arrowLength - 3.dp.toPx())
+                    lineTo(centerX, currentY + arrowLength - notchDepth)
+                    lineTo(centerX - engineNozzleOffset, currentY + arrowLength - 3.dp.toPx())
+                    lineTo(centerX - 12.dp.toPx(), currentY + arrowLength - 5.dp.toPx())
+                    lineTo(centerX - arrowHalfWidth, currentY + arrowLength)
+                    lineTo(centerX - fuselageNotchWidth, canardNotchY)
+                    lineTo(centerX - canardHalfWidth, canardY)
+                    close()
+                }
+                drawPath(
+                    path = fullHullOutline,
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            Color.White.copy(alpha = 0.9f),
+                            Color(0xFF6EE7B7).copy(alpha = 0.6f),
+                            Color(0x3334D399)
+                        ),
+                        startY = currentY,
+                        endY = currentY + arrowLength
+                    ),
+                    style = Stroke(width = 1.2.dp.toPx())
+                )
+
+                // Raised Dorsal Titanium Spine
+                val dorsalSpinePath = Path().apply {
+                    moveTo(centerX, currentY)
+                    lineTo(centerX + 3.dp.toPx(), currentY + 16.dp.toPx())
+                    lineTo(centerX + 2.5.dp.toPx(), currentY + arrowLength - notchDepth)
+                    lineTo(centerX - 2.5.dp.toPx(), currentY + arrowLength - notchDepth)
+                    lineTo(centerX - 3.dp.toPx(), currentY + 16.dp.toPx())
+                    close()
+                }
+                drawPath(
+                    path = dorsalSpinePath,
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            Color.White,
+                            Color(0xFFE6FFFA),
+                            Color(0xFF6EE7B7),
+                            Color(0xFF10B981)
+                        ),
+                        startY = currentY,
+                        endY = currentY + arrowLength - notchDepth
+                    )
+                )
+
+                // High-Intensity Cockpit Canopy Slit (Cyber Visor)
                 drawLine(
-                    color = Color.White.copy(alpha = 0.95f),
-                    start = Offset(centerX, currentY),
-                    end = Offset(centerX, currentY + arrowLength - notchDepth),
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            Color.White,
+                            Color(0xFF67E8F9),
+                            Color(0xFF06B6D4)
+                        ),
+                        startY = currentY + 8.dp.toPx(),
+                        endY = currentY + 24.dp.toPx()
+                    ),
+                    start = Offset(centerX, currentY + 8.dp.toPx()),
+                    end = Offset(centerX, currentY + 24.dp.toPx()),
                     strokeWidth = 2.dp.toPx(),
                     cap = StrokeCap.Round
                 )
 
-                // Wingtip Stabilizer Lights
-                drawCircle(
-                    color = Color(0xFF6EE7B7),
-                    center = Offset(centerX + arrowHalfWidth, currentY + arrowLength),
-                    radius = 3.dp.toPx()
+                // Central Razor Spine Line
+                drawLine(
+                    color = Color.White.copy(alpha = 0.95f),
+                    start = Offset(centerX, currentY),
+                    end = Offset(centerX, currentY + arrowLength - notchDepth),
+                    strokeWidth = 1.2.dp.toPx(),
+                    cap = StrokeCap.Round
                 )
-                drawCircle(
-                    color = Color(0xFF6EE7B7),
-                    center = Offset(centerX - arrowHalfWidth, currentY + arrowLength),
-                    radius = 3.dp.toPx()
-                )
+
+                // Twin Vector Thruster Nozzles Core Flames
+                listOf(-engineNozzleOffset, engineNozzleOffset).forEach { nozzleX ->
+                    val nozzleCenter = Offset(centerX + nozzleX, currentY + arrowLength - 3.dp.toPx())
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            colors = listOf(
+                                Color.White,
+                                Color(0xFF67E8F9),
+                                Color(0xFF34D399),
+                                Color.Transparent
+                            ),
+                            center = nozzleCenter,
+                            radius = 6.dp.toPx() * enginePulse
+                        ),
+                        center = nozzleCenter,
+                        radius = 6.dp.toPx() * enginePulse
+                    )
+                }
+
+                // Wingtip Beacons & Supersonic Contrail Streamers
+                listOf(
+                    Pair(-arrowHalfWidth, -2.dp.toPx()),
+                    Pair(arrowHalfWidth, 2.dp.toPx())
+                ).forEach { (tipOffset, trailDrift) ->
+                    val tipX = centerX + tipOffset
+                    val tipY = currentY + arrowLength
+
+                    // Trailing Contrail Ribbon
+                    drawLine(
+                        brush = Brush.verticalGradient(
+                            colors = listOf(
+                                Color(0xFF6EE7B7).copy(alpha = 0.85f),
+                                Color(0x6634D399),
+                                Color.Transparent
+                            ),
+                            startY = tipY,
+                            endY = tipY + 48.dp.toPx() * enginePulse
+                        ),
+                        start = Offset(tipX, tipY),
+                        end = Offset(tipX + trailDrift, tipY + 48.dp.toPx() * enginePulse),
+                        strokeWidth = 1.8.dp.toPx(),
+                        cap = StrokeCap.Round
+                    )
+
+                    // Beacon Glow & Core
+                    drawCircle(
+                        color = Color(0xFF34D399).copy(alpha = 0.5f),
+                        center = Offset(tipX, tipY),
+                        radius = 5.dp.toPx()
+                    )
+                    drawCircle(
+                        color = Color.White,
+                        center = Offset(tipX, tipY),
+                        radius = 2.dp.toPx()
+                    )
+                }
             }
 
             // Apex Shockwave Flash
