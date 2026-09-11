@@ -34,5 +34,5 @@ pnpm dev                                          # backend on :8787
 ## Docs
 
 `docs/prd.md`, `docs/architecture.md`, `docs/contracts.md`, `docs/decisions.md`,
-`docs/milestones.md`. Keep `contracts.md` and `milestones.md` in sync with every
+`docs/milestones.md`, `docs/setup.md` (teammate/agent onboarding). Keep `contracts.md` and `milestones.md` in sync with every
 change.
