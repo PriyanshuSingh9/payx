@@ -721,60 +721,105 @@ private fun BottomNavigationDock(
                 )
             }
 
-            // Center Animated TRANSFER Pill Button
+            // Center Animated TRANSFER Pill Button with Ambient Glow & Glass Bezel
             Box(
                 modifier = Modifier
-                    .width(148.dp)
-                    .height(46.dp)
+                    .width(152.dp)
+                    .height(48.dp)
                     .graphicsLayer {
                         scaleX = buttonScale
                         scaleY = buttonScale
-                    }
-                    .clip(RoundedCornerShape(23.dp))
-                    .background(Color(0xFFAE9EF8))
-                    .clickable(
-                        enabled = !isTransferring,
-                        onClick = {
-                            if (!isTransferring) {
-                                isTransferring = true
-                                coroutineScope.launch {
-                                    // Trigger page navigation exactly when arrow completes crossing the button
-                                    delay(370)
-                                    onSend()
-                                    delay(400)
-                                    isTransferring = false
-                                }
-                            }
-                        }
-                    ),
+                    },
                 contentAlignment = Alignment.Center
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center,
-                    modifier = Modifier.fillMaxSize()
+                // Soft ambient glow underneath
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .padding(horizontal = 4.dp, vertical = 2.dp)
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(
+                            Brush.radialGradient(
+                                colors = listOf(
+                                    Color(0x50BCAEFC),
+                                    Color(0x1A9C88F7),
+                                    Color.Transparent
+                                )
+                            )
+                        )
+                )
+
+                // Main pill container with luxury silk gradient & top-lit rim
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(
+                                    Color(0xFFCCC0FF),
+                                    Color(0xFFA895FA),
+                                    Color(0xFF9881F5)
+                                )
+                            )
+                        )
+                        .border(
+                            BorderStroke(
+                                1.dp,
+                                Brush.verticalGradient(
+                                    colors = listOf(
+                                        Color(0x99FFFFFF),
+                                        Color(0x35C7BAFF),
+                                        Color(0x1525144A)
+                                    )
+                                )
+                            ),
+                            RoundedCornerShape(24.dp)
+                        )
+                        .clickable(
+                            enabled = !isTransferring,
+                            onClick = {
+                                if (!isTransferring) {
+                                    isTransferring = true
+                                    coroutineScope.launch {
+                                        // Trigger page navigation exactly when arrow completes crossing the button
+                                        delay(370)
+                                        onSend()
+                                        delay(400)
+                                        isTransferring = false
+                                    }
+                                }
+                            }
+                        ),
+                    contentAlignment = Alignment.Center
                 ) {
-                    // Dart Arrow on the left with animated rear thruster wake
-                    Box(
-                        modifier = Modifier.graphicsLayer {
-                            translationX = arrowOffsetX.toPx()
-                            scaleX = arrowScale
-                            scaleY = arrowScale
-                        },
-                        contentAlignment = Alignment.Center
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center,
+                        modifier = Modifier.fillMaxSize()
                     ) {
-                        TransferDartArrowWithThruster(
-                            color = Color(0xFF0F0A1C),
+                        // Dart Arrow on the left with animated rear thruster wake
+                        Box(
+                            modifier = Modifier.graphicsLayer {
+                                translationX = arrowOffsetX.toPx()
+                                scaleX = arrowScale
+                                scaleY = arrowScale
+                            },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            TransferDartArrowWithThruster(
+                                color = Color(0xFF0E091A),
+                                isTransferring = isTransferring
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(7.dp))
+
+                        // TRANSFER text that cascades down character-by-character
+                        StaggeredTransferText(
                             isTransferring = isTransferring
                         )
                     }
-
-                    Spacer(modifier = Modifier.width(6.dp))
-
-                    // TRANSFER text that cascades down character-by-character
-                    StaggeredTransferText(
-                        isTransferring = isTransferring
-                    )
                 }
             }
 
