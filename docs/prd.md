@@ -67,7 +67,7 @@ quoted destination amount exactly; slippage beyond tolerance aborts to refund.
 
 1. Merchant creates invoice (fiat amount + currency).
 2. Payer completes on-ramp; escrow locks on confirmation.
-3. Off-ramp settles merchant fiat; webhook fires on completion.
+3. The local mock off-ramp advances payout status after a short simulated delay.
 
 ### F4. Receive (no app required)
 

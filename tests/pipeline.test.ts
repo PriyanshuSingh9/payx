@@ -8,7 +8,7 @@ import {
   validateSolanaAddress,
   generatePaymentId
 } from "../backend/src/lib/index.js";
-import { MockOffRampAdapter, OnmetaAdapter } from "../backend/src/adapters/offramp/index.js";
+import { MockOffRampAdapter } from "../backend/src/adapters/offramp/index.js";
 import { InMemoryPaymentStore } from "../backend/src/services/paymentStore.js";
 import {
   PaymentPipelineService,
@@ -26,7 +26,7 @@ describe("PayX USDC to INR Pipeline Domain & Simulation Tests", () => {
   beforeEach(() => {
     store = new InMemoryPaymentStore();
     mockAdapter = new MockOffRampAdapter();
-    pipeline = new PaymentPipelineService({ store, offRampProvider: mockAdapter });
+    pipeline = new PaymentPipelineService({ store, mockProvider: mockAdapter });
   });
 
   describe("Correlation & Payment ID Generation (PRD Section 6 & 28)", () => {
@@ -128,7 +128,7 @@ describe("PayX USDC to INR Pipeline Domain & Simulation Tests", () => {
   });
 
   describe("End-to-End Pipeline Execution (PRD Section 24, 29, 30)", () => {
-    it("completes full USDC -> Solana -> Onmeta -> INR lifecycle", async () => {
+    it("completes the timed USDC-to-INR mock lifecycle", async () => {
       const payment = await pipeline.executeFullPipeline({
         senderWallet: VALID_SOLANA_WALLET,
         sourceAmount: 100,
@@ -151,9 +151,10 @@ describe("PayX USDC to INR Pipeline Domain & Simulation Tests", () => {
       // Verify blockchain transaction record (PRD Section 10 & 18)
       assert.ok(payment.blockchainTransaction);
       assert.equal(payment.blockchainTransaction.chain, "solana");
+      assert.equal(payment.blockchainTransaction.network, "simulator");
       assert.equal(payment.blockchainTransaction.confirmationStatus, "confirmed");
       assert.ok(payment.blockchainTransaction.transactionSignature);
-      assert.ok(payment.blockchainTransaction.explorerUrl);
+      assert.equal(payment.blockchainTransaction.explorerUrl, undefined);
 
       // Verify off-ramp order record (PRD Section 11, 12, 18)
       assert.ok(payment.offRampOrder);
@@ -257,7 +258,7 @@ describe("PayX USDC to INR Pipeline Domain & Simulation Tests", () => {
     });
   });
 
-  describe("Idempotency & Webhook Deduplication (PRD Section 19 & 20)", () => {
+  describe("Idempotency", () => {
     it("returns identical payment on repeated request with same Idempotency-Key", async () => {
       const key = "PX-REQ-IDEMPOTENCY-TEST-123";
       const payment1 = await pipeline.createPayment({
@@ -276,54 +277,6 @@ describe("PayX USDC to INR Pipeline Domain & Simulation Tests", () => {
 
       assert.equal(payment1.id, payment2.id);
       assert.equal(payment1.createdAt, payment2.createdAt);
-    });
-
-    it("processes webhook once and ignores duplicate delivery", async () => {
-      const payment = await pipeline.createPayment({
-        senderWallet: VALID_SOLANA_WALLET,
-        sourceAmount: 100,
-        recipient: { name: "Aarav Sharma", phone: "+919876543210", upiId: "aarav@oksbi" }
-      });
-      await pipeline.confirmPayment(payment.id);
-      await pipeline.settleSolana(payment.id);
-      const offramp = await pipeline.initiateOffRamp(payment.id);
-
-      const eventId = "EVT-DUP-TEST-001";
-      const payload = {
-        eventId,
-        status: "payoutSuccess",
-        orderId: offramp.offRampOrder?.providerOrderId,
-        paymentId: offramp.id
-      };
-
-      // First webhook delivery
-      const res1 = await pipeline.processWebhookEvent({
-        eventId,
-        provider: "onmeta",
-        eventType: "payoutSuccess",
-        orderId: offramp.offRampOrder?.providerOrderId,
-        payload,
-        receivedAt: new Date().toISOString(),
-        status: "processed"
-      });
-
-      assert.equal(res1.processed, true);
-      assert.equal(res1.duplicate, false);
-      assert.equal(res1.payment?.status, "COMPLETED");
-
-      // Duplicate webhook delivery
-      const res2 = await pipeline.processWebhookEvent({
-        eventId,
-        provider: "onmeta",
-        eventType: "payoutSuccess",
-        orderId: offramp.offRampOrder?.providerOrderId,
-        payload,
-        receivedAt: new Date().toISOString(),
-        status: "processed"
-      });
-
-      assert.equal(res2.processed, false);
-      assert.equal(res2.duplicate, true);
     });
 
     it("prevents race condition when duplicate requests arrive concurrently with same Idempotency-Key", async () => {
@@ -345,51 +298,10 @@ describe("PayX USDC to INR Pipeline Domain & Simulation Tests", () => {
       assert.equal(p1.destinationAmount, p2.destinationAmount);
     });
 
-    it("prevents race condition when identical webhooks arrive concurrently", async () => {
-      const payment = await pipeline.createPayment({
-        senderWallet: VALID_SOLANA_WALLET,
-        sourceAmount: 100,
-        recipient: { name: "Aarav Sharma", phone: "+919876543210", upiId: "aarav@oksbi" }
-      });
-      await pipeline.confirmPayment(payment.id);
-      await pipeline.settleSolana(payment.id);
-      const offramp = await pipeline.initiateOffRamp(payment.id);
-
-      const eventId = "EVT-CONCURRENT-WEBHOOK-888";
-      const eventRecord = {
-        eventId,
-        provider: "onmeta",
-        eventType: "payoutSuccess",
-        orderId: offramp.offRampOrder?.providerOrderId,
-        payload: {
-          status: "payoutSuccess",
-          orderId: offramp.offRampOrder?.providerOrderId,
-          paymentId: offramp.id,
-          payoutReference: "UTR99887766"
-        },
-        receivedAt: new Date().toISOString(),
-        status: "processed" as const
-      };
-
-      const [res1, res2] = await Promise.all([
-        pipeline.processWebhookEvent({ ...eventRecord }),
-        pipeline.processWebhookEvent({ ...eventRecord })
-      ]);
-
-      const duplicates = [res1.duplicate, res2.duplicate];
-      const processed = [res1.processed, res2.processed];
-
-      assert.ok(duplicates.includes(true), "One request must be recognized as duplicate");
-      assert.ok(processed.includes(true), "One request must be processed successfully");
-      assert.notEqual(res1.duplicate, res2.duplicate, "Exactly one duplicate flag must be true");
-
-      const finalPayment = await store.getPayment(payment.id);
-      assert.equal(finalPayment?.status, "COMPLETED");
-    });
   });
 
-  describe("Webhook Delay & Reconciliation (PRD Section 25 & 32)", () => {
-    it("reconciles delayed webhook by querying provider getStatus", async () => {
+  describe("Mock status progression", () => {
+    it("reconciles an advanced mock order", async () => {
       const payment = await pipeline.createPayment({
         senderWallet: VALID_SOLANA_WALLET,
         sourceAmount: 100,
@@ -401,7 +313,7 @@ describe("PayX USDC to INR Pipeline Domain & Simulation Tests", () => {
 
       assert.equal(offramp.status, "OFFRAMP_PROCESSING");
 
-      // Simulate provider payout succeeding while webhook is delayed
+      // Advance the local mock order, then reconcile the payment state.
       mockAdapter.advanceOrderStatus(offramp.offRampOrder!.providerOrderId, "payoutSuccess");
 
       // PayX executes reconciliation
@@ -424,15 +336,5 @@ describe("PayX USDC to INR Pipeline Domain & Simulation Tests", () => {
       assert.equal(validateSolanaAddress(DEFAULT_DEMO_SETTLEMENT_VAULT), true);
     });
 
-    it("safely handles malformed / length-mismatched webhook signatures without crashing", () => {
-      const onmeta = new OnmetaAdapter({ webhookSecret: "test_secret_123" });
-      // Shorter signature (not 64 hex chars)
-      const isInvalidShort = onmeta.verifyWebhookSignature('{"foo":"bar"}', "short_sig");
-      assert.equal(isInvalidShort, false);
-
-      // Empty signature
-      const isInvalidEmpty = onmeta.verifyWebhookSignature('{"foo":"bar"}', "");
-      assert.equal(isInvalidEmpty, false);
-    });
   });
 });

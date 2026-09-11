@@ -18,7 +18,7 @@ export type PaymentStatus =
   | "PAYOUT_FAILED"
   | "QUOTE_EXPIRED";
 
-export type SimulationMode = "live_testnet" | "full_simulation";
+export type SimulationMode = "full_simulation";
 
 export interface RecipientInfo {
   id: string;
@@ -70,7 +70,7 @@ export interface BlockchainTransaction {
 export interface OffRampOrder {
   id: string;
   paymentId: string;
-  provider: "onmeta" | "mock";
+  provider: "mock";
   providerOrderId: string;
   quoteId: string;
   asset: "USDC";
@@ -121,16 +121,4 @@ export interface Payment {
   createdAt: string;
   updatedAt: string;
   completedAt?: string;
-}
-
-export interface WebhookEventRecord {
-  eventId: string;
-  provider: string;
-  eventType: string;
-  orderId?: string;
-  payload: Record<string, unknown>;
-  receivedAt: string;
-  processedAt?: string;
-  status: "processed" | "duplicate" | "ignored" | "error";
-  errorMessage?: string;
 }

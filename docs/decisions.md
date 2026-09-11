@@ -37,11 +37,11 @@ pooled runtime URL + direct migration URL). Schema generalizes `amountInr` to
 `amountDest`, adds the `Corridor` table, and records Solana-native escrow fields
 (PDA, signatures) instead of EVM hashes.
 
-## ADR-006: Mock ramps first, provider webhooks from day one
+## ADR-006: Local mock workflow before provider onboarding
 
-Status: accepted. Timed mock on/off-ramps unblock end-to-end development, but the
-webhook routes (`/webhooks/onramp`, `/webhooks/offramp`) ship in Phase 1 so real
-providers integrate without route changes.
+Status: accepted. The backend runs a timed local mock workflow for every
+USDC-to-INR payment. Provider APIs and provider webhook routes remain absent
+until KYB registration and production operations are in place.
 
 ## ADR-007: Deterministic Keystore wallets, server never sees keys
 

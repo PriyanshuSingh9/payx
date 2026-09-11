@@ -72,7 +72,7 @@ export function isFailureStatus(status: PaymentStatus): boolean {
   );
 }
 
-// Maps provider specific webhook statuses to unified PayX payment statuses (PRD Section 14).
+// Maps local mock off-ramp statuses to unified PayX payment statuses.
 export function mapProviderStatusToPaymentStatus(
   providerStatus: string
 ): "OFFRAMP_PROCESSING" | "FIAT_PAYOUT_PENDING" | "COMPLETED" | "PAYOUT_FAILED" | "OFFRAMP_FAILED" | null {

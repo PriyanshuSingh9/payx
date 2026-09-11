@@ -35,6 +35,5 @@ export type {
   BlockchainTransaction,
   OffRampOrder,
   TimelineEvent,
-  Payment,
-  WebhookEventRecord
+  Payment
 } from "./models.js";

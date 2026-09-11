@@ -24,10 +24,8 @@ support idempotency via the `Idempotency-Key` header. Errors return
 | GET | `/recipients?q=` | JWT | Address book search (max 12) |
 | POST | `/transfers` | JWT | `{ corridorId, recipientId, amountSource }` -> `201` intent |
 | GET | `/transfers/:id` | JWT | Transfer + escrow + ramp statuses |
-| GET | `/onramp/widget` | none | Embedded provider widget HTML |
+| GET | `/onramp/widget` | none | Local mock on-ramp widget HTML |
 | POST | `/onramp/complete/:orderId` | JWT | Dev/mock completion hook |
-| POST | `/webhooks/onramp` | provider secret | On-ramp settlement notification |
-| POST | `/webhooks/offramp` | provider secret | Off-ramp settlement notification |
 | POST | `/demo/force-release` | JWT, `ENABLE_DEMO_ADMIN` | Force-release a stuck escrow (dev only) |
 
 ### USDC to INR Pipeline Routes (PRD Version 1.0)
@@ -39,15 +37,20 @@ support idempotency via the `Idempotency-Key` header. Errors return
 | GET | `/api/v1/payments` | none | List recent payments (limit query parameter supported) |
 | POST | `/api/v1/payments/:id/quote` | none | Refresh off-ramp quote |
 | POST | `/api/v1/payments/:id/confirm` | none | Sender confirms payment before quote expires |
-| POST | `/api/v1/payments/:id/settle` | none | Settle USDC on Solana (devnet verification or simulation) |
-| POST | `/api/v1/payments/:id/offramp` | none | Create Onmeta off-ramp order and link Solana tx signature |
-| POST | `/api/v1/payments/:id/reconcile` | none | Reconcile pending payment status against off-ramp provider when webhook is delayed |
-| POST | `/api/v1/payments/execute` | `Idempotency-Key` (opt) | Execute full 10-stage pipeline to COMPLETED in one call |
+| POST | `/api/v1/payments/:id/settle` | none | Record a simulated USDC settlement receipt |
+| POST | `/api/v1/payments/:id/offramp` | none | Create a local mock off-ramp order and link the simulated Solana receipt |
+| POST | `/api/v1/payments/:id/reconcile` | none | Reconcile pending payment status against the local mock adapter |
+| POST | `/api/v1/payments/execute` | `Idempotency-Key` (opt) | Run the complete mock pipeline with a short delay between stages |
 | POST | `/api/v1/payments/:id/simulate-step` | none | Dev Console step driver (`confirm`, `settle`, `create_offramp`, `payout_processing`, `payout_success`) |
 | POST | `/api/v1/payments/:id/fail` | none | Inject failure state (`insufficient_funds`, `quote_expired`, `solana_failed`, `offramp_failed`, `payout_failed`) |
 | GET | `/api/v1/quote?amount=` | none | Pure quote preview for USDC to INR |
+| GET | `/api/v1/recipients?q=` | none | Query recent and address book recipients (`name`, `phone`, `upiId`, `avatarInitials`) |
+| GET | `/api/v1/receiver/dashboard?recipient=` | none | Receiver dashboard view of inbound pipeline payments, totals, and counts |
 | POST | `/api/v1/recipients/validate` | none | Validate Indian UPI ID or Bank Account + IFSC format |
-| POST | `/webhooks/onmeta` | `x-onmeta-signature`, `x-event-id` | Asynchronous Onmeta off-ramp webhook with duplicate protection |
+| POST | `/webhooks/helius` | `Authorization` (opt) | Ingest Helius enhanced transaction webhooks with deduplication |
+| GET | `/api/v1/poller/status` | none | Poller observability metrics, run counts, and last sweep summary |
+| POST | `/api/v1/poller/run` | none | Manually trigger a single polling reconciliation sweep |
+
 
 ## 2. Unified Payment State Machine
 
@@ -104,29 +107,32 @@ export interface OffRampProvider {
 }
 ```
 
-Implementations:
-- `MockOffRampAdapter`: Configurable simulation adapter with failure injection and manual status progression.
-- `OnmetaAdapter`: Connects to Onmeta staging/production REST endpoints with HMAC-SHA256 signature verification and automatic simulation fallback.
+Implementation:
+- `MockOffRampAdapter`: Local simulation adapter with failure injection and status progression.
 
 ## 4. Database (Neon Postgres via Prisma)
 
 - `User`: id, googleSubject (unique), email (unique), displayName, photoUrl,
-  phoneNumber, walletAddress (unique, Solana base58), country, bankDetails,
+  phoneNumber, walletAddress (unique, Solana base58), country,
   availableBalanceUsd, lifetimeSavingsUsd, timestamps.
 - `Corridor`: sourceCurrency, destCurrency, destRail (UPI/PIX/SEPA/FPS/SPEI),
-  inProvider, outProvider, feeBps, etaSeconds, enabled, unique(source, dest).
+  inProvider, outProvider, feeBps, etaSeconds, enabled, unique(corridor_key).
 - `ExchangeRate`: baseCurrency, quoteCurrency, rate, cheaperPercentage, asOf,
   unique(base, quote).
-- `Transaction`: sender, receiver, corridor, amountSource, amountUsdc,
-  amountDest, feeSource, status,
-  lockedSourceToUsdc, lockedUsdcToDest, escrowPda, escrowState, escrowTxHash,
-  releaseTxHash, solanaSignature, timestamps + indexes.
+- `Transaction`: sender, receiver, corridor,
+  amountSource, amountUsdc, amountDest, feeSource, status (`pending |
+  escrow_locked | offramp_pending | offramp_ready | escrow_released |
+  completed | failed | refunded`), failureReason, escrowId (u64 matching
+  Anchor escrow), lockedSourceToUsdc, lockedUsdcToDest, escrowPda,
+  escrowState, escrowTxHash, releaseTxHash, solanaSignature, timestamps + indexes.
 - `RampOrder`: type (`onramp | offramp`), transaction, externalOrderId (unique),
   status, fiatCurrency, fiatAmount, cryptoCurrency (USDC), cryptoAmount,
   walletAddress, bankDetails, txHash, metadata.
 
 ## 5. Anchor program `payx_escrow`
 
+- **Program ID (Devnet)**: `CTFbnKuiHpg5PR5vHpBXJzvLyCGrhMuQp4PbK8ZRGboa`
+- **IDL Account (Devnet)**: `86DwBCSfGbVxYS5wbNJNjD21QMnZaP9WMJebK9zt1CFW`
 - `Escrow` PDA seeds: `["escrow", escrow_id.to_le_bytes()]`.
 - `Vault` PDA seeds: `["vault", escrow_pda.as_ref()]`.
 - Fields: id (u64), sender (Pubkey), receiver (Pubkey), mint (USDC Pubkey),
