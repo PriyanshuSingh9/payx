@@ -5,7 +5,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -23,21 +22,17 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -49,28 +44,36 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.payx.app.R
 import com.payx.app.ui.components.IndiaFlag
 import com.payx.app.ui.theme.PayxPalette
 import java.text.DecimalFormat
+
+private val PlusJakartaSans = FontFamily(
+    Font(R.font.plus_jakarta_sans, FontWeight.Normal),
+    Font(R.font.plus_jakarta_sans, FontWeight.Medium),
+    Font(R.font.plus_jakarta_sans, FontWeight.SemiBold),
+    Font(R.font.plus_jakarta_sans, FontWeight.Bold)
+)
+
+private val MontaguSlab = FontFamily(Font(R.font.montagu_slab))
 
 data class Recipient(
     val id: String,
     val name: String,
     val email: String,
-    val avatarInitials: String
+    val avatarInitials: String,
+    val gradientColors: List<Color>
 )
 
 private val sampleRecipients = listOf(
@@ -78,19 +81,22 @@ private val sampleRecipients = listOf(
         id = "1",
         name = "Priya Sharma",
         email = "priya.sharma@remitflow.demo",
-        avatarInitials = "PS"
+        avatarInitials = "PS",
+        gradientColors = listOf(Color(0xFFE91E63), Color(0xFFF43F5E))
     ),
     Recipient(
         id = "2",
         name = "Rahul Verma",
         email = "rahul.verma@remitflow.demo",
-        avatarInitials = "RV"
+        avatarInitials = "RV",
+        gradientColors = listOf(Color(0xFF3B82F6), Color(0xFF6366F1))
     ),
     Recipient(
         id = "3",
         name = "Sarah Smith",
         email = "sarah.smith@remitflow.demo",
-        avatarInitials = "SS"
+        avatarInitials = "SS",
+        gradientColors = listOf(Color(0xFF8B5CF6), Color(0xFFA855F7))
     )
 )
 
@@ -100,48 +106,26 @@ fun SendScreen(
     onSubmitted: (String) -> Unit
 ) {
     var selectedRecipient by remember { mutableStateOf<Recipient?>(null) }
-
-    val ambientBackground = Brush.verticalGradient(
-        colorStops = arrayOf(
-            0.0f to Color(0xFF191328),
-            0.35f to Color(0xFF110E1A),
-            0.70f to PayxPalette.Obsidian,
-            1.0f to PayxPalette.Obsidian
-        )
-    )
+    val screenBackground = Color(0xFF09090D)
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(ambientBackground)
+            .background(screenBackground)
     ) {
-        // Subtle topography lines matching LoginScreen
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val purpleGlow = Color(0x14B866FC)
-            val path1 = Path().apply {
-                moveTo(0f, size.height * 0.18f)
-                cubicTo(
-                    size.width * 0.35f, size.height * 0.12f,
-                    size.width * 0.7f, size.height * 0.28f,
-                    size.width, size.height * 0.22f
-                )
-            }
-            drawPath(path1, color = purpleGlow, style = Stroke(width = 1.5.dp.toPx()))
-        }
-
         AnimatedContent(
             targetState = selectedRecipient,
             transitionSpec = { fadeIn() togetherWith fadeOut() },
             label = "SendFlowTransition"
         ) { recipient ->
             if (recipient == null) {
-                // Step 1: Send To (Image 2)
+                // Step 1: Send To
                 SendToScreen(
                     onBack = onBack,
                     onRecipientSelected = { selectedRecipient = it }
                 )
             } else {
-                // Step 2: Send Money (Image 3)
+                // Step 2: Send Money
                 SendMoneyScreen(
                     recipient = recipient,
                     onBack = { selectedRecipient = null },
@@ -153,7 +137,7 @@ fun SendScreen(
 }
 
 // -----------------------------------------------------------------------------
-// STEP 1: "Send To" (Image 2 in Login Purple Theme)
+// STEP 1: "Send To" Screen with Refined Hierarchy & Line-Free Layout
 // -----------------------------------------------------------------------------
 @Composable
 private fun SendToScreen(
@@ -181,30 +165,38 @@ private fun SendToScreen(
     ) {
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Top App Bar with back button and centered "Send To" serif title
+        // Top App Bar with back button and centered "Send To" title
         Box(
             modifier = Modifier.fillMaxWidth(),
             contentAlignment = Alignment.Center
         ) {
-            IconButton(
+            Surface(
                 onClick = onBack,
-                modifier = Modifier.align(Alignment.CenterStart)
+                shape = CircleShape,
+                color = Color(0xFF14131C),
+                border = BorderStroke(1.dp, Color(0xFF1F1D2B)),
+                modifier = Modifier
+                    .size(40.dp)
+                    .align(Alignment.CenterStart)
             ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Back",
-                    tint = PayxPalette.TextPrimary
-                )
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Back",
+                        tint = Color.White,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
             }
 
             Text(
                 text = "Send To",
                 style = TextStyle(
-                    fontFamily = FontFamily.Serif,
-                    fontStyle = FontStyle.Italic,
+                    fontFamily = PlusJakartaSans,
                     fontSize = 24.sp,
-                    fontWeight = FontWeight.Normal,
-                    color = PayxPalette.TextPrimary
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = (-0.3).sp,
+                    color = Color.White
                 )
             )
         }
@@ -213,9 +205,9 @@ private fun SendToScreen(
 
         // Search Bar Capsule: "Search by name or email"
         Surface(
-            shape = RoundedCornerShape(18.dp),
-            color = Color(0xFF1C172B),
-            border = BorderStroke(1.dp, Color(0xFF2E2544)),
+            shape = RoundedCornerShape(16.dp),
+            color = Color(0xFF14131C),
+            border = BorderStroke(1.dp, Color(0xFF1F1D2B)),
             modifier = Modifier.fillMaxWidth()
         ) {
             Row(
@@ -226,7 +218,7 @@ private fun SendToScreen(
                 Icon(
                     imageVector = Icons.Default.Search,
                     contentDescription = "Search",
-                    tint = PayxPalette.SoftLavender,
+                    tint = Color(0xFF9881F5),
                     modifier = Modifier.size(20.dp)
                 )
 
@@ -236,10 +228,12 @@ private fun SendToScreen(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
                     textStyle = TextStyle(
-                        fontSize = 15.sp,
-                        color = PayxPalette.TextPrimary
+                        fontFamily = PlusJakartaSans,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color.White
                     ),
-                    cursorBrush = SolidColor(PayxPalette.VividPurple),
+                    cursorBrush = SolidColor(Color(0xFF9881F5)),
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     decorationBox = { innerTextField ->
@@ -247,8 +241,10 @@ private fun SendToScreen(
                             Text(
                                 text = "Search by name or email",
                                 style = TextStyle(
-                                    fontSize = 15.sp,
-                                    color = PayxPalette.TextSecondary
+                                    fontFamily = PlusJakartaSans,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Normal,
+                                    color = Color(0xFF6B6880)
                                 )
                             )
                         }
@@ -258,22 +254,46 @@ private fun SendToScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        // Typographic Visual Hierarchy Section Header
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 24.dp, bottom = 12.dp, start = 4.dp, end = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "RECENT RECIPIENTS",
+                style = TextStyle(
+                    fontFamily = PlusJakartaSans,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.2.sp,
+                    color = Color(0xFF6B6880)
+                )
+            )
 
-        // Recipient List
+            Text(
+                text = "${filteredRecipients.size} CONTACTS",
+                style = TextStyle(
+                    fontFamily = PlusJakartaSans,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = 0.8.sp,
+                    color = Color(0xFF4A4660)
+                )
+            )
+        }
+
+        // Recipient List Cards without Lines
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             items(filteredRecipients, key = { it.id }) { recipient ->
-                RecipientItemRow(
+                RecipientItemCard(
                     recipient = recipient,
                     onClick = { onRecipientSelected(recipient) }
-                )
-                HorizontalDivider(
-                    color = Color(0xFF1E1A2C),
-                    thickness = 0.5.dp,
-                    modifier = Modifier.padding(start = 66.dp)
                 )
             }
         }
@@ -281,85 +301,99 @@ private fun SendToScreen(
 }
 
 @Composable
-private fun RecipientItemRow(
+private fun RecipientItemCard(
     recipient: Recipient,
     onClick: () -> Unit
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(vertical = 12.dp, horizontal = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(18.dp),
+        color = Color(0xFF14131C),
+        border = BorderStroke(1.dp, Color(0xFF1F1D2B)),
+        modifier = Modifier.fillMaxWidth()
     ) {
         Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 13.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp)
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            // Circular Avatar with Login Theme Purple Gradient
-            Box(
-                modifier = Modifier
-                    .size(52.dp)
-                    .clip(CircleShape)
-                    .background(
-                        Brush.linearGradient(
-                            listOf(PayxPalette.CardGradientStart, PayxPalette.CardGradientEnd)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                // Circular Avatar with Unique Gradient
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape)
+                        .background(Brush.linearGradient(recipient.gradientColors))
+                        .border(1.dp, Color(0x33A78BFA), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = recipient.avatarInitials,
+                        style = TextStyle(
+                            fontFamily = PlusJakartaSans,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
                         )
                     )
-                    .border(1.dp, Color(0x44B55CF8), CircleShape),
-                contentAlignment = Alignment.Center
+                }
+
+                Column {
+                    Text(
+                        text = recipient.name,
+                        style = TextStyle(
+                            fontFamily = PlusJakartaSans,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color.White
+                        )
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = recipient.email,
+                        style = TextStyle(
+                            fontFamily = PlusJakartaSans,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Normal,
+                            color = Color(0xFF7E7B94)
+                        )
+                    )
+                }
+            }
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Text(
-                    text = recipient.avatarInitials,
-                    style = TextStyle(
-                        fontFamily = FontFamily.SansSerif,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                )
+                IndiaFlag(width = 22.dp, height = 15.dp)
+
+                Surface(
+                    shape = CircleShape,
+                    color = Color(0xFF1B1926),
+                    border = BorderStroke(1.dp, Color(0xFF282538)),
+                    modifier = Modifier.size(28.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Default.ChevronRight,
+                            contentDescription = "Select",
+                            tint = Color(0xFF9881F5),
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
             }
-
-            Column {
-                Text(
-                    text = recipient.name,
-                    style = TextStyle(
-                        fontFamily = FontFamily.SansSerif,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = PayxPalette.TextPrimary
-                    )
-                )
-                Spacer(modifier = Modifier.height(3.dp))
-                Text(
-                    text = recipient.email,
-                    style = TextStyle(
-                        fontSize = 13.sp,
-                        color = PayxPalette.TextSecondary
-                    )
-                )
-            }
-        }
-
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            IndiaFlag(width = 22.dp, height = 15.dp)
-
-            Icon(
-                imageVector = Icons.Default.ChevronRight,
-                contentDescription = "Select",
-                tint = PayxPalette.TextTertiary,
-                modifier = Modifier.size(20.dp)
-            )
         }
     }
 }
 
 // -----------------------------------------------------------------------------
-// STEP 2: "Send Money" (Image 3 with Centered $ 2000 and Login Purple Theme)
+// STEP 2: "Send Money" Screen
 // -----------------------------------------------------------------------------
 @Composable
 private fun SendMoneyScreen(
@@ -393,37 +427,45 @@ private fun SendMoneyScreen(
         ) {
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Top Bar with back button and centered "Send Money" serif title
+            // Top Bar with back button and centered "Send Money" title
             Box(
                 modifier = Modifier.fillMaxWidth(),
                 contentAlignment = Alignment.Center
             ) {
-                IconButton(
+                Surface(
                     onClick = onBack,
-                    modifier = Modifier.align(Alignment.CenterStart)
+                    shape = CircleShape,
+                    color = Color(0xFF14131C),
+                    border = BorderStroke(1.dp, Color(0xFF1F1D2B)),
+                    modifier = Modifier
+                        .size(40.dp)
+                        .align(Alignment.CenterStart)
                 ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back",
-                        tint = PayxPalette.TextPrimary
-                    )
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = Color.White,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 }
 
                 Text(
                     text = "Send Money",
                     style = TextStyle(
-                        fontFamily = FontFamily.Serif,
-                        fontStyle = FontStyle.Italic,
+                        fontFamily = MontaguSlab,
                         fontSize = 24.sp,
                         fontWeight = FontWeight.Normal,
-                        color = PayxPalette.TextPrimary
+                        letterSpacing = (-0.3).sp,
+                        color = Color.White
                     )
                 )
             }
 
             Spacer(modifier = Modifier.height(28.dp))
 
-            // Recipient Profile Avatar with Login Theme Purple Gradient
+            // Recipient Profile Avatar
             Box(
                 modifier = Modifier
                     .size(76.dp)
@@ -434,17 +476,14 @@ private fun SendMoneyScreen(
                         ambientColor = Color(0x33A855F7)
                     )
                     .clip(CircleShape)
-                    .background(
-                        Brush.linearGradient(
-                            listOf(PayxPalette.CardGradientStart, PayxPalette.CardGradientEnd)
-                        )
-                    )
+                    .background(Brush.linearGradient(recipient.gradientColors))
                     .border(2.dp, Color(0x55B55CF8), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = recipient.avatarInitials,
                     style = TextStyle(
+                        fontFamily = PlusJakartaSans,
                         fontSize = 28.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.White
@@ -458,10 +497,10 @@ private fun SendMoneyScreen(
             Text(
                 text = recipient.name,
                 style = TextStyle(
-                    fontFamily = FontFamily.SansSerif,
+                    fontFamily = PlusJakartaSans,
                     fontSize = 19.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = PayxPalette.TextPrimary
+                    color = Color.White
                 )
             )
 
@@ -471,8 +510,10 @@ private fun SendMoneyScreen(
             Text(
                 text = recipient.email,
                 style = TextStyle(
+                    fontFamily = PlusJakartaSans,
                     fontSize = 13.sp,
-                    color = PayxPalette.TextSecondary
+                    fontWeight = FontWeight.Normal,
+                    color = Color(0xFF7E7B94)
                 )
             )
 
@@ -489,10 +530,10 @@ private fun SendMoneyScreen(
                 Text(
                     text = "$",
                     style = TextStyle(
-                        fontFamily = FontFamily.Serif,
+                        fontFamily = MontaguSlab,
                         fontSize = 46.sp,
                         fontWeight = FontWeight.Normal,
-                        color = PayxPalette.TextPrimary
+                        color = Color.White
                     )
                 )
 
@@ -506,10 +547,10 @@ private fun SendMoneyScreen(
                         }
                     },
                     textStyle = TextStyle(
-                        fontFamily = FontFamily.Serif,
+                        fontFamily = MontaguSlab,
                         fontSize = 48.sp,
                         fontWeight = FontWeight.Normal,
-                        color = PayxPalette.TextPrimary
+                        color = Color.White
                     ),
                     cursorBrush = SolidColor(PayxPalette.VividPurple),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -522,12 +563,12 @@ private fun SendMoneyScreen(
 
             Spacer(modifier = Modifier.height(36.dp))
 
-            // FEE BREAKDOWN Card in Login Dark Theme
+            // FEE BREAKDOWN Card
             Surface(
                 shape = RoundedCornerShape(24.dp),
-                color = Color(0xFF171324),
-                border = BorderStroke(1.dp, Color(0xFF2B223E)),
-                shadowElevation = 10.dp,
+                color = Color(0xFF14131C),
+                border = BorderStroke(1.dp, Color(0xFF1F1D2B)),
+                shadowElevation = 8.dp,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(
@@ -544,10 +585,11 @@ private fun SendMoneyScreen(
                         Text(
                             text = "FEE BREAKDOWN",
                             style = TextStyle(
-                                fontSize = 12.sp,
+                                fontFamily = PlusJakartaSans,
+                                fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
-                                letterSpacing = 1.sp,
-                                color = PayxPalette.TextSecondary
+                                letterSpacing = 1.2.sp,
+                                color = Color(0xFF6B6880)
                             )
                         )
 
@@ -562,10 +604,11 @@ private fun SendMoneyScreen(
                             Text(
                                 text = "LIVE",
                                 style = TextStyle(
+                                    fontFamily = PlusJakartaSans,
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
                                     letterSpacing = 1.sp,
-                                    color = PayxPalette.SoftLavender
+                                    color = Color(0xFF9881F5)
                                 )
                             )
                         }
@@ -581,11 +624,11 @@ private fun SendMoneyScreen(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    // Total fees row inside highlighted purple capsule
+                    // Total fees row inside highlighted capsule
                     Surface(
                         shape = RoundedCornerShape(12.dp),
-                        color = Color(0xFF221A36),
-                        border = BorderStroke(1.dp, Color(0xFF382A56)),
+                        color = Color(0xFF1B1926),
+                        border = BorderStroke(1.dp, Color(0xFF2B273D)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
@@ -598,18 +641,20 @@ private fun SendMoneyScreen(
                             Text(
                                 text = "Total fees (3.25%)",
                                 style = TextStyle(
-                                    fontSize = 14.sp,
+                                    fontFamily = PlusJakartaSans,
+                                    fontSize = 13.sp,
                                     fontWeight = FontWeight.Medium,
-                                    color = PayxPalette.TextPrimary
+                                    color = Color(0xFFE2E0EC)
                                 )
                             )
 
                             Text(
                                 text = "-$${usdFormatter.format(feeAmount)}",
                                 style = TextStyle(
-                                    fontSize = 14.sp,
+                                    fontFamily = PlusJakartaSans,
+                                    fontSize = 13.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = PayxPalette.TextPrimary
+                                    color = Color.White
                                 )
                             )
                         }
@@ -625,13 +670,6 @@ private fun SendMoneyScreen(
 
                     Spacer(modifier = Modifier.height(18.dp))
 
-                    HorizontalDivider(
-                        color = Color(0xFF282038),
-                        thickness = 0.5.dp
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
                     // Priya receives row (Prominent)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -641,19 +679,20 @@ private fun SendMoneyScreen(
                         Text(
                             text = "${recipient.name.substringBefore(" ")} receives",
                             style = TextStyle(
+                                fontFamily = PlusJakartaSans,
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = PayxPalette.TextPrimary
+                                color = Color.White
                             )
                         )
 
                         Text(
                             text = "₹${inrFormatter.format(receiveInr)}",
                             style = TextStyle(
-                                fontFamily = FontFamily.Serif,
+                                fontFamily = MontaguSlab,
                                 fontSize = 21.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = PayxPalette.TextPrimary
+                                color = Color.White
                             )
                         )
                     }
@@ -664,29 +703,31 @@ private fun SendMoneyScreen(
                     Text(
                         text = "Estimated delivery: 5-10 minutes via UPI",
                         style = TextStyle(
+                            fontFamily = PlusJakartaSans,
                             fontSize = 12.sp,
-                            color = PayxPalette.TextSecondary
+                            fontWeight = FontWeight.Normal,
+                            color = Color(0xFF7E7B94)
                         )
                     )
                 }
             }
         }
 
-        // Bottom Action Button: Matching Login Screen "Continue with Google" Gradient Button
+        // Bottom Action Button
         Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
                 .navigationBarsPadding()
                 .padding(horizontal = 24.dp, vertical = 20.dp)
-                .height(58.dp)
+                .height(56.dp)
                 .shadow(
                     elevation = 14.dp,
-                    shape = RoundedCornerShape(29.dp),
+                    shape = RoundedCornerShape(28.dp),
                     spotColor = Color(0x66A855F7),
                     ambientColor = Color(0x33A855F7)
                 )
-                .clip(RoundedCornerShape(29.dp))
+                .clip(RoundedCornerShape(28.dp))
                 .background(
                     Brush.horizontalGradient(
                         listOf(PayxPalette.CardGradientStart, PayxPalette.CardGradientEnd)
@@ -698,10 +739,10 @@ private fun SendMoneyScreen(
             Text(
                 text = "SEND MONEY",
                 style = TextStyle(
-                    fontFamily = FontFamily.SansSerif,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    letterSpacing = 0.5.sp,
+                    fontFamily = PlusJakartaSans,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.8.sp,
                     color = Color.White
                 )
             )
@@ -722,16 +763,19 @@ private fun BreakdownRow(
         Text(
             text = label,
             style = TextStyle(
-                fontSize = 14.sp,
-                color = PayxPalette.TextSecondary
+                fontFamily = PlusJakartaSans,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Normal,
+                color = Color(0xFF7E7B94)
             )
         )
         Text(
             text = value,
             style = TextStyle(
-                fontSize = 14.sp,
+                fontFamily = PlusJakartaSans,
+                fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = PayxPalette.TextPrimary
+                color = Color.White
             )
         )
     }

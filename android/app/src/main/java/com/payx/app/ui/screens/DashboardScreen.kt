@@ -105,7 +105,7 @@ fun DashboardScreen(
                 onSettings = onSettings
             )
 
-            Spacer(modifier = Modifier.height(26.dp))
+            Spacer(modifier = Modifier.height(46.dp))
 
             // 2. Quick Send Contacts Tray ("Send Again") with Updated Payees
             Column(
@@ -689,39 +689,44 @@ private fun BottomNavigationDock(
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
-                .padding(horizontal = 30.dp, vertical = 10.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
+                .padding(vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Home Tab
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier
-                    .clickable(
-                        indication = null,
-                        interactionSource = remember { MutableInteractionSource() }
-                    ) { }
-                    .padding(horizontal = 8.dp, vertical = 4.dp)
+            // Home Tab Container
+            Box(
+                modifier = Modifier.weight(1f),
+                contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = Icons.Default.Home,
-                    contentDescription = "Home",
-                    tint = Color(0xFFAE9EF8),
-                    modifier = Modifier.size(23.dp)
-                )
-                Spacer(modifier = Modifier.height(3.dp))
-                Text(
-                    text = "Home",
-                    style = TextStyle(
-                        fontFamily = PlusJakartaSans,
-                        fontSize = 10.5.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFFAE9EF8)
+                // Home Tab
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier
+                        .clickable(
+                            indication = null,
+                            interactionSource = remember { MutableInteractionSource() }
+                        ) { }
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Home,
+                        contentDescription = "Home",
+                        tint = Color(0xFFAE9EF8),
+                        modifier = Modifier.size(23.dp)
                     )
-                )
+                    Spacer(modifier = Modifier.height(3.dp))
+                    Text(
+                        text = "Home",
+                        style = TextStyle(
+                            fontFamily = PlusJakartaSans,
+                            fontSize = 10.5.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFFAE9EF8)
+                        )
+                    )
+                }
             }
 
-            // Center Animated TRANSFER Pill Button with Ambient Glow & Glass Bezel
+            // Center Animated TRANSFER Pill Button
             Box(
                 modifier = Modifier
                     .width(152.dp)
@@ -732,57 +737,18 @@ private fun BottomNavigationDock(
                     },
                 contentAlignment = Alignment.Center
             ) {
-                // Soft ambient glow underneath
-                Box(
-                    modifier = Modifier
-                        .matchParentSize()
-                        .padding(horizontal = 4.dp, vertical = 2.dp)
-                        .clip(RoundedCornerShape(24.dp))
-                        .background(
-                            Brush.radialGradient(
-                                colors = listOf(
-                                    Color(0x50BCAEFC),
-                                    Color(0x1A9C88F7),
-                                    Color.Transparent
-                                )
-                            )
-                        )
-                )
-
-                // Main pill container with luxury silk gradient & top-lit rim
+                // Main pill container with solid background
                 Box(
                     modifier = Modifier
                         .matchParentSize()
                         .clip(RoundedCornerShape(24.dp))
-                        .background(
-                            Brush.verticalGradient(
-                                colors = listOf(
-                                    Color(0xFFCCC0FF),
-                                    Color(0xFFA895FA),
-                                    Color(0xFF9881F5)
-                                )
-                            )
-                        )
-                        .border(
-                            BorderStroke(
-                                1.dp,
-                                Brush.verticalGradient(
-                                    colors = listOf(
-                                        Color(0x99FFFFFF),
-                                        Color(0x35C7BAFF),
-                                        Color(0x1525144A)
-                                    )
-                                )
-                            ),
-                            RoundedCornerShape(24.dp)
-                        )
+                        .background(Color(0xFFAE9EF8))
                         .clickable(
                             enabled = !isTransferring,
                             onClick = {
                                 if (!isTransferring) {
                                     isTransferring = true
                                     coroutineScope.launch {
-                                        // Trigger page navigation exactly when arrow completes crossing the button
                                         delay(370)
                                         onSend()
                                         delay(400)
@@ -819,33 +785,42 @@ private fun BottomNavigationDock(
                         StaggeredTransferText(
                             isTransferring = isTransferring
                         )
+
+                        // Balance the 17.dp of empty space reserved for the thruster wake on the left side of the arrow
+                        Spacer(modifier = Modifier.width(17.dp))
                     }
                 }
             }
 
-            // Settings Tab
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier
-                    .clickable(onClick = onSettings)
-                    .padding(horizontal = 8.dp, vertical = 4.dp)
+            // Settings Tab Container
+            Box(
+                modifier = Modifier.weight(1f),
+                contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = Icons.Default.Settings,
-                    contentDescription = "Settings",
-                    tint = Color(0xFF6B6878),
-                    modifier = Modifier.size(23.dp)
-                )
-                Spacer(modifier = Modifier.height(3.dp))
-                Text(
-                    text = "Settings",
-                    style = TextStyle(
-                        fontFamily = PlusJakartaSans,
-                        fontSize = 10.5.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color(0xFF6B6878)
+                // Settings Tab
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier
+                        .clickable(onClick = onSettings)
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Settings,
+                        contentDescription = "Settings",
+                        tint = Color(0xFF6B6878),
+                        modifier = Modifier.size(23.dp)
                     )
-                )
+                    Spacer(modifier = Modifier.height(3.dp))
+                    Text(
+                        text = "Settings",
+                        style = TextStyle(
+                            fontFamily = PlusJakartaSans,
+                            fontSize = 10.5.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF6B6878)
+                        )
+                    )
+                }
             }
         }
     }
