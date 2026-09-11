@@ -1,154 +1,141 @@
 import { Router } from "express";
 import { HttpError, requireSession } from "../auth.js";
-import { globalPipelineService, DEFAULT_DEMO_SENDER_WALLET } from "../services/paymentPipeline.js";
-import { globalPaymentStore } from "../services/paymentStore.js";
-import { findCorridor } from "../lib/index.js";
+import {
+  createTransaction,
+  getTransactionById,
+  listUserTransactions
+} from "../services/transactionService.js";
+import { prisma } from "../prisma.js";
 
 export const transferRouter = Router();
 
-const DEFAULT_SENDER_WALLET = DEFAULT_DEMO_SENDER_WALLET;
-
-// POST /transfers - Create transfer intent
+// POST /transfers - Create transfer intent and persist transaction in database
 transferRouter.post("/transfers", async (req, res, next) => {
   try {
     const session = requireSession(req);
-    const { corridorId, recipientId, amountSource, recipientDetails } = req.body;
+    const { corridorId, recipientId, recipientDetails, amountSource, customFxRate } = req.body as {
+      corridorId?: string;
+      recipientId?: string;
+      recipientDetails?: {
+        name?: string;
+        phone?: string;
+        walletAddress?: string;
+        country?: string;
+        email?: string;
+      };
+      amountSource?: number | string;
+      customFxRate?: number | string;
+    };
 
-    const corridor = corridorId ? findCorridor(corridorId) : null;
-    if (!amountSource || Number(amountSource) <= 0) {
+    if (!corridorId) {
+      throw new HttpError("corridorId is required.", 400);
+    }
+    const parsedAmount = Number(amountSource);
+    if (!amountSource || Number.isNaN(parsedAmount) || parsedAmount <= 0) {
       throw new HttpError("amountSource must be a positive number.", 400);
     }
 
-    const recipient = recipientDetails || {
-      name: "Demo Recipient",
-      phone: "+919876543210",
-      upiId: "recipient@upi"
-    };
-
-    const payment = await globalPipelineService.createPayment({
-      senderWallet: DEFAULT_SENDER_WALLET,
-      sourceAmount: Number(amountSource),
-      recipient,
-      mode: "full_simulation"
+    const transaction = await createTransaction({
+      senderId: session.userId,
+      receiverId: recipientId,
+      recipientDetails,
+      corridorId,
+      amountSource: parsedAmount,
+      customFxRate: customFxRate ? Number(customFxRate) : undefined
     });
 
-    res.status(201).json({
-      transfer: {
-        id: payment.id,
-        status: payment.status,
-        amountSource: payment.sourceAmount,
-        amountDest: payment.destinationAmount,
-        exchangeRate: payment.exchangeRate,
-        corridorId: corridor?.id ?? "USD-INR",
-        senderId: session.userId,
-        recipientId: recipientId || payment.recipient.id,
-        createdAt: payment.createdAt
-      },
-      payment
-    });
+    res.status(201).json({ transaction });
   } catch (err) {
     next(err);
   }
 });
 
-// GET /transfers/:id - Get transfer details
+// GET /transfers/:id - Get transfer details by ID
 transferRouter.get("/transfers/:id", async (req, res, next) => {
   try {
-    requireSession(req);
-    const payment = await globalPaymentStore.getPayment(req.params.id);
-    if (!payment) {
+    const session = requireSession(req);
+    const transaction = await getTransactionById(req.params.id);
+
+    if (!transaction) {
       throw new HttpError(`Transfer not found: ${req.params.id}`, 404);
     }
-    res.json({
-      transfer: {
-        id: payment.id,
-        status: payment.status,
-        amountSource: payment.sourceAmount,
-        amountDest: payment.destinationAmount,
-        exchangeRate: payment.exchangeRate,
-        escrowPda: payment.blockchainTransaction?.transactionSignature,
-        solanaSignature: payment.blockchainTransaction?.transactionSignature,
-        createdAt: payment.createdAt,
-        completedAt: payment.completedAt
-      },
-      payment
-    });
+
+    if (transaction.senderId !== session.userId && transaction.receiverId !== session.userId) {
+      throw new HttpError("Unauthorized access to this transaction.", 403);
+    }
+
+    res.json({ transaction });
   } catch (err) {
     next(err);
   }
 });
 
-// GET /recipients - Address book
-transferRouter.get("/recipients", (req, res, next) => {
+// GET /transfers - List transfers for authenticated user
+transferRouter.get("/transfers", async (req, res, next) => {
   try {
-    requireSession(req);
-    const recipients = [
-      {
-        id: "rcp-1",
-        name: "Priya Sharma",
-        phone: "+919876543210",
-        upiId: "priya@oksbi",
-        avatarInitials: "PS",
-        country: "IN"
-      },
-      {
-        id: "rcp-2",
-        name: "Rahul Verma",
-        phone: "+919812345678",
-        bankAccount: "987654321012",
-        ifsc: "HDFC0001234",
-        avatarInitials: "RV",
-        country: "IN"
-      },
-      {
-        id: "rcp-3",
-        name: "Sarah Smith",
-        phone: "+919988776655",
-        upiId: "sarah@icici",
-        avatarInitials: "SS",
-        country: "IN"
+    const session = requireSession(req);
+    const limit = req.query.limit ? Number(req.query.limit) : 50;
+    const offset = req.query.offset ? Number(req.query.offset) : 0;
+
+    const transactions = await listUserTransactions(session.userId, {
+      role: "all",
+      limit,
+      offset
+    });
+
+    res.json({ transactions });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /recipients - List distinct recipient contacts previously transferred to
+transferRouter.get("/recipients", async (req, res, next) => {
+  try {
+    const session = requireSession(req);
+    const sent = await prisma.transaction.findMany({
+      where: { senderId: session.userId },
+      select: { receiverId: true },
+      distinct: ["receiverId"],
+      take: 20
+    });
+
+    const receiverIds = sent.map((s) => s.receiverId);
+    const recipients = await prisma.user.findMany({
+      where: { id: { in: receiverIds } },
+      select: {
+        id: true,
+        displayName: true,
+        email: true,
+        phoneNumber: true,
+        walletAddress: true,
+        country: true
       }
-    ];
+    });
+
     res.json({ recipients });
   } catch (err) {
     next(err);
   }
 });
 
-// GET /me/dashboard - Sender dashboard
+// GET /me/dashboard - Sender dashboard view of active and recent transfers
 transferRouter.get("/me/dashboard", async (req, res, next) => {
   try {
     const session = requireSession(req);
-    const recent = await globalPaymentStore.listPayments(5);
-    res.json({
-      user: {
-        id: session.userId,
-        email: session.email,
-        walletAddress: DEFAULT_SENDER_WALLET,
-        availableBalanceUsd: 1000.0,
-        lifetimeSavingsUsd: 48.5
-      },
-      liveRate: 87.2,
-      transfers: recent
-    });
+    const transactions = await listUserTransactions(session.userId, { role: "sender", limit: 20 });
+    res.json({ transactions });
   } catch (err) {
     next(err);
   }
 });
 
-// GET /me/receiver-dashboard - Inbound transfers
+// GET /me/receiver-dashboard - Receiver dashboard view of incoming transfers
 transferRouter.get("/me/receiver-dashboard", async (req, res, next) => {
   try {
-    requireSession(req);
-    const recent = await globalPaymentStore.listPayments(20);
-    const completed = recent.filter((p) => p.status === "COMPLETED");
-    const totalReceivedInr = completed.reduce((sum, p) => sum + (p.destinationAmount || 0), 0);
-
-    res.json({
-      totalReceivedInr,
-      count: completed.length,
-      inboundTransfers: completed
-    });
+    const session = requireSession(req);
+    const transactions = await listUserTransactions(session.userId, { role: "receiver", limit: 20 });
+    res.json({ transactions });
   } catch (err) {
     next(err);
   }

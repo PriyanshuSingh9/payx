@@ -1,70 +1,138 @@
 import { Router } from "express";
 import { HttpError, requireSession } from "../auth.js";
 import { env } from "../env.js";
-import { globalPaymentStore } from "../services/paymentStore.js";
-import { globalPipelineService } from "../services/paymentPipeline.js";
-import { generateEventId } from "../lib/index.js";
+import { prisma } from "../prisma.js";
+import { updateTransactionStatus, updateRampOrderStatus } from "../services/transactionService.js";
 
 export const rampRouter = Router();
 
 rampRouter.get("/onramp/widget", (_req, res) => {
-  res.type("html").send(`<!doctype html>
-<html>
-<head><meta charset="utf-8"><title>PayX On-Ramp Simulation</title></head>
-<body style="font-family: monospace; background: #121212; color: #fff; padding: 20px;">
-  <h2>PayX Embedded On-Ramp Widget</h2>
-  <p>Simulation active. Ready to ingest fiat to USDC.</p>
-</body>
-</html>`);
+  res.type("html").send("<!doctype html><html><body>PayX on-ramp widget (Phase 1).</body></html>");
 });
 
+// Complete on-ramp order and advance transaction to escrow_locked
 rampRouter.post("/onramp/complete/:orderId", async (req, res, next) => {
   try {
     requireSession(req);
-    const payment = await globalPaymentStore.getPayment(req.params.orderId);
-    if (!payment) {
-      throw new HttpError(`Order not found: ${req.params.orderId}`, 404);
+    const { orderId } = req.params;
+    const { txHash } = req.body as { txHash?: string };
+
+    const rampOrder = await prisma.rampOrder.findUnique({
+      where: { id: orderId }
+    });
+
+    if (!rampOrder) {
+      throw new HttpError(`Ramp order not found: ${orderId}`, 404);
     }
-    // Advance payment state if confirmed
-    if (payment.status === "AWAITING_CONFIRMATION") {
-      await globalPipelineService.confirmPayment(payment.id);
-    }
-    res.json({ ok: true, paymentId: payment.id, status: payment.status });
+
+    await updateRampOrderStatus(orderId, "COMPLETED", { txHash });
+    const transaction = await updateTransactionStatus(rampOrder.transactionId, "escrow_locked");
+
+    res.json({ success: true, transaction });
   } catch (err) {
     next(err);
   }
 });
 
-rampRouter.post("/webhooks/onramp", async (req, res) => {
-  const eventId = (req.headers["x-event-id"] as string) || (req.body.eventId as string) || generateEventId("EVT-ON-");
-  const result = await globalPipelineService.processWebhookEvent({
-    eventId,
-    provider: "onramp",
-    eventType: req.body.event || req.body.status || "cryptoInit",
-    orderId: req.body.orderId,
-    payload: req.body,
-    receivedAt: new Date().toISOString(),
-    status: "processed"
-  });
+// Inbound webhook for on-ramp provider updates
+rampRouter.post("/webhooks/onramp", async (req, res, next) => {
+  try {
+    const { orderId, externalOrderId, status, txHash } = req.body as {
+      orderId?: string;
+      externalOrderId?: string;
+      status?: string;
+      txHash?: string;
+    };
 
-  res.status(200).json({ ok: true, duplicate: result.duplicate, payment: result.payment });
+    const rampOrder = await prisma.rampOrder.findFirst({
+      where: {
+        OR: [
+          ...(orderId ? [{ id: orderId }] : []),
+          ...(externalOrderId ? [{ externalOrderId }] : [])
+        ]
+      }
+    });
+
+    if (!rampOrder) {
+      res.status(404).json({ error: "Ramp order not found." });
+      return;
+    }
+
+    const nextStatus = (status || "COMPLETED").toUpperCase();
+    await updateRampOrderStatus(rampOrder.id, nextStatus, { txHash });
+
+    if (nextStatus === "COMPLETED") {
+      await updateTransactionStatus(rampOrder.transactionId, "escrow_locked");
+    } else if (nextStatus === "FAILED") {
+      await updateTransactionStatus(rampOrder.transactionId, "failed", "On-ramp provider reported failure.");
+    }
+
+    res.json({ received: true });
+  } catch (err) {
+    next(err);
+  }
 });
 
+// Inbound webhook for off-ramp provider settlement updates
+rampRouter.post("/webhooks/offramp", async (req, res, next) => {
+  try {
+    const { orderId, externalOrderId, status, txHash } = req.body as {
+      orderId?: string;
+      externalOrderId?: string;
+      status?: string;
+      txHash?: string;
+    };
+
+    const rampOrder = await prisma.rampOrder.findFirst({
+      where: {
+        OR: [
+          ...(orderId ? [{ id: orderId }] : []),
+          ...(externalOrderId ? [{ externalOrderId }] : [])
+        ]
+      }
+    });
+
+    if (!rampOrder) {
+      res.status(404).json({ error: "Ramp order not found." });
+      return;
+    }
+
+    const nextStatus = (status || "COMPLETED").toUpperCase();
+    await updateRampOrderStatus(rampOrder.id, nextStatus, { txHash });
+
+    if (nextStatus === "COMPLETED" || nextStatus === "SUCCESS") {
+      await updateTransactionStatus(rampOrder.transactionId, "completed");
+    } else if (nextStatus === "FAILED") {
+      await updateTransactionStatus(rampOrder.transactionId, "failed", "Off-ramp provider reported payout failure.");
+    }
+
+    res.json({ received: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Force release a stuck transaction (demo / testing only)
 rampRouter.post("/demo/force-release", async (req, res, next) => {
   try {
-    if (!env.enableDemoAdmin) throw new HttpError("Demo admin routes are disabled.", 404);
+    if (!env.enableDemoAdmin) {
+      throw new HttpError("Demo admin routes are disabled.", 404);
+    }
     requireSession(req);
-    const { paymentId } = req.body;
-    if (!paymentId) throw new HttpError("paymentId is required.", 400);
 
-    const payment = await globalPaymentStore.getPayment(paymentId);
-    if (!payment) throw new HttpError("Payment not found.", 404);
+    const { transactionId, status } = req.body as {
+      transactionId?: string;
+      status?: "completed" | "refunded" | "failed";
+    };
 
-    payment.status = "COMPLETED";
-    payment.completedAt = new Date().toISOString();
-    await globalPaymentStore.savePayment(payment);
+    if (!transactionId) {
+      throw new HttpError("transactionId is required.", 400);
+    }
 
-    res.json({ ok: true, payment });
+    const targetStatus = status ?? "completed";
+    const transaction = await updateTransactionStatus(transactionId, targetStatus, "Force-released via demo admin.");
+
+    res.json({ success: true, transaction });
   } catch (err) {
     next(err);
   }
