@@ -33,30 +33,21 @@ This handoff prepares a fresh agent for the final run to bring **PayX** (USDC ->
 ## 3. Work Remaining for Project Completion
 
 ### Priority 1: Connect Android App to Live Backend APIs
-Payment DTOs, `PaymentRepository`, and send/tracker/dashboard ViewModels are on
-this branch. The current Compose screens still use mock recipients and `tx_...`
-ids (send UI on `main` moved to swipe-to-send / numpad). Remaining: wire those
-screens to the repository without dropping the new UI.
-
-- **Send Screen**: `GET /recipients`, live `GET /api/v1/quote`, `POST /api/v1/payments`
-- **Tracker Screen**: poll `GET /api/v1/payments/:id` and drive `simulate-step`
-- **Dashboard Screen**: `GET /api/v1/payments` for totals and recent activity
+Payment DTOs, `PaymentRepository`, and ViewModels landed. Compose screens on
+current `main` still use mock `tx_...` data because the send UI moved to
+swipe-to-send. Remaining: wire Send / Tracker / Dashboard to the repository.
 
 ### Priority 2: Database Persistence for Payment State Machine
 - `backend/src/services/paymentStore.ts` currently uses `InMemoryPaymentStore` backed by in-memory `Map` instances.
 - Implement `PostgresPaymentStore` utilizing Prisma (`backend/prisma/schema.prisma`) to persist payments, off-ramp orders, timeline logs, and idempotency locks in PostgreSQL (Neon) across process restarts.
 
-### Priority 3: Deploy Anchor Escrow to Solana Devnet [COMPLETED]
-- Program ID: `CTFbnKuiHpg5PR5vHpBXJzvLyCGrhMuQp4PbK8ZRGboa`
-- Anchor IDL Account: `86DwBCSfGbVxYS5wbNJNjD21QMnZaP9WMJebK9zt1CFW`
-- Deploy Tx: `2FgbskvnU3bfc18F2o4iviyQofvHPywQc7eyiJ1UvqvgmD4wtKsAcLD4YfykPxDZEyCDCjhPDSFmsqisRYh3jUX6`
-- Configured in `backend/.env` as `PAYX_PROGRAM_ID`.
-- Next step: Connect Anchor client in `backend/src/services/solanaSettlement.ts` to execute real escrow initialization, deposits, and releases against Devnet.
+### Priority 3: Deploy Anchor Escrow to Solana Devnet
+Program is deployed (`CTFbnKuiHpg5PR5vHpBXJzvLyCGrhMuQp4PbK8ZRGboa`).
+`solanaSettlement.ts` still writes mock signatures only. Remaining: call real
+initialize/deposit/release if on-chain theater is wanted.
 
-### Priority 4: Live Off-Ramp API Credentials & Webhook Security
-Out of scope for the hackathon. OnMeta/Transak require KYB. The pipeline
-defaults to `full_simulation` and `MockOffRampAdapter`. No OnMeta adapter is
-present on this tree. Do not block on provider keys.
+### Priority 4: Live Off-Ramp
+Out of scope (KYB). Use `full_simulation` / `MockOffRampAdapter`.
 
 ---
 
