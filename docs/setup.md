@@ -14,7 +14,7 @@ environment. Follow top to bottom; each step has an expected result.
 | Anchor | 0.31 via `avm` | must match `anchor-lang 0.31` in `programs/payx_escrow/Cargo.toml` |
 | Android Studio | Narwhal (2025.1) or newer | see section 5 |
 | Neon account | free tier works | pooled `DATABASE_URL` + direct `DIRECT_URL` |
-| Google OAuth client | Web client ID | used to verify ID tokens at `/auth/google` |
+| Google OAuth client | Web client ID **and** Android client | Web ID verifies tokens at `/auth/google`; Android client is package `com.payx.app` + debug SHA-1 |
 
 No sudo is required if you install to user-space (`~/development`, `~/Android` on Linux,
 or `~/Library/Android/sdk` on macOS).
@@ -88,6 +88,23 @@ adb reverse tcp:8787 tcp:8787
 ```
 
 (`dev.sh` does this for you; see section 6.)
+
+Google Sign-In is PayX-only. Do not reuse another app's OAuth clients.
+
+Put PayX's Google client ID in `backend/.env` as `GOOGLE_CLIENT_ID`. The
+Android app reads that same value at build time (or
+`GOOGLE_SERVER_CLIENT_ID` in `android/local.properties`). Do not put a
+client secret in the app or in env; this flow only uses the client ID.
+
+In the **PayX** Google Cloud project, create:
+
+- **Web application** client — this ID goes in `GOOGLE_CLIENT_ID`
+- **Android** client — package `com.payx.app`, SHA-1 from this machine's
+  debug keystore (`keytool -list -v -keystore %USERPROFILE%\.android\debug.keystore
+  -alias androiddebugkey -storepass android`)
+
+The emulator/device must have a Google account, Play Services, and a reachable
+backend (`./dev.sh` or `pnpm dev`).
 
 ## 6. `dev.sh` (one-command local env)
 

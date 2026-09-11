@@ -11,6 +11,37 @@ data class SessionUser(
     val photoUrl: String? = null,
     val walletAddress: String,
     val country: String
+) {
+    val firstName: String
+        get() = displayName?.trim()?.substringBefore(" ")?.takeIf { it.isNotBlank() }
+            ?: email.substringBefore("@")
+
+    val initial: String
+        get() = firstName.firstOrNull()?.uppercaseChar()?.toString() ?: "?"
+}
+
+@Serializable
+data class AuthGoogleRequest(
+    val idToken: String,
+    val walletAddress: String,
+    val country: String? = null
+)
+
+@Serializable
+data class AuthGoogleResponse(
+    val token: String,
+    val user: SessionUser
+)
+
+@Serializable
+data class ApiErrorBody(
+    val error: String? = null
+)
+
+@Serializable
+data class HealthResponse(
+    val ok: Boolean = false,
+    val service: String? = null
 )
 
 @Serializable

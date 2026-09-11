@@ -77,19 +77,19 @@ private val sampleRecipients = listOf(
     Recipient(
         id = "1",
         name = "Priya Sharma",
-        email = "priya.sharma@remitflow.demo",
+        email = "priya.sharma@payx.demo",
         avatarInitials = "PS"
     ),
     Recipient(
         id = "2",
         name = "Rahul Verma",
-        email = "rahul.verma@remitflow.demo",
+        email = "rahul.verma@payx.demo",
         avatarInitials = "RV"
     ),
     Recipient(
         id = "3",
         name = "Sarah Smith",
-        email = "sarah.smith@remitflow.demo",
+        email = "sarah.smith@payx.demo",
         avatarInitials = "SS"
     )
 )

@@ -56,14 +56,19 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.content.ClipData
+import android.content.ClipboardManager
+import com.payx.app.data.SessionUser
 import com.payx.app.ui.components.IndiaFlag
 import com.payx.app.ui.components.UsaFlag
 import com.payx.app.ui.theme.PayxPalette
 
 @Composable
 fun SettingsScreen(
+    user: SessionUser?,
     onBack: () -> Unit = {},
     onSignedOut: () -> Unit
 ) {
@@ -71,6 +76,11 @@ fun SettingsScreen(
     var biometricEnabled by remember { mutableStateOf(true) }
     var notificationsEnabled by remember { mutableStateOf(true) }
     var copiedAddress by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val displayName = user?.displayName?.takeIf { it.isNotBlank() } ?: user?.firstName ?: "PayX user"
+    val email = user?.email ?: ""
+    val walletAddress = user?.walletAddress.orEmpty()
+    val walletPreview = shortenAddress(walletAddress)
 
     Box(
         modifier = Modifier
@@ -188,7 +198,7 @@ fun SettingsScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "P",
+                                text = user?.initial ?: "P",
                                 style = TextStyle(
                                     fontFamily = FontFamily.SansSerif,
                                     fontSize = 26.sp,
@@ -200,7 +210,7 @@ fun SettingsScreen(
 
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Priyanshu Singh",
+                                text = displayName,
                                 style = TextStyle(
                                     fontFamily = FontFamily.SansSerif,
                                     fontSize = 18.sp,
@@ -210,7 +220,7 @@ fun SettingsScreen(
                             )
                             Spacer(modifier = Modifier.height(3.dp))
                             Text(
-                                text = "priyanshu.singh@remitflow.demo",
+                                text = email,
                                 style = TextStyle(
                                     fontSize = 12.sp,
                                     color = PayxPalette.TextSecondary
@@ -275,7 +285,13 @@ fun SettingsScreen(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable { copiedAddress = true }
+                                .clickable {
+                                    if (walletAddress.isNotBlank()) {
+                                        val clipboard = context.getSystemService(ClipboardManager::class.java)
+                                        clipboard.setPrimaryClip(ClipData.newPlainText("PayX wallet", walletAddress))
+                                        copiedAddress = true
+                                    }
+                                }
                                 .padding(horizontal = 16.dp, vertical = 14.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
@@ -295,7 +311,13 @@ fun SettingsScreen(
                                         )
                                     )
                                     Text(
-                                        text = if (copiedAddress) "Copied to clipboard!" else "7UxQ9...2pKa • Keystore Enclave",
+                                        text = if (copiedAddress) {
+                                            "Copied to clipboard!"
+                                        } else if (walletPreview.isNotBlank()) {
+                                            "$walletPreview • Keystore Enclave"
+                                        } else {
+                                            "No wallet yet"
+                                        },
                                         style = TextStyle(
                                             fontSize = 11.sp,
                                             color = if (copiedAddress) PayxPalette.VividPurple else PayxPalette.TextTertiary
@@ -570,6 +592,11 @@ fun SettingsScreen(
             }
         }
     }
+}
+
+private fun shortenAddress(address: String): String {
+    if (address.length <= 12) return address
+    return address.take(5) + "..." + address.takeLast(4)
 }
 
 @Composable

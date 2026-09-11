@@ -46,16 +46,20 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.payx.app.data.SessionUser
 import com.payx.app.ui.components.IndiaFlag
 import com.payx.app.ui.components.UsaFlag
 import com.payx.app.ui.theme.PayxPalette
 
 @Composable
 fun DashboardScreen(
+    user: SessionUser?,
     onSend: () -> Unit,
     onTrack: (String) -> Unit,
     onSettings: () -> Unit
 ) {
+    val firstName = user?.firstName ?: "there"
+    val initial = user?.initial ?: "P"
     val scrollState = rememberScrollState()
 
     val ambientBackground = Brush.verticalGradient(
@@ -140,7 +144,7 @@ fun DashboardScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "P",
+                        text = initial,
                         style = TextStyle(
                             fontFamily = FontFamily.SansSerif,
                             fontSize = 17.sp,
@@ -153,7 +157,7 @@ fun DashboardScreen(
                 Spacer(modifier = Modifier.width(10.dp))
 
                 Text(
-                    text = "Priyanshu",
+                    text = firstName,
                     style = TextStyle(
                         fontFamily = FontFamily.Serif,
                         fontSize = 24.sp,
