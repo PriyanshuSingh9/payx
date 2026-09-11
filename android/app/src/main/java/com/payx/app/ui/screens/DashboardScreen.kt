@@ -78,7 +78,7 @@ private val MontaguSlab = FontFamily(Font(R.font.montagu_slab))
 @Composable
 fun DashboardScreen(
     user: SessionUser?,
-    onSend: () -> Unit,
+    onSend: (recipientId: String?) -> Unit,
     onTrack: (String) -> Unit,
     onSettings: () -> Unit
 ) {
@@ -140,24 +140,24 @@ fun DashboardScreen(
                         name = "Priya",
                         backgroundColor = Color(0xFFE91E63),
                         showActiveDot = true,
-                        onClick = { onTrack("tx_priya_500") }
+                        onClick = { onSend("1") }
                     )
 
                     SendAgainContact(
                         initial = "R",
                         name = "Rahul",
                         backgroundColor = Color(0xFF2E7D32),
-                        onClick = { onTrack("tx_rahul_250") }
+                        onClick = { onSend("2") }
                     )
 
                     SendAgainContact(
                         initial = "S",
                         name = "Sarah",
                         backgroundColor = Color(0xFFF4511E),
-                        onClick = onSend
+                        onClick = { onSend("3") }
                     )
 
-                    SendAgainAddContact(onClick = onSend)
+                    SendAgainAddContact(onClick = { onSend(null) })
                 }
             }
 
@@ -227,7 +227,7 @@ fun DashboardScreen(
 
         // 4. Solid Bottom Navigation Dock with Animated Transfer Action
         BottomNavigationDock(
-            onSend = onSend,
+            onSend = { onSend(null) },
             onSettings = onSettings,
             modifier = Modifier.align(Alignment.BottomCenter)
         )

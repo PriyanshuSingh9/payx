@@ -34,10 +34,14 @@ import com.payx.app.ui.screens.TrackerScreen
 object Routes {
     const val LOGIN = "login"
     const val DASHBOARD = "dashboard"
-    const val SEND = "send"
+    const val SEND = "send?recipientId={recipientId}"
     const val TRACKER = "tracker/{transferId}?recipient={recipient}&inr={inr}&usd={usd}&timeTaken={timeTaken}"
     const val RECEIVER = "receiver"
     const val SETTINGS = "settings"
+
+    fun send(recipientId: String? = null): String {
+        return if (!recipientId.isNullOrBlank()) "send?recipientId=$recipientId" else "send"
+    }
 
     fun tracker(
         transferId: String,
@@ -123,7 +127,7 @@ fun PayxApp(authViewModel: AuthViewModel = viewModel()) {
         ) {
             DashboardScreen(
                 user = authState.user,
-                onSend = { nav.navigate(Routes.SEND) },
+                onSend = { recipientId -> nav.navigate(Routes.send(recipientId)) },
                 onTrack = { id -> nav.navigate(Routes.tracker(id)) },
                 onSettings = { nav.navigate(Routes.SETTINGS) }
             )
@@ -131,6 +135,13 @@ fun PayxApp(authViewModel: AuthViewModel = viewModel()) {
 
         composable(
             route = Routes.SEND,
+            arguments = listOf(
+                navArgument("recipientId") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                }
+            ),
             enterTransition = {
                 slideInVertically(
                     initialOffsetY = { (it * 0.16f).toInt() },
@@ -149,8 +160,10 @@ fun PayxApp(authViewModel: AuthViewModel = viewModel()) {
                 ) + fadeOut(animationSpec = tween(240, easing = LinearEasing)) +
                         scaleOut(targetScale = 0.95f, animationSpec = tween(320, easing = smoothDecel))
             }
-        ) {
+        ) { backStackEntry ->
+            val recipientId = backStackEntry.arguments?.getString("recipientId")
             SendScreen(
+                initialRecipientId = recipientId,
                 onBack = { nav.popBackStack() },
                 onSubmitted = { id, recipient, inr, usd ->
                     nav.navigate(Routes.tracker(id, recipient, inr, usd))

@@ -99,44 +99,13 @@ fun LoginScreen(
 ) {
     var selectedCorridor by remember { mutableStateOf("US") }
 
-    val ambientBackground = Brush.verticalGradient(
-        colorStops = arrayOf(
-            0.0f to Color(0xFF17122E),
-            0.35f to Color(0xFF0E0B1E),
-            0.70f to PayxPalette.Obsidian,
-            1.0f to PayxPalette.Obsidian
-        )
-    )
+    val screenBackground = Color(0xFF09090D)
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(ambientBackground)
+            .background(screenBackground)
     ) {
-        // Ambient background topography curves
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val purpleGlow = Color(0x18C4BAF9)
-            val path1 = Path().apply {
-                moveTo(0f, size.height * 0.16f)
-                cubicTo(
-                    size.width * 0.35f, size.height * 0.10f,
-                    size.width * 0.7f, size.height * 0.24f,
-                    size.width, size.height * 0.18f
-                )
-            }
-            drawPath(path1, color = purpleGlow, style = Stroke(width = 1.5.dp.toPx()))
-
-            val path2 = Path().apply {
-                moveTo(0f, size.height * 0.44f)
-                cubicTo(
-                    size.width * 0.4f, size.height * 0.50f,
-                    size.width * 0.65f, size.height * 0.38f,
-                    size.width, size.height * 0.46f
-                )
-            }
-            drawPath(path2, color = Color(0x10AE9EF8), style = Stroke(width = 1.2.dp.toPx()))
-        }
-
         Column(
             modifier = Modifier
                 .fillMaxSize()

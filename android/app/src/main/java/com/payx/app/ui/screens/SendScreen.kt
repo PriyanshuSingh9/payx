@@ -154,10 +154,17 @@ private val sampleRecipients = listOf(
 
 @Composable
 fun SendScreen(
+    initialRecipientId: String? = null,
     onBack: () -> Unit = {},
     onSubmitted: (transferId: String, recipientName: String, inrAmount: String, usdAmount: String) -> Unit
 ) {
-    var selectedRecipient by remember { mutableStateOf<Recipient?>(null) }
+    var selectedRecipient by remember(initialRecipientId) {
+        mutableStateOf<Recipient?>(
+            if (!initialRecipientId.isNullOrBlank()) {
+                sampleRecipients.find { it.id == initialRecipientId || it.name.startsWith(initialRecipientId, ignoreCase = true) }
+            } else null
+        )
+    }
     val screenBackground = Color(0xFF09090D)
 
     Box(
@@ -180,7 +187,13 @@ fun SendScreen(
                 // Step 2: Send Money
                 SendMoneyScreen(
                     recipient = recipient,
-                    onBack = { selectedRecipient = null },
+                    onBack = {
+                        if (!initialRecipientId.isNullOrBlank() && selectedRecipient?.id == initialRecipientId) {
+                            onBack()
+                        } else {
+                            selectedRecipient = null
+                        }
+                    },
                     onConfirm = { inr, usd ->
                         onSubmitted(
                             "tx_${recipient.id}_${System.currentTimeMillis()}",
