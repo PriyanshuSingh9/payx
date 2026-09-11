@@ -27,7 +27,7 @@ object Routes {
     const val LOGIN = "login"
     const val DASHBOARD = "dashboard"
     const val SEND = "send"
-    const val TRACKER = "tracker/{transferId}?recipient={recipient}&inr={inr}&usd={usd}"
+    const val TRACKER = "tracker/{transferId}?recipient={recipient}&inr={inr}&usd={usd}&timeTaken={timeTaken}"
     const val RECEIVER = "receiver"
     const val SETTINGS = "settings"
 
@@ -35,13 +35,15 @@ object Routes {
         transferId: String,
         recipient: String? = null,
         inr: String? = null,
-        usd: String? = null
+        usd: String? = null,
+        timeTaken: String? = null
     ): String {
         val base = "tracker/$transferId"
         val params = mutableListOf<String>()
         if (!recipient.isNullOrBlank()) params.add("recipient=${java.net.URLEncoder.encode(recipient, "UTF-8")}")
         if (!inr.isNullOrBlank()) params.add("inr=${java.net.URLEncoder.encode(inr, "UTF-8")}")
         if (!usd.isNullOrBlank()) params.add("usd=${java.net.URLEncoder.encode(usd, "UTF-8")}")
+        if (!timeTaken.isNullOrBlank()) params.add("timeTaken=${java.net.URLEncoder.encode(timeTaken, "UTF-8")}")
         return if (params.isNotEmpty()) "$base?${params.joinToString("&")}" else base
     }
 }
@@ -144,6 +146,11 @@ fun PayxApp() {
                     type = NavType.StringType
                     defaultValue = "$2,000.00"
                     nullable = true
+                },
+                navArgument("timeTaken") {
+                    type = NavType.StringType
+                    defaultValue = "4.2s"
+                    nullable = true
                 }
             ),
             enterTransition = {
@@ -160,11 +167,13 @@ fun PayxApp() {
             val recipient = backStackEntry.arguments?.getString("recipient") ?: "Priya Sharma"
             val inr = backStackEntry.arguments?.getString("inr") ?: "₹1,79,761.50"
             val usd = backStackEntry.arguments?.getString("usd") ?: "$2,000.00"
+            val time = backStackEntry.arguments?.getString("timeTaken") ?: "4.2s"
             TrackerScreen(
                 transferId = id,
                 recipientName = recipient,
                 inrAmount = inr,
                 usdAmount = usd,
+                timeTaken = time,
                 onDone = {
                     nav.navigate(Routes.DASHBOARD) {
                         popUpTo(Routes.DASHBOARD) { inclusive = false }
