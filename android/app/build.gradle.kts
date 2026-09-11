@@ -2,6 +2,7 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.serialization")
+    id("org.jetbrains.kotlin.plugin.compose")
 }
 
 android {
@@ -56,5 +57,5 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
 
     implementation("com.google.android.gms:play-services-auth:21.4.0")
-    implementation("com.solana:mobile-wallet-adapter-clientlib-ktx:2.1.1")
+    implementation("com.solanamobile:mobile-wallet-adapter-clientlib-ktx:2.1.1")
 }

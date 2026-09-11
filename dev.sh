@@ -9,8 +9,13 @@ cleanup() {
     echo "Stopping local services..."
     kill $(jobs -p) 2>/dev/null
 
-    fuser -k 8787/tcp 2>/dev/null  # Backend API
-    fuser -k 8899/tcp 2>/dev/null  # Solana test validator
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        lsof -ti:8787 | xargs kill -9 2>/dev/null || true
+        lsof -ti:8899 | xargs kill -9 2>/dev/null || true
+    else
+        fuser -k 8787/tcp 2>/dev/null || true
+        fuser -k 8899/tcp 2>/dev/null || true
+    fi
 
     echo "Cleaned up successfully."
     exit

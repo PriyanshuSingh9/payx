@@ -17,10 +17,11 @@ import kotlinx.serialization.json.Json
 // Base URL discovery mirrors the reference: explicit override first, then
 // emulator loopback, then localhost. `adb reverse tcp:8787 tcp:8787` covers
 // physical devices (see dev.sh).
-class ApiClient(private val sessionToken: () -> String?) {
+class ApiClient(@PublishedApi internal val sessionToken: () -> String?) {
     private val json = Json { ignoreUnknownKeys = true }
 
-    private val http = HttpClient(OkHttp) {
+    @PublishedApi
+    internal val http = HttpClient(OkHttp) {
         install(ContentNegotiation) { json(this@ApiClient.json) }
     }
 

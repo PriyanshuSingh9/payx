@@ -16,8 +16,10 @@ environment. Follow top to bottom; each step has an expected result.
 | Neon account | free tier works | pooled `DATABASE_URL` + direct `DIRECT_URL` |
 | Google OAuth client | Web client ID | used to verify ID tokens at `/auth/google` |
 
-No sudo is required if you install to user-space (`~/development`, `~/Android`).
-KVM (`/dev/kvm`) is required only for the Android emulator.
+No sudo is required if you install to user-space (`~/development`, `~/Android` on Linux,
+or `~/Library/Android/sdk` on macOS).
+On Linux, KVM (`/dev/kvm`) is required for emulator acceleration. On macOS Apple Silicon,
+hardware virtualization is provided natively by the Apple Hypervisor framework.
 
 ## 2. Clone and install
 
@@ -70,7 +72,8 @@ validator session; devnet uses the Circle devnet mint.
 Install Android Studio Narwhal or newer, then in SDK Manager install:
 
 - SDK Platform Android 36, Build-Tools 36, Platform-Tools, Emulator
-- A `google_apis | x86_64` system image for API 36
+- A `google_apis | arm64-v8a` system image for API 36 on Apple Silicon Macs
+  (or `google_apis | x86_64` on Intel/Linux)
 
 JDK 17 is required by Gradle/AGP 8.x; Studio's bundled JBR works if
 `JAVA_HOME` is unset. Open the **`android/` directory** (not the repo root)
@@ -106,12 +109,14 @@ Run it from the repo root.
 
 ## 8. Troubleshooting
 
-- `EADDRINUSE :8787/:8899` — a previous `dev.sh` died; `fuser -k 8787/tcp`
-  (and `8899`) or re-run `dev.sh`, whose trap cleans up on exit.
+- `EADDRINUSE :8787/:8899` — a previous `dev.sh` died; re-run `dev.sh` (whose
+  trap cleans up on exit), or run `lsof -ti:8787 -ti:8899 | xargs kill -9` on macOS
+  (`fuser -k 8787/tcp` on Linux).
 - `PrismaConfigEnvError: Cannot resolve DIRECT_URL` — export a dummy URL for
   generate-only runs, or fill `backend/.env` properly.
 - `anchor test` version errors — Anchor CLI minor must equal `anchor-lang`
   minor (0.31.x); use `avm` to switch.
 - Gradle `Unsupported class file version` — Gradle is running on the wrong
   JDK; point Studio/Gradle at JDK 17.
-- Emulator painfully slow — `/dev/kvm` missing; enable virtualization in BIOS.
+- Emulator painfully slow — On Linux, `/dev/kvm` missing (enable virtualization in BIOS).
+  On macOS Apple Silicon, ensure you use the `arm64-v8a` system image.

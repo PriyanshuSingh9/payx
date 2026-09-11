@@ -27,7 +27,7 @@
 
 ## Phase 3 — Android app
 
-- [ ] Android Studio + SDK 36, Compose BOM, MWA dependency
+- [x] Android Studio + SDK 36, Compose BOM, MWA dependency
 - [ ] Auth (Google sign-in, Keystore wallet, session storage)
 - [ ] Corridor picker, quote card, rail validation, 4-stage tracker, receipt
 - [ ] Receiver view, address book, settings/logout

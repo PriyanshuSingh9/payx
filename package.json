@@ -6,11 +6,11 @@
   "packageManager": "pnpm@10.0.0",
   "scripts": {
     "setup": "pnpm --dir backend install",
-    "dev": "pnpm --dir backend dev",
-    "build": "pnpm --dir backend build",
-    "typecheck": "pnpm --dir backend typecheck",
-    "test": "pnpm --dir backend test",
-    "db:generate": "pnpm --dir backend db:generate",
-    "db:migrate": "pnpm --dir backend db:migrate"
+    "dev": "pnpm --dir backend run dev",
+    "build": "pnpm --dir backend run build",
+    "typecheck": "pnpm --dir backend run typecheck",
+    "test": "pnpm --dir backend run test",
+    "db:generate": "pnpm --dir backend run db:generate",
+    "db:migrate": "pnpm --dir backend run db:migrate"
   }
 }
