@@ -5,16 +5,39 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
-private val MidnightHull = Color(0xFF0F0F1C)
-private val ClayEmber = Color(0xFFBC7155)
+object PayxPalette {
+    val Obsidian = Color(0xFF0E0C15)
+    val DarkSurface = Color(0xFF181523)
+    val DarkSurfaceElevated = Color(0xFF221E30)
+    val BorderSubtle = Color(0xFF2E283F)
+
+    val VividPurple = Color(0xFFA855F7)
+    val NeonViolet = Color(0xFFB866FC)
+    val SoftLavender = Color(0xFFD8B4FE)
+    val LightLavender = Color(0xFFEDE4F9)
+
+    val CardGradientStart = Color(0xFFB55CF8)
+    val CardGradientEnd = Color(0xFF7E2AE8)
+
+    val CoralAccent = Color(0xFFFF5B79)
+    val CyberGreen = Color(0xFF00E676)
+    val GoldAccent = Color(0xFFFFB800)
+
+    val TextPrimary = Color(0xFFFFFFFF)
+    val TextSecondary = Color(0xFF9E97AA)
+    val TextTertiary = Color(0xFF6B6478)
+}
 
 private val PayxColors = darkColorScheme(
-    primary = ClayEmber,
+    primary = PayxPalette.VividPurple,
     onPrimary = Color.White,
-    background = MidnightHull,
-    onBackground = Color(0xFFE0E0E0),
-    surface = Color(0xFF17171F),
-    onSurface = Color(0xFFE0E0E0)
+    background = PayxPalette.Obsidian,
+    onBackground = PayxPalette.TextPrimary,
+    surface = PayxPalette.DarkSurface,
+    onSurface = PayxPalette.TextPrimary,
+    surfaceVariant = PayxPalette.DarkSurfaceElevated,
+    onSurfaceVariant = PayxPalette.TextSecondary,
+    outline = PayxPalette.BorderSubtle
 )
 
 @Composable
