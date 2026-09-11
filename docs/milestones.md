@@ -36,6 +36,7 @@
 - [x] Corridor picker, quote card, rail validation, 4-stage tracker, receipt
 - [x] Receiver view, address book, settings/logout
 - [x] Physical device deployment and verification
+- [x] Branded PayX launcher icon with adaptive vector layers and multi-density mipmaps
 
 ## Phase 4 — Ramps, hardening, mainnet readiness
 
