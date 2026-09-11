@@ -256,3 +256,11 @@ val TERMINAL_PAYMENT_STATUSES = setOf(
     "OFFRAMP_FAILED",
     "PAYOUT_FAILED"
 )
+
+@Serializable
+data class ReceiverDashboardDto(
+    val totalReceivedInr: Double = 0.0,
+    val totalReceivedUsd: Double = 0.0,
+    val count: Int = 0,
+    val payments: List<PaymentDto> = emptyList()
+)

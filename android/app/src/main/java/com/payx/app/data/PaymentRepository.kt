@@ -60,4 +60,10 @@ class PaymentRepository(private val api: ApiClient) {
             SimulateStepRequest(step)
         ).payment
     }
+
+    suspend fun getReceiverDashboard(recipient: String = ""): ReceiverDashboardDto {
+        val params = if (recipient.isBlank()) emptyMap() else mapOf("recipient" to recipient)
+        return api.get<ReceiverDashboardDto>("/api/v1/receiver/dashboard", params)
+    }
 }
+

@@ -46,6 +46,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.payx.app.data.AddressBookRecipient
+import com.payx.app.payments.SendViewModel
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -125,38 +129,82 @@ data class Recipient(
     val name: String,
     val email: String,
     val avatarInitials: String,
-    val gradientColors: List<Color>
+    val gradientColors: List<Color>,
+    val addressBookItem: AddressBookRecipient? = null
 )
+
+fun AddressBookRecipient.toUiRecipient(): Recipient {
+    val init = this.initials
+    val colors = when (init.firstOrNull()?.uppercaseChar()) {
+        'P' -> listOf(Color(0xFFE91E63), Color(0xFFF43F5E))
+        'R' -> listOf(Color(0xFF3B82F6), Color(0xFF6366F1))
+        'S' -> listOf(Color(0xFF8B5CF6), Color(0xFFA855F7))
+        'A' -> listOf(Color(0xFF10B981), Color(0xFF059669))
+        else -> listOf(Color(0xFF9881F5), Color(0xFF6366F1))
+    }
+    return Recipient(
+        id = id,
+        name = name,
+        email = subtitle,
+        avatarInitials = init,
+        gradientColors = colors,
+        addressBookItem = this
+    )
+}
 
 private val sampleRecipients = listOf(
     Recipient(
-        id = "1",
+        id = "rec_priya",
         name = "Priya Sharma",
-        email = "priya.sharma@payx.demo",
+        email = "priya.sharma@oksbi",
         avatarInitials = "PS",
-        gradientColors = listOf(Color(0xFFE91E63), Color(0xFFF43F5E))
+        gradientColors = listOf(Color(0xFFE91E63), Color(0xFFF43F5E)),
+        addressBookItem = AddressBookRecipient(
+            id = "rec_priya",
+            name = "Priya Sharma",
+            phone = "+919876543210",
+            upiId = "priya.sharma@oksbi",
+            avatarInitials = "PS"
+        )
     ),
     Recipient(
-        id = "2",
+        id = "rec_rahul",
         name = "Rahul Verma",
-        email = "rahul.verma@payx.demo",
+        email = "rahul.verma@oksbi",
         avatarInitials = "RV",
-        gradientColors = listOf(Color(0xFF3B82F6), Color(0xFF6366F1))
+        gradientColors = listOf(Color(0xFF3B82F6), Color(0xFF6366F1)),
+        addressBookItem = AddressBookRecipient(
+            id = "rec_rahul",
+            name = "Rahul Verma",
+            phone = "+919876543211",
+            upiId = "rahul.verma@oksbi",
+            avatarInitials = "RV"
+        )
     ),
     Recipient(
-        id = "3",
+        id = "rec_sarah",
         name = "Sarah Smith",
-        email = "sarah.smith@payx.demo",
+        email = "sarah.smith@oksbi",
         avatarInitials = "SS",
-        gradientColors = listOf(Color(0xFF8B5CF6), Color(0xFFA855F7))
+        gradientColors = listOf(Color(0xFF8B5CF6), Color(0xFFA855F7)),
+        addressBookItem = AddressBookRecipient(
+            id = "rec_sarah",
+            name = "Sarah Smith",
+            phone = "+919876543212",
+            upiId = "sarah.smith@oksbi",
+            avatarInitials = "SS"
+        )
     )
 )
 
 @Composable
 fun SendScreen(
     onBack: () -> Unit = {},
-    onSubmitted: (transferId: String, recipientName: String, inrAmount: String, usdAmount: String) -> Unit
+    onSubmitted: (transferId: String, recipientName: String, inrAmount: String, usdAmount: String) -> Unit,
+    senderWallet: String? = null,
+    viewModel: SendViewModel = viewModel()
 ) {
+    val state by viewModel.state.collectAsStateWithLifecycle()
     var selectedRecipient by remember { mutableStateOf<Recipient?>(null) }
     val screenBackground = Color(0xFF09090D)
 
@@ -174,7 +222,8 @@ fun SendScreen(
                 // Step 1: Send To
                 SendToScreen(
                     onBack = onBack,
-                    onRecipientSelected = { selectedRecipient = it }
+                    onRecipientSelected = { selectedRecipient = it },
+                    viewModel = viewModel
                 )
             } else {
                 // Step 2: Send Money
@@ -182,13 +231,17 @@ fun SendScreen(
                     recipient = recipient,
                     onBack = { selectedRecipient = null },
                     onConfirm = { inr, usd ->
+                        val paymentId = state.createdPaymentId ?: "tx_${recipient.id}_${System.currentTimeMillis()}"
                         onSubmitted(
-                            "tx_${recipient.id}_${System.currentTimeMillis()}",
+                            paymentId,
                             recipient.name,
                             inr,
                             usd
                         )
-                    }
+                        viewModel.consumeCreatedPayment()
+                    },
+                    viewModel = viewModel,
+                    senderWallet = senderWallet
                 )
             }
         }
@@ -201,17 +254,23 @@ fun SendScreen(
 @Composable
 private fun SendToScreen(
     onBack: () -> Unit,
-    onRecipientSelected: (Recipient) -> Unit
+    onRecipientSelected: (Recipient) -> Unit,
+    viewModel: SendViewModel
 ) {
-    var searchQuery by remember { mutableStateOf("") }
+    val state by viewModel.state.collectAsStateWithLifecycle()
 
-    val filteredRecipients = remember(searchQuery) {
-        if (searchQuery.isBlank()) {
-            sampleRecipients
+    val filteredRecipients = remember(state.recipients, state.searchQuery) {
+        if (state.recipients.isNotEmpty()) {
+            state.filteredRecipients.map { it.toUiRecipient() }
         } else {
-            sampleRecipients.filter {
-                it.name.contains(searchQuery, ignoreCase = true) ||
-                        it.email.contains(searchQuery, ignoreCase = true)
+            val q = state.searchQuery.trim()
+            if (q.isEmpty()) {
+                sampleRecipients
+            } else {
+                sampleRecipients.filter {
+                    it.name.contains(q, ignoreCase = true) ||
+                            it.email.contains(q, ignoreCase = true)
+                }
             }
         }
     }
@@ -284,8 +343,8 @@ private fun SendToScreen(
                 Spacer(modifier = Modifier.width(12.dp))
 
                 BasicTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
+                    value = state.searchQuery,
+                    onValueChange = { viewModel.onSearchQueryChange(it) },
                     textStyle = TextStyle(
                         fontFamily = PlusJakartaSans,
                         fontSize = 14.sp,
@@ -296,7 +355,7 @@ private fun SendToScreen(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     decorationBox = { innerTextField ->
-                        if (searchQuery.isEmpty()) {
+                        if (state.searchQuery.isEmpty()) {
                             Text(
                                 text = "Search by name or email",
                                 style = TextStyle(
@@ -458,9 +517,12 @@ private fun RecipientItemCard(
 private fun SendMoneyScreen(
     recipient: Recipient,
     onBack: () -> Unit,
-    onConfirm: (inrAmount: String, usdAmount: String) -> Unit
+    onConfirm: (inrAmount: String, usdAmount: String) -> Unit,
+    viewModel: SendViewModel,
+    senderWallet: String?
 ) {
-    var amountInput by remember { mutableStateOf("") }
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    var amountInput by remember { mutableStateOf(state.amountInput.ifEmpty { "100" }) }
     var isAmountConfirmed by remember { mutableStateOf(false) }
     var isProcessingPayment by remember { mutableStateOf(false) }
 
@@ -472,6 +534,12 @@ private fun SendMoneyScreen(
 
     BackHandler(enabled = isAmountConfirmed) {
         isAmountConfirmed = false
+    }
+
+    LaunchedEffect(state.submitError) {
+        if (state.submitError != null) {
+            isProcessingPayment = false
+        }
     }
 
     LaunchedEffect(isAmountConfirmed) {
@@ -502,11 +570,11 @@ private fun SendMoneyScreen(
     )
 
     val amountDouble = amountInput.toDoubleOrNull() ?: 0.0
-    val feeRate = 0.0325
-    val feeAmount = amountDouble * feeRate
-    val exchangeRate = 92.90
-    val netSend = (amountDouble - feeAmount).coerceAtLeast(0.0)
-    val receiveInr = netSend * exchangeRate
+    val quote = state.quote
+    val exchangeRate = quote?.exchangeRate ?: 92.90
+    val feeAmount = quote?.let { it.offRampFee + it.estimatedNetworkFee } ?: (amountDouble * 0.0325)
+    val feePercent = if (amountDouble > 0.0) ((feeAmount / amountDouble) * 100.0) else 3.25
+    val receiveInr = quote?.recipientAmount ?: ((amountDouble - feeAmount).coerceAtLeast(0.0) * exchangeRate)
 
     val inrFormatter = remember { DecimalFormat("#,##,##0.00") }
     val usdFormatter = remember { DecimalFormat("#,##0.00") }
@@ -704,6 +772,7 @@ private fun SendMoneyScreen(
                                         digitsOnly
                                     }
                                     scaleTrigger = true
+                                    viewModel.onAmountChange(amountInput)
                                 }
                             },
                             textStyle = TextStyle(
@@ -856,7 +925,7 @@ private fun SendMoneyScreen(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
-                                        text = "Total fees (3.25%)",
+                                        text = "Total fees (${"%.2f".format(feePercent)}%)",
                                         style = TextStyle(
                                             fontFamily = PlusJakartaSans,
                                             fontSize = 13.sp,
@@ -882,7 +951,7 @@ private fun SendMoneyScreen(
                             // Exchange rate row
                             BreakdownRow(
                                 label = "Exchange rate",
-                                value = "1 USD = ₹92.90",
+                                value = "1 USD = ₹${"%.2f".format(exchangeRate)}",
                                 valueColor = Color.White
                             )
 
@@ -919,7 +988,7 @@ private fun SendMoneyScreen(
 
                             // Footnote: Estimated delivery
                             Text(
-                                text = "Estimated delivery: 5-10 minutes via UPI",
+                                text = "Estimated delivery: ${quote?.estimatedMinutesMin ?: 5}-${quote?.estimatedMinutesMax ?: 10} minutes via UPI",
                                 style = TextStyle(
                                     fontFamily = PlusJakartaSans,
                                     fontSize = 12.sp,
@@ -930,11 +999,41 @@ private fun SendMoneyScreen(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    if (state.submitError != null) {
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = Color(0xFF3B151E),
+                            border = BorderStroke(1.dp, Color(0xFFEF4444)),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 12.dp)
+                        ) {
+                            Text(
+                                text = state.submitError ?: "Payment creation failed.",
+                                style = TextStyle(
+                                    fontFamily = PlusJakartaSans,
+                                    fontSize = 12.5.sp,
+                                    color = Color(0xFFFCA5A5)
+                                ),
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
+                            )
+                        }
+                    }
 
                     // Slide to Send Interaction
                     SwipeToConfirmButton(
-                        onConfirm = { isProcessingPayment = true },
+                        onConfirm = {
+                            val bookRecipient = recipient.addressBookItem ?: AddressBookRecipient(
+                                id = recipient.id,
+                                name = recipient.name,
+                                phone = "+919876543210",
+                                upiId = if (recipient.email.contains("@") && !recipient.email.endsWith(".demo")) recipient.email else "${recipient.name.lowercase().replace(" ", "")}@oksbi"
+                            )
+                            viewModel.submit(bookRecipient, senderWallet)
+                            isProcessingPayment = true
+                        },
                         modifier = Modifier.fillMaxWidth()
                     )
 
@@ -954,7 +1053,11 @@ private fun SendMoneyScreen(
                 inrAmount = inrFormatter.format(receiveInr),
                 usdAmount = usdFormatter.format(amountDouble),
                 onComplete = {
-                    onConfirm(inrFormatter.format(receiveInr), usdFormatter.format(amountDouble))
+                    if (state.submitError == null) {
+                        onConfirm(inrFormatter.format(receiveInr), usdFormatter.format(amountDouble))
+                    } else {
+                        isProcessingPayment = false
+                    }
                 }
             )
         }

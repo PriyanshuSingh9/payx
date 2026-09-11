@@ -63,6 +63,10 @@ import com.payx.app.R
 import com.payx.app.data.SessionUser
 import com.payx.app.ui.components.IndiaFlag
 import com.payx.app.ui.components.UsaFlag
+import androidx.compose.runtime.LaunchedEffect
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.payx.app.payments.DashboardViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -80,11 +84,32 @@ fun DashboardScreen(
     user: SessionUser?,
     onSend: () -> Unit,
     onTrack: (String) -> Unit,
-    onSettings: () -> Unit
+    onSettings: () -> Unit,
+    onReceiver: () -> Unit = {},
+    viewModel: DashboardViewModel = viewModel()
 ) {
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    LaunchedEffect(Unit) {
+        viewModel.refresh()
+    }
+
     val scrollState = rememberScrollState()
     val sendAgainScrollState = rememberScrollState()
     val screenBackground = Color(0xFF09090D)
+
+    val balanceStr = if (state.totalTransferredUsd > 0.0) {
+        "$${"%,.2f".format(state.totalTransferredUsd)}"
+    } else {
+        "$2,450.00"
+    }
+
+    val savedStr = if (state.savedUsd > 0.0) {
+        "$${"%,.2f".format(state.savedUsd)}"
+    } else {
+        "$66.85"
+    }
+
+    val rateStr = state.liveRate?.let { "₹${"%,.2f".format(it)}" } ?: "₹92.90"
 
     Box(
         modifier = Modifier
@@ -102,9 +127,11 @@ fun DashboardScreen(
             // 1. Clean Flat Header with Distinct Typographic Hierarchy
             DashboardHeader(
                 userName = user?.firstName ?: "there",
-                balance = "$2,450.00",
-                savedAmount = "$66.85",
-                onSettings = onSettings
+                balance = balanceStr,
+                savedAmount = savedStr,
+                exchangeRate = rateStr,
+                onSettings = onSettings,
+                onReceiver = onReceiver
             )
 
             Spacer(modifier = Modifier.height(46.dp))
@@ -135,27 +162,43 @@ fun DashboardScreen(
                     horizontalArrangement = Arrangement.spacedBy(22.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    SendAgainContact(
-                        initial = "P",
-                        name = "Priya",
-                        backgroundColor = Color(0xFFE91E63),
-                        showActiveDot = true,
-                        onClick = { onTrack("tx_priya_500") }
-                    )
+                    if (state.recentRecipients.isNotEmpty()) {
+                        state.recentRecipients.forEach { payment ->
+                            val initial = payment.recipient.name.firstOrNull()?.uppercaseChar()?.toString() ?: "R"
+                            val firstName = payment.recipient.name.substringBefore(" ")
+                            val avatarColor = getAvatarColor(initial)
+                            val isActive = !payment.isTerminal
+                            SendAgainContact(
+                                initial = initial,
+                                name = firstName,
+                                backgroundColor = avatarColor,
+                                showActiveDot = isActive,
+                                onClick = { onTrack(payment.id) }
+                            )
+                        }
+                    } else {
+                        SendAgainContact(
+                            initial = "P",
+                            name = "Priya",
+                            backgroundColor = Color(0xFFE91E63),
+                            showActiveDot = true,
+                            onClick = { onTrack("tx_priya_500") }
+                        )
 
-                    SendAgainContact(
-                        initial = "R",
-                        name = "Rahul",
-                        backgroundColor = Color(0xFF2E7D32),
-                        onClick = { onTrack("tx_rahul_250") }
-                    )
+                        SendAgainContact(
+                            initial = "R",
+                            name = "Rahul",
+                            backgroundColor = Color(0xFF2E7D32),
+                            onClick = { onTrack("tx_rahul_250") }
+                        )
 
-                    SendAgainContact(
-                        initial = "S",
-                        name = "Sarah",
-                        backgroundColor = Color(0xFFF4511E),
-                        onClick = onSend
-                    )
+                        SendAgainContact(
+                            initial = "S",
+                            name = "Sarah",
+                            backgroundColor = Color(0xFFF4511E),
+                            onClick = onSend
+                        )
+                    }
 
                     SendAgainAddContact(onClick = onSend)
                 }
@@ -193,35 +236,53 @@ fun DashboardScreen(
                             fontWeight = FontWeight.SemiBold,
                             color = Color(0xFFAE9EF8)
                         ),
-                        modifier = Modifier.clickable { }
+                        modifier = Modifier.clickable(onClick = onReceiver)
                     )
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Card 1: Priya Sharma
-                TransactionCard(
-                    title = "Priya Sharma",
-                    subtitle = "Yesterday, 17:45 • Solana Settled",
-                    fiatAmount = "-$500.00",
-                    inrEquivalent = "≈ ₹41,950",
-                    initial = "P",
-                    avatarColor = Color(0xFFE91E63),
-                    onClick = { onTrack("tx_priya_500") }
-                )
+                if (state.payments.isNotEmpty()) {
+                    state.payments.take(6).forEach { payment ->
+                        val initial = payment.recipient.name.firstOrNull()?.uppercaseChar()?.toString() ?: "P"
+                        val inrEquivalent = payment.destinationAmount?.let { "≈ ₹${"%,.2f".format(it)}" }
+                            ?: "≈ ₹${"%,.2f".format(payment.sourceAmount * (state.liveRate ?: 92.90))}"
+                        TransactionCard(
+                            title = payment.recipient.name.ifBlank { "Transfer" },
+                            subtitle = "${payment.statusLabel} • Solana Settled",
+                            fiatAmount = "-$${"%,.2f".format(payment.sourceAmount)}",
+                            inrEquivalent = inrEquivalent,
+                            initial = initial,
+                            avatarColor = getAvatarColor(initial),
+                            onClick = { onTrack(payment.id) }
+                        )
+                        Spacer(modifier = Modifier.height(10.dp))
+                    }
+                } else {
+                    // Card 1: Priya Sharma
+                    TransactionCard(
+                        title = "Priya Sharma",
+                        subtitle = "Yesterday, 17:45 • Solana Settled",
+                        fiatAmount = "-$500.00",
+                        inrEquivalent = "≈ ₹41,950",
+                        initial = "P",
+                        avatarColor = Color(0xFFE91E63),
+                        onClick = { onTrack("tx_priya_500") }
+                    )
 
-                Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
 
-                // Card 2: Rahul Verma
-                TransactionCard(
-                    title = "Rahul Verma",
-                    subtitle = "Apr 11, 14:20 • Solana Settled",
-                    fiatAmount = "-$250.00",
-                    inrEquivalent = "≈ ₹20,975",
-                    initial = "R",
-                    avatarColor = Color(0xFF2E7D32),
-                    onClick = { onTrack("tx_rahul_250") }
-                )
+                    // Card 2: Rahul Verma
+                    TransactionCard(
+                        title = "Rahul Verma",
+                        subtitle = "Apr 11, 14:20 • Solana Settled",
+                        fiatAmount = "-$250.00",
+                        inrEquivalent = "≈ ₹20,975",
+                        initial = "R",
+                        avatarColor = Color(0xFF2E7D32),
+                        onClick = { onTrack("tx_rahul_250") }
+                    )
+                }
             }
         }
 
@@ -242,7 +303,9 @@ private fun DashboardHeader(
     userName: String,
     balance: String,
     savedAmount: String,
-    onSettings: () -> Unit
+    exchangeRate: String = "₹92.90",
+    onSettings: () -> Unit,
+    onReceiver: () -> Unit = {}
 ) {
     Column(
         modifier = Modifier
@@ -308,6 +371,7 @@ private fun DashboardHeader(
 
             // Right: Minimalist Corridor Flags Chip
             Surface(
+                onClick = onReceiver,
                 shape = RoundedCornerShape(12.dp),
                 color = Color(0xFF121118),
                 border = BorderStroke(1.dp, Color(0xFF22202E))
@@ -420,7 +484,7 @@ private fun DashboardHeader(
             Spacer(modifier = Modifier.width(8.dp))
 
             Text(
-                text = "₹92.90",
+                text = exchangeRate,
                 style = TextStyle(
                     fontFamily = PlusJakartaSans,
                     fontSize = 13.5.sp,
@@ -1021,5 +1085,15 @@ private fun TransferDartArrowWithThruster(
             path = dartPath,
             color = color
         )
+    }
+}
+
+private fun getAvatarColor(initial: String): Color {
+    return when (initial.firstOrNull()?.uppercaseChar()) {
+        'P' -> Color(0xFFE91E63)
+        'R' -> Color(0xFF2E7D32)
+        'S' -> Color(0xFFF4511E)
+        'A' -> Color(0xFF3B82F6)
+        else -> Color(0xFF8B5CF6)
     }
 }

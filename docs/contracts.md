@@ -44,6 +44,8 @@ support idempotency via the `Idempotency-Key` header. Errors return
 | POST | `/api/v1/payments/:id/simulate-step` | none | Dev Console step driver (`confirm`, `settle`, `create_offramp`, `payout_processing`, `payout_success`) |
 | POST | `/api/v1/payments/:id/fail` | none | Inject failure state (`insufficient_funds`, `quote_expired`, `solana_failed`, `offramp_failed`, `payout_failed`) |
 | GET | `/api/v1/quote?amount=` | none | Pure quote preview for USDC to INR |
+| GET | `/api/v1/recipients?q=` | none | Query recent and address book recipients (`name`, `phone`, `upiId`, `avatarInitials`) |
+| GET | `/api/v1/receiver/dashboard?recipient=` | none | Receiver dashboard view of inbound pipeline payments, totals, and counts |
 | POST | `/api/v1/recipients/validate` | none | Validate Indian UPI ID or Bank Account + IFSC format |
 | POST | `/webhooks/helius` | `Authorization` (opt) | Ingest Helius enhanced transaction webhooks with deduplication |
 | GET | `/api/v1/poller/status` | none | Poller observability metrics, run counts, and last sweep summary |

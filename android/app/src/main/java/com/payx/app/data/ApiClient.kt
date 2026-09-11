@@ -33,7 +33,11 @@ class ApiClient(@PublishedApi internal val sessionToken: () -> String?) {
         }
     }
 
+    @Volatile
+    private var cachedBaseUrl: String? = null
+
     suspend fun baseUrl(): String {
+        cachedBaseUrl?.let { return it }
         val override = BuildConfig.API_BASE_URL.trim().ifEmpty { null }
         val candidates = listOfNotNull(
             override,
@@ -43,12 +47,19 @@ class ApiClient(@PublishedApi internal val sessionToken: () -> String?) {
         for (candidate in candidates) {
             try {
                 val health = http.get("$candidate/health").body<HealthResponse>()
-                if (health.ok) return candidate
+                if (health.ok) {
+                    cachedBaseUrl = candidate
+                    return candidate
+                }
             } catch (_: Exception) {
                 continue
             }
         }
         throw ApiException("PayX backend unreachable. Start it with ./dev.sh.")
+    }
+
+    fun invalidateBaseUrl() {
+        cachedBaseUrl = null
     }
 
     suspend inline fun <reified T> get(path: String, params: Map<String, String> = emptyMap()): T {

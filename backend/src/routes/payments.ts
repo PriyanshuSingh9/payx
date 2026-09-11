@@ -217,3 +217,70 @@ paymentRouter.post("/api/v1/recipients/validate", (req, res) => {
   const check = validateIndianRecipient(req.body || {});
   res.json({ check });
 });
+
+// GET /api/v1/recipients - List recipients preview
+paymentRouter.get("/api/v1/recipients", (req, res) => {
+  const q = req.query.q ? String(req.query.q).toLowerCase().trim() : "";
+  let list = [
+    {
+      id: "rec_priya",
+      name: "Priya Sharma",
+      phone: "+919876543210",
+      upiId: "priya.sharma@oksbi",
+      avatarInitials: "PS",
+      country: "IN"
+    },
+    {
+      id: "rec_rahul",
+      name: "Rahul Verma",
+      phone: "+919876543211",
+      upiId: "rahul.verma@oksbi",
+      avatarInitials: "RV",
+      country: "IN"
+    },
+    {
+      id: "rec_sarah",
+      name: "Sarah Smith",
+      phone: "+919876543212",
+      upiId: "sarah.smith@oksbi",
+      avatarInitials: "SS",
+      country: "IN"
+    }
+  ];
+  if (q) {
+    list = list.filter(
+      (r) =>
+        r.name.toLowerCase().includes(q) ||
+        r.phone.includes(q) ||
+        (r.upiId && r.upiId.toLowerCase().includes(q))
+    );
+  }
+  res.json({ recipients: list });
+});
+
+// GET /api/v1/receiver/dashboard - Receiver dashboard view of incoming pipeline payments
+paymentRouter.get("/api/v1/receiver/dashboard", async (req, res, next) => {
+  try {
+    const q = req.query.recipient ? String(req.query.recipient).toLowerCase().trim() : "";
+    let payments = await globalPaymentStore.listPayments(50);
+    if (q) {
+      payments = payments.filter(
+        (p) =>
+          p.recipient.name.toLowerCase().includes(q) ||
+          (p.recipient.upiId && p.recipient.upiId.toLowerCase().includes(q))
+      );
+    }
+    const completed = payments.filter((p) => p.status === "COMPLETED");
+    const totalReceivedInr = completed.reduce((sum, p) => sum + (p.destinationAmount || 0), 0);
+    const totalReceivedUsd = completed.reduce((sum, p) => sum + (p.sourceAmount || 0), 0);
+
+    res.json({
+      totalReceivedInr,
+      totalReceivedUsd,
+      count: payments.length,
+      payments
+    });
+  } catch (err) {
+    next(err);
+  }
+});

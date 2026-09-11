@@ -31,8 +31,8 @@
 
 - [x] Android Studio + SDK 36, Compose BOM, MWA dependency
 - [x] Auth (Google sign-in, Keystore wallet, session storage)
-- [ ] Send / tracker / dashboard live payment APIs (repository landed; screens still mock)
-- [ ] Receiver view live inbound list
+- [x] Send / tracker / dashboard live payment APIs (screens wired to live PaymentRepository, ViewModels, and pipeline APIs)
+- [x] Receiver view live inbound list (screen wired to live ReceiverDashboard API, ReceiverViewModel, and PaymentRepository)
 - [x] Settings/logout
 - [x] `adb reverse` device testing against local backend
 

@@ -125,7 +125,8 @@ fun PayxApp(authViewModel: AuthViewModel = viewModel()) {
                 user = authState.user,
                 onSend = { nav.navigate(Routes.SEND) },
                 onTrack = { id -> nav.navigate(Routes.tracker(id)) },
-                onSettings = { nav.navigate(Routes.SETTINGS) }
+                onSettings = { nav.navigate(Routes.SETTINGS) },
+                onReceiver = { nav.navigate(Routes.RECEIVER) }
             )
         }
 
@@ -154,7 +155,8 @@ fun PayxApp(authViewModel: AuthViewModel = viewModel()) {
                 onBack = { nav.popBackStack() },
                 onSubmitted = { id, recipient, inr, usd ->
                     nav.navigate(Routes.tracker(id, recipient, inr, usd))
-                }
+                },
+                senderWallet = authState.user?.walletAddress
             )
         }
 
@@ -212,7 +214,29 @@ fun PayxApp(authViewModel: AuthViewModel = viewModel()) {
             )
         }
 
-        composable(Routes.RECEIVER) { ReceiverScreen() }
+        composable(
+            route = Routes.RECEIVER,
+            enterTransition = {
+                slideInVertically(
+                    initialOffsetY = { (it * 0.14f).toInt() },
+                    animationSpec = tween(340, easing = smoothDecel)
+                ) + fadeIn(animationSpec = tween(260, easing = LinearEasing))
+            },
+            exitTransition = {
+                fadeOut(animationSpec = tween(240, easing = LinearEasing))
+            },
+            popExitTransition = {
+                slideOutVertically(
+                    targetOffsetY = { (it * 0.14f).toInt() },
+                    animationSpec = tween(300, easing = smoothDecel)
+                ) + fadeOut(animationSpec = tween(240, easing = LinearEasing))
+            }
+        ) {
+            ReceiverScreen(
+                onBack = { nav.popBackStack() },
+                onTrack = { id -> nav.navigate(Routes.tracker(id)) }
+            )
+        }
 
         composable(
             route = Routes.SETTINGS,
