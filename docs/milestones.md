@@ -32,9 +32,10 @@
 
 - [x] Android Studio + SDK 36, Compose BOM, MWA dependency
 - [x] Auth (Google sign-in, Keystore wallet, session storage)
-- [ ] Corridor picker, quote card, rail validation, 4-stage tracker, receipt
-- [ ] Receiver view, address book, settings/logout
-- [ ] `adb reverse` device testing against local backend
+- [x] Opening intro animation with dynamic component merging and page transition to Login
+- [x] Corridor picker, quote card, rail validation, 4-stage tracker, receipt
+- [x] Receiver view, address book, settings/logout
+- [x] Physical device deployment and verification
 
 ## Phase 4 — Ramps, hardening, mainnet readiness
 

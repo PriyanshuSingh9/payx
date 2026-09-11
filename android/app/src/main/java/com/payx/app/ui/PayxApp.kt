@@ -25,6 +25,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.payx.app.auth.AuthViewModel
 import com.payx.app.ui.screens.DashboardScreen
+import com.payx.app.ui.screens.IntroScreen
 import com.payx.app.ui.screens.LoginScreen
 import com.payx.app.ui.screens.ReceiverScreen
 import com.payx.app.ui.screens.SendScreen
@@ -32,6 +33,7 @@ import com.payx.app.ui.screens.SettingsScreen
 import com.payx.app.ui.screens.TrackerScreen
 
 object Routes {
+    const val INTRO = "intro"
     const val LOGIN = "login"
     const val DASHBOARD = "dashboard"
     const val SEND = "send?recipientId={recipientId}"
@@ -65,9 +67,6 @@ private val smoothDecel = CubicBezierEasing(0.16f, 1f, 0.3f, 1f)
 @Composable
 fun PayxApp(authViewModel: AuthViewModel = viewModel()) {
     val authState by authViewModel.state.collectAsStateWithLifecycle()
-    val startDestination = remember {
-        if (authViewModel.state.value.user != null) Routes.DASHBOARD else Routes.LOGIN
-    }
     val nav = rememberNavController()
     val activity = LocalContext.current as Activity
 
@@ -77,7 +76,7 @@ fun PayxApp(authViewModel: AuthViewModel = viewModel()) {
             nav.navigate(Routes.DASHBOARD) {
                 popUpTo(Routes.LOGIN) { inclusive = true }
             }
-        } else if (authState.user == null && route != null && route != Routes.LOGIN) {
+        } else if (authState.user == null && route != null && route != Routes.LOGIN && route != Routes.INTRO) {
             nav.navigate(Routes.LOGIN) {
                 popUpTo(0) { inclusive = true }
             }
@@ -86,7 +85,7 @@ fun PayxApp(authViewModel: AuthViewModel = viewModel()) {
 
     NavHost(
         navController = nav,
-        startDestination = startDestination,
+        startDestination = Routes.INTRO,
         enterTransition = {
             fadeIn(animationSpec = tween(300, easing = LinearEasing))
         },
@@ -95,7 +94,28 @@ fun PayxApp(authViewModel: AuthViewModel = viewModel()) {
         }
     ) {
         composable(
+            route = Routes.INTRO,
+            exitTransition = {
+                fadeOut(animationSpec = tween(420, easing = LinearEasing)) +
+                        scaleOut(targetScale = 1.05f, animationSpec = tween(420, easing = smoothDecel))
+            }
+        ) {
+            IntroScreen(
+                onFinished = {
+                    val dest = if (authViewModel.state.value.user != null) Routes.DASHBOARD else Routes.LOGIN
+                    nav.navigate(dest) {
+                        popUpTo(Routes.INTRO) { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        composable(
             route = Routes.LOGIN,
+            enterTransition = {
+                fadeIn(animationSpec = tween(420, easing = LinearEasing)) +
+                        scaleIn(initialScale = 0.94f, animationSpec = tween(420, easing = smoothDecel))
+            },
             exitTransition = {
                 fadeOut(animationSpec = tween(260, easing = LinearEasing)) +
                         scaleOut(targetScale = 0.96f, animationSpec = tween(300, easing = smoothDecel))
