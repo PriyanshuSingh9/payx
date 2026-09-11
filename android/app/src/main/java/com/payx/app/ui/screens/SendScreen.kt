@@ -31,8 +31,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.activity.compose.BackHandler
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Backspace
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
@@ -63,6 +65,8 @@ import com.payx.app.ui.theme.PayxPalette
 import java.text.DecimalFormat
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
@@ -449,9 +453,21 @@ private fun SendMoneyScreen(
     onBack: () -> Unit,
     onConfirm: (inrAmount: String, usdAmount: String) -> Unit
 ) {
-    var amountInput by remember { mutableStateOf("2000") }
+    var amountInput by remember { mutableStateOf("") }
+    var isAmountConfirmed by remember { mutableStateOf(false) }
     var isProcessingPayment by remember { mutableStateOf(false) }
-    
+
+    val haptics = LocalHapticFeedback.current
+    val scrollState = rememberScrollState()
+
+    BackHandler(enabled = isAmountConfirmed) {
+        isAmountConfirmed = false
+    }
+
+    LaunchedEffect(isAmountConfirmed) {
+        scrollState.scrollTo(0)
+    }
+
     // Animate scale on input change
     var scaleTrigger by remember { mutableStateOf(false) }
     val amountScale by animateFloatAsState(
@@ -459,6 +475,18 @@ private fun SendMoneyScreen(
         animationSpec = tween(durationMillis = 100),
         finishedListener = { scaleTrigger = false },
         label = "amountScale"
+    )
+
+    // Cursor blink animation
+    val infiniteTransition = rememberInfiniteTransition(label = "cursorBlink")
+    val cursorAlpha by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 500, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "cursorAlpha"
     )
 
     val amountDouble = amountInput.toDoubleOrNull() ?: 0.0
@@ -470,8 +498,6 @@ private fun SendMoneyScreen(
 
     val inrFormatter = remember { DecimalFormat("#,##,##0.00") }
     val usdFormatter = remember { DecimalFormat("#,##0.00") }
-    
-    val scrollState = rememberScrollState()
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -479,15 +505,10 @@ private fun SendMoneyScreen(
                 .fillMaxSize()
                 .statusBarsPadding()
                 .navigationBarsPadding()
+                .verticalScroll(scrollState)
+                .padding(horizontal = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Scrollable Upper Content
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .verticalScroll(scrollState)
-                    .padding(horizontal = 24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
             Spacer(modifier = Modifier.height(8.dp))
 
             // Top Bar with back button and centered "Send Money" title
@@ -496,7 +517,13 @@ private fun SendMoneyScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Surface(
-                    onClick = onBack,
+                    onClick = {
+                        if (isAmountConfirmed) {
+                            isAmountConfirmed = false
+                        } else {
+                            onBack()
+                        }
+                    },
                     shape = CircleShape,
                     color = Color(0xFF14131C),
                     border = BorderStroke(1.dp, Color(0xFF1F1D2B)),
@@ -526,13 +553,13 @@ private fun SendMoneyScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(28.dp))
+            Spacer(modifier = Modifier.height(if (isAmountConfirmed) 24.dp else 16.dp))
 
             // Recipient Profile Avatar with India Flag Badge
             Box {
                 Box(
                     modifier = Modifier
-                        .size(76.dp)
+                        .size(if (isAmountConfirmed) 76.dp else 68.dp)
                         .shadow(
                             elevation = 12.dp,
                             shape = CircleShape,
@@ -548,14 +575,14 @@ private fun SendMoneyScreen(
                         text = recipient.avatarInitials,
                         style = TextStyle(
                             fontFamily = PlusJakartaSans,
-                            fontSize = 28.sp,
+                            fontSize = if (isAmountConfirmed) 28.sp else 24.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color.White
                         )
                     )
                 }
 
-                // India Flag Badge (Idea 5)
+                // India Flag Badge
                 Surface(
                     shape = CircleShape,
                     color = Color(0xFF09090D),
@@ -568,7 +595,7 @@ private fun SendMoneyScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             // Recipient Name
             Text(
@@ -581,7 +608,7 @@ private fun SendMoneyScreen(
                 )
             )
 
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(3.dp))
 
             // Recipient Email
             Text(
@@ -594,11 +621,17 @@ private fun SendMoneyScreen(
                 )
             )
 
-            Spacer(modifier = Modifier.height(36.dp))
+            Spacer(modifier = Modifier.height(if (isAmountConfirmed) 28.dp else 16.dp))
 
-            // EXACTLY CENTERED DYNAMIC AMOUNT DISPLAY (Idea 6)
-            // Soft ambient glow behind the amount text (Idea 4)
-            Box(contentAlignment = Alignment.Center) {
+            // EXACTLY CENTERED DYNAMIC AMOUNT DISPLAY
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(16.dp))
+                    .clickable(enabled = isAmountConfirmed) {
+                        isAmountConfirmed = false
+                    }
+            ) {
                 Box(
                     modifier = Modifier
                         .size(120.dp)
@@ -611,11 +644,10 @@ private fun SendMoneyScreen(
                             )
                         )
                 )
-                
+
                 Row(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 16.dp)
+                        .padding(vertical = 10.dp, horizontal = 16.dp)
                         .graphicsLayer {
                             scaleX = amountScale
                             scaleY = amountScale
@@ -623,8 +655,9 @@ private fun SendMoneyScreen(
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    val amountColor = if (amountDouble > 0) Color.White else Color(0xFF4A4660)
-                    
+                    val isEntered = amountInput.isNotEmpty()
+                    val amountColor = if (isEntered) Color.White else Color(0xFF5A5672)
+
                     Text(
                         text = "$",
                         style = TextStyle(
@@ -637,206 +670,332 @@ private fun SendMoneyScreen(
 
                     Spacer(modifier = Modifier.width(10.dp))
 
-                    BasicTextField(
-                        value = amountInput,
-                        onValueChange = { input ->
-                            val digitsOnly = input.filter { it.isDigit() }
-                            if (digitsOnly.length <= 6) {
-                                amountInput = digitsOnly
-                                scaleTrigger = true
-                            }
-                        },
-                        textStyle = TextStyle(
+                    Text(
+                        text = if (isEntered) amountInput else "0",
+                        style = TextStyle(
                             fontFamily = MontaguSlab,
                             fontSize = 48.sp,
                             fontWeight = FontWeight.Normal,
                             color = amountColor
-                        ),
-                        cursorBrush = SolidColor(PayxPalette.VividPurple),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        singleLine = true,
-                        modifier = Modifier
-                            .widthIn(min = 28.dp)
-                            .width(IntrinsicSize.Min),
-                        decorationBox = { innerTextField ->
-                            if (amountInput.isEmpty()) {
+                        )
+                    )
+
+                    if (!isAmountConfirmed) {
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Box(
+                            modifier = Modifier
+                                .width(3.dp)
+                                .height(40.dp)
+                                .clip(RoundedCornerShape(2.dp))
+                                .background(PayxPalette.VividPurple.copy(alpha = cursorAlpha))
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(if (isAmountConfirmed) 24.dp else 14.dp))
+
+            // DYNAMIC CONTENT: PHASE 1 (Numpad + Tick) vs PHASE 2 (Fee Breakdown + Swipe to Send)
+            AnimatedContent(
+                targetState = isAmountConfirmed,
+                transitionSpec = {
+                    if (targetState) {
+                        (slideInVertically(animationSpec = tween(320, easing = FastOutSlowInEasing)) { it / 4 } +
+                                fadeIn(animationSpec = tween(320)))
+                            .togetherWith(
+                                slideOutVertically(animationSpec = tween(220, easing = LinearEasing)) { -it / 4 } +
+                                        fadeOut(animationSpec = tween(220))
+                            )
+                    } else {
+                        (slideInVertically(animationSpec = tween(320, easing = FastOutSlowInEasing)) { -it / 4 } +
+                                fadeIn(animationSpec = tween(320)))
+                            .togetherWith(
+                                slideOutVertically(animationSpec = tween(220, easing = LinearEasing)) { it / 4 } +
+                                        fadeOut(animationSpec = tween(220))
+                            )
+                    }
+                },
+                label = "SendPhaseContent"
+            ) { confirmed ->
+                if (!confirmed) {
+                    // PHASE 1: NUMPAD + PROMINENT TICK BUTTON
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        NumericKeypad(
+                            onDigit = { digit ->
+                                if (digit == ".") {
+                                    if (!amountInput.contains(".")) {
+                                        amountInput = if (amountInput.isEmpty()) "0." else "$amountInput."
+                                        scaleTrigger = true
+                                    }
+                                } else {
+                                    val parts = amountInput.split(".")
+                                    if (parts.size == 2 && parts[1].length >= 2) {
+                                        return@NumericKeypad
+                                    }
+                                    if (amountInput == "0") {
+                                        amountInput = digit
+                                    } else if (amountInput.length < 7) {
+                                        amountInput += digit
+                                    }
+                                    scaleTrigger = true
+                                }
+                            },
+                            onBackspace = {
+                                if (amountInput.isNotEmpty()) {
+                                    amountInput = amountInput.dropLast(1)
+                                    scaleTrigger = true
+                                }
+                            }
+                        )
+
+                        Spacer(modifier = Modifier.height(18.dp))
+
+                        // Prominent Tick Button
+                        val canConfirm = amountDouble > 0.0
+                        val tickScale by animateFloatAsState(
+                            targetValue = if (canConfirm) 1f else 0.92f,
+                            animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
+                            label = "tickScale"
+                        )
+
+                        Surface(
+                            onClick = {
+                                if (canConfirm) {
+                                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    isAmountConfirmed = true
+                                }
+                            },
+                            enabled = canConfirm,
+                            shape = CircleShape,
+                            color = Color.Transparent,
+                            modifier = Modifier
+                                .size(64.dp)
+                                .graphicsLayer {
+                                    scaleX = tickScale
+                                    scaleY = tickScale
+                                }
+                                .then(
+                                    if (canConfirm) {
+                                        Modifier.shadow(
+                                            elevation = 16.dp,
+                                            shape = CircleShape,
+                                            spotColor = Color(0x6634D399),
+                                            ambientColor = Color(0x4434D399)
+                                        )
+                                    } else Modifier
+                                )
+                                .background(
+                                    brush = if (canConfirm) {
+                                        Brush.linearGradient(
+                                            colors = listOf(
+                                                Color(0xFF34D399),
+                                                Color(0xFF059669)
+                                            )
+                                        )
+                                    } else {
+                                        SolidColor(Color(0xFF1B1926))
+                                    },
+                                    shape = CircleShape
+                                )
+                                .border(
+                                    width = 1.dp,
+                                    brush = if (canConfirm) {
+                                        Brush.linearGradient(
+                                            colors = listOf(
+                                                Color(0xFF6EE7B7),
+                                                Color(0xFF059669)
+                                            )
+                                        )
+                                    } else {
+                                        SolidColor(Color(0xFF282538))
+                                    },
+                                    shape = CircleShape
+                                )
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = "Confirm Amount",
+                                    tint = if (canConfirm) Color.White else Color(0xFF4A4660),
+                                    modifier = Modifier.size(32.dp)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+                    }
+                } else {
+                    // PHASE 2: FEE BREAKDOWN CARD & SWIPE TO SEND SLIDER
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        // FEE BREAKDOWN Card
+                        Surface(
+                            shape = RoundedCornerShape(24.dp),
+                            color = Color(0xFF14131C),
+                            border = BorderStroke(1.dp, Color(0xFF1F1D2B)),
+                            shadowElevation = 8.dp,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(20.dp)
+                            ) {
+                                // Header Row: FEE BREAKDOWN • LIVE
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "FEE BREAKDOWN",
+                                        style = TextStyle(
+                                            fontFamily = PlusJakartaSans,
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            letterSpacing = 1.2.sp,
+                                            color = Color(0xFF6B6880)
+                                        )
+                                    )
+
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(6.dp)
+                                                .clip(CircleShape)
+                                                .background(PayxPalette.VividPurple)
+                                        )
+                                        Spacer(modifier = Modifier.width(5.dp))
+                                        Text(
+                                            text = "LIVE",
+                                            style = TextStyle(
+                                                fontFamily = PlusJakartaSans,
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                letterSpacing = 1.sp,
+                                                color = Color(0xFF9881F5)
+                                            )
+                                        )
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(18.dp))
+
+                                // You send row
+                                BreakdownRow(
+                                    label = "You send",
+                                    value = "$${usdFormatter.format(amountDouble)}",
+                                    valueColor = Color.White
+                                )
+
+                                Spacer(modifier = Modifier.height(12.dp))
+
+                                // Total fees row inside highlighted capsule
+                                Surface(
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = Color(0xFF1B1926),
+                                    border = BorderStroke(1.dp, Color(0xFF2B273D)),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = "Total fees (3.25%)",
+                                            style = TextStyle(
+                                                fontFamily = PlusJakartaSans,
+                                                fontSize = 13.sp,
+                                                fontWeight = FontWeight.Medium,
+                                                color = Color(0xFFE2E0EC)
+                                            )
+                                        )
+
+                                        Text(
+                                            text = "-$${usdFormatter.format(feeAmount)}",
+                                            style = TextStyle(
+                                                fontFamily = PlusJakartaSans,
+                                                fontSize = 13.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = Color.White
+                                            )
+                                        )
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(14.dp))
+
+                                // Exchange rate row
+                                BreakdownRow(
+                                    label = "Exchange rate",
+                                    value = "1 USD = ₹92.90",
+                                    valueColor = Color.White
+                                )
+
+                                Spacer(modifier = Modifier.height(18.dp))
+
+                                // Priya receives row (Prominent) - Neon Green
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "${recipient.name.substringBefore(" ")} receives",
+                                        style = TextStyle(
+                                            fontFamily = PlusJakartaSans,
+                                            fontSize = 15.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = Color.White
+                                        )
+                                    )
+
+                                    Text(
+                                        text = "₹${inrFormatter.format(receiveInr)}",
+                                        style = TextStyle(
+                                            fontFamily = MontaguSlab,
+                                            fontSize = 21.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFF34D399)
+                                        )
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.height(10.dp))
+
+                                // Footnote: Estimated delivery
                                 Text(
-                                    text = "0",
+                                    text = "Estimated delivery: 5-10 minutes via UPI",
                                     style = TextStyle(
-                                        fontFamily = MontaguSlab,
-                                        fontSize = 48.sp,
+                                        fontFamily = PlusJakartaSans,
+                                        fontSize = 12.sp,
                                         fontWeight = FontWeight.Normal,
-                                        color = Color(0xFF4A4660)
+                                        color = Color(0xFF7E7B94)
                                     )
                                 )
                             }
-                            innerTextField()
                         }
-                    )
+
+                        Spacer(modifier = Modifier.height(24.dp))
+
+                        // Slide to Send Interaction
+                        SwipeToConfirmButton(
+                            onConfirm = { isProcessingPayment = true },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+                    }
                 }
             }
-
-            Spacer(modifier = Modifier.height(36.dp))
-
-            // FEE BREAKDOWN Card
-            Surface(
-                shape = RoundedCornerShape(24.dp),
-                color = Color(0xFF14131C),
-                border = BorderStroke(1.dp, Color(0xFF1F1D2B)),
-                shadowElevation = 8.dp,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(20.dp)
-                ) {
-                    // Header Row: FEE BREAKDOWN • LIVE
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "FEE BREAKDOWN",
-                            style = TextStyle(
-                                fontFamily = PlusJakartaSans,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 1.2.sp,
-                                color = Color(0xFF6B6880)
-                            )
-                        )
-
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier
-                                    .size(6.dp)
-                                    .clip(CircleShape)
-                                    .background(PayxPalette.VividPurple)
-                            )
-                            Spacer(modifier = Modifier.width(5.dp))
-                            Text(
-                                text = "LIVE",
-                                style = TextStyle(
-                                    fontFamily = PlusJakartaSans,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    letterSpacing = 1.sp,
-                                    color = Color(0xFF9881F5)
-                                )
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(18.dp))
-
-                    // You send row
-                    BreakdownRow(
-                        label = "You send",
-                        value = "$${usdFormatter.format(amountDouble)}",
-                        valueColor = Color.White
-                    )
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    // Total fees row inside highlighted capsule
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = Color(0xFF1B1926),
-                        border = BorderStroke(1.dp, Color(0xFF2B273D)),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 14.dp, vertical = 10.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "Total fees (3.25%)",
-                                style = TextStyle(
-                                    fontFamily = PlusJakartaSans,
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = Color(0xFFE2E0EC)
-                                )
-                            )
-
-                            Text(
-                                text = "-$${usdFormatter.format(feeAmount)}",
-                                style = TextStyle(
-                                    fontFamily = PlusJakartaSans,
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = Color.White
-                                )
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    // Exchange rate row
-                    BreakdownRow(
-                        label = "Exchange rate",
-                        value = "1 USD = ₹92.90",
-                        valueColor = Color.White
-                    )
-
-                    Spacer(modifier = Modifier.height(18.dp))
-
-                    // Priya receives row (Prominent) - Neon Green (Idea 3)
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "${recipient.name.substringBefore(" ")} receives",
-                            style = TextStyle(
-                                fontFamily = PlusJakartaSans,
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color.White
-                            )
-                        )
-
-                        Text(
-                            text = "₹${inrFormatter.format(receiveInr)}",
-                            style = TextStyle(
-                                fontFamily = MontaguSlab,
-                                fontSize = 21.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF34D399) // Vivid Neon Green
-                            )
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    // Footnote: Estimated delivery
-                    Text(
-                        text = "Estimated delivery: 5-10 minutes via UPI",
-                        style = TextStyle(
-                            fontFamily = PlusJakartaSans,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Normal,
-                            color = Color(0xFF7E7B94)
-                        )
-                    )
-                }
-            }
-            
-            Spacer(modifier = Modifier.height(20.dp))
-        }
-
-            // Slide to Send Interaction
-            SwipeToConfirmButton(
-                onConfirm = { isProcessingPayment = true },
-                modifier = Modifier.padding(horizontal = 24.dp, vertical = 20.dp)
-            )
         }
 
         // Fast Arrow & Confirmed Message Overlay
@@ -853,6 +1012,108 @@ private fun SendMoneyScreen(
                     onConfirm(inrFormatter.format(receiveInr), usdFormatter.format(amountDouble))
                 }
             )
+        }
+    }
+}
+
+@Composable
+private fun NumericKeypad(
+    onDigit: (String) -> Unit,
+    onBackspace: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val keys = listOf(
+        listOf("1", "2", "3"),
+        listOf("4", "5", "6"),
+        listOf("7", "8", "9"),
+        listOf(".", "0", "backspace")
+    )
+
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        keys.forEach { row ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                row.forEach { key ->
+                    when (key) {
+                        "backspace" -> {
+                            KeypadButton(
+                                modifier = Modifier.weight(1f),
+                                onClick = onBackspace
+                            ) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.Backspace,
+                                    contentDescription = "Backspace",
+                                    tint = Color(0xFFB4B0C8),
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                        }
+                        "." -> {
+                            KeypadButton(
+                                modifier = Modifier.weight(1f),
+                                onClick = { onDigit(".") }
+                            ) {
+                                Text(
+                                    text = ".",
+                                    style = TextStyle(
+                                        fontFamily = PlusJakartaSans,
+                                        fontSize = 28.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White
+                                    )
+                                )
+                            }
+                        }
+                        else -> {
+                            KeypadButton(
+                                modifier = Modifier.weight(1f),
+                                onClick = { onDigit(key) }
+                            ) {
+                                Text(
+                                    text = key,
+                                    style = TextStyle(
+                                        fontFamily = PlusJakartaSans,
+                                        fontSize = 24.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Color.White
+                                    )
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun KeypadButton(
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+    content: @Composable () -> Unit
+) {
+    val haptics = LocalHapticFeedback.current
+    Surface(
+        onClick = {
+            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            onClick()
+        },
+        shape = RoundedCornerShape(18.dp),
+        color = Color(0xFF14131C),
+        border = BorderStroke(1.dp, Color(0xFF1F1D2B)),
+        modifier = modifier.height(54.dp)
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier.fillMaxSize()
+        ) {
+            content()
         }
     }
 }
