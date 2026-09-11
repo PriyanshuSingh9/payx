@@ -1,7 +1,6 @@
 package com.payx.app.ui.screens
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -34,13 +33,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -48,7 +41,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.payx.app.ui.components.IndiaFlag
 import com.payx.app.ui.components.UsaFlag
-import com.payx.app.ui.theme.PayxPalette
 
 @Composable
 fun DashboardScreen(
@@ -58,8 +50,8 @@ fun DashboardScreen(
 ) {
     val scrollState = rememberScrollState()
 
-    // Clean, deep obsidian matte background
-    val screenBackground = Color(0xFF090710)
+    // Pure clean matte obsidian background with zero purplish glow
+    val screenBackground = Color(0xFF09090D)
 
     Box(
         modifier = Modifier
@@ -71,92 +63,25 @@ fun DashboardScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(scrollState)
-                .padding(bottom = 96.dp),
+                .padding(bottom = 100.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // 1. Solid Architectural Semi-Circle Header
-            SolidSemiCircleVaultHeader(
+            // 1. Clean Flat Minimal Header (No semi-circle, no purple aura)
+            DashboardHeader(
                 userName = "Priyanshu",
                 balance = "$2,450.00",
                 savedAmount = "$66.85",
                 onSettings = onSettings
             )
 
-            Spacer(modifier = Modifier.height(14.dp))
-
-            // 2. Clean Real-time Exchange Rate Ticker
-            CorridorRateCapsule()
-
             Spacer(modifier = Modifier.height(20.dp))
 
-            // 3. Human-Crafted Action Buttons (Solid Lavender Send, Solid Dark Receive)
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                // Primary Action: Send Money (Solid Lavender, Bold, High-Contrast)
-                Surface(
-                    shape = RoundedCornerShape(16.dp),
-                    color = Color(0xFFAE9EF8),
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(52.dp)
-                        .clickable(onClick = onSend)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxSize(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        ActionUpRightArrow(color = Color(0xFF130B24))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Send Money",
-                            style = TextStyle(
-                                fontFamily = FontFamily.SansSerif,
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF130B24)
-                            )
-                        )
-                    }
-                }
+            // 2. Real-time Exchange Rate Ticker Pill
+            CorridorRateCapsule()
 
-                // Secondary Action: Receive (Solid Dark Plum Card with Clean Border)
-                Surface(
-                    shape = RoundedCornerShape(16.dp),
-                    color = Color(0xFF171126),
-                    border = BorderStroke(1.dp, Color(0xFF2C2044)),
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(52.dp)
-                        .clickable(onClick = onSend)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxSize(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        ActionDownLeftArrow(color = Color(0xFFAE9EF8))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Receive",
-                            style = TextStyle(
-                                fontFamily = FontFamily.SansSerif,
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color.White
-                            )
-                        )
-                    }
-                }
-            }
+            Spacer(modifier = Modifier.height(32.dp))
 
-            Spacer(modifier = Modifier.height(26.dp))
-
-            // 4. Quick Send Contacts Tray ("Send Again")
+            // 3. Quick Send Contacts Tray ("Send Again")
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -168,11 +93,11 @@ fun DashboardScreen(
                         fontFamily = FontFamily.SansSerif,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFF8A7FA6)
+                        color = Color(0xFF7E7B8D)
                     )
                 )
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -207,9 +132,9 @@ fun DashboardScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(26.dp))
+            Spacer(modifier = Modifier.height(32.dp))
 
-            // 5. Recent Activity List
+            // 4. Recent Activity Section
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -270,7 +195,7 @@ fun DashboardScreen(
             }
         }
 
-        // 6. Solid Bottom Navigation Dock
+        // 5. Clean Bottom Navigation Dock with Central Transfer Pill
         BottomNavigationDock(
             onSend = onSend,
             onSettings = onSettings,
@@ -280,247 +205,150 @@ fun DashboardScreen(
 }
 
 /**
- * Solid Architectural Semi-Circle Vault Dome Header
- * A tangible, solid dark-plum architectural dome that covers the top of the homepage
- * and smoothly curves down, framing the balance cleanly without any fake sci-fi HUD elements.
+ * Clean Flat Minimal Header
+ * Displays user greeting, corridor switcher, balance, and savings badge with zero curves or background glows.
  */
 @Composable
-private fun SolidSemiCircleVaultHeader(
+private fun DashboardHeader(
     userName: String,
     balance: String,
     savedAmount: String,
     onSettings: () -> Unit
 ) {
-    Box(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .height(265.dp)
+            .statusBarsPadding()
+            .padding(horizontal = 24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // 1. Solid Geometric Semi-Circle Drawing
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val w = size.width
-            val curveHeight = size.height - 10.dp.toPx()
-            val cornerY = 70.dp.toPx()
+        Spacer(modifier = Modifier.height(12.dp))
 
-            // Solid Vault Dome Path
-            val domePath = Path().apply {
-                moveTo(0f, 0f)
-                lineTo(w, 0f)
-                lineTo(w, cornerY)
-                // Smooth, sweeping semi-circular curve dipping to center bottom
-                cubicTo(
-                    w * 0.95f, curveHeight * 0.76f,
-                    w * 0.68f, curveHeight,
-                    w * 0.50f, curveHeight
-                )
-                cubicTo(
-                    w * 0.32f, curveHeight,
-                    w * 0.05f, curveHeight * 0.76f,
-                    0f, cornerY
-                )
-                lineTo(0f, 0f)
-                close()
-            }
-
-            // Soft natural drop shadow under the solid curve
-            val shadowPath = Path().apply {
-                moveTo(0f, cornerY + 2.dp.toPx())
-                cubicTo(
-                    w * 0.05f, curveHeight * 0.76f + 3.dp.toPx(),
-                    w * 0.32f, curveHeight + 4.dp.toPx(),
-                    w * 0.50f, curveHeight + 4.dp.toPx()
-                )
-                cubicTo(
-                    w * 0.68f, curveHeight + 4.dp.toPx(),
-                    w * 0.95f, curveHeight * 0.76f + 3.dp.toPx(),
-                    w, cornerY + 2.dp.toPx()
-                )
-            }
-            drawPath(
-                path = shadowPath,
-                color = Color.Black.copy(alpha = 0.55f),
-                style = Stroke(width = 8.dp.toPx(), cap = StrokeCap.Round)
-            )
-
-            // Solid surface fill: Deep rich plum to midnight violet
-            drawPath(
-                path = domePath,
-                brush = Brush.verticalGradient(
-                    colors = listOf(
-                        Color(0xFF1E1535),
-                        Color(0xFF18112A),
-                        Color(0xFF130C22)
-                    ),
-                    startY = 0f,
-                    endY = curveHeight
-                )
-            )
-
-            // Clean, crisp solid hairline border along the curve
-            val borderCurve = Path().apply {
-                moveTo(0f, cornerY)
-                cubicTo(
-                    w * 0.05f, curveHeight * 0.76f,
-                    w * 0.32f, curveHeight,
-                    w * 0.50f, curveHeight
-                )
-                cubicTo(
-                    w * 0.68f, curveHeight,
-                    w * 0.95f, curveHeight * 0.76f,
-                    w, cornerY
-                )
-            }
-            drawPath(
-                path = borderCurve,
-                brush = Brush.horizontalGradient(
-                    colors = listOf(
-                        Color(0x3344336A),
-                        Color(0xFF6B549E),
-                        Color(0xFF8B72C4),
-                        Color(0xFF6B549E),
-                        Color(0x3344336A)
-                    )
-                ),
-                style = Stroke(width = 1.4.dp.toPx(), cap = StrokeCap.Round)
-            )
-        }
-
-        // 2. Content overlay inside the Solid Semi-Circle Header
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .statusBarsPadding()
-                .padding(horizontal = 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+        // Top Profile & Corridor Indicator Bar
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Spacer(modifier = Modifier.height(4.dp))
-
-            // Top Profile & Corridor Indicator Bar
+            // Left: User Greeting & Avatar
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier.clickable(onClick = onSettings)
             ) {
-                // Left: User Greeting & Avatar
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(9.dp),
-                    modifier = Modifier.clickable(onClick = onSettings)
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF1E1D26))
+                        .border(1.dp, Color(0xFF2E2C3A), CircleShape),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(30.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFF332352))
-                            .border(1.dp, Color(0xFF4C3678), CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = userName.take(1),
-                            style = TextStyle(
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White
-                            )
-                        )
-                    }
-
                     Text(
-                        text = "Hello, $userName",
+                        text = userName.take(1),
                         style = TextStyle(
-                            fontFamily = FontFamily.SansSerif,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
                             color = Color.White
                         )
                     )
                 }
 
-                // Right: Minimalist Corridor Flags Chip
-                Surface(
-                    shape = RoundedCornerShape(14.dp),
-                    color = Color(0xFF22173B),
-                    border = BorderStroke(1.dp, Color(0xFF352658))
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        UsaFlag(width = 15.dp, height = 10.dp)
-                        Text(
-                            text = "⇄",
-                            style = TextStyle(
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFFAE9EF8)
-                            )
-                        )
-                        IndiaFlag(width = 15.dp, height = 10.dp)
-                    }
-                }
+                Text(
+                    text = "Hello, $userName",
+                    style = TextStyle(
+                        fontFamily = FontFamily.SansSerif,
+                        fontSize = 15.5.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color.White
+                    )
+                )
             }
 
-            Spacer(modifier = Modifier.height(22.dp))
-
-            // Center: Balance & Financial Context
-            Text(
-                text = "TOTAL TRANSFERRED",
-                style = TextStyle(
-                    fontFamily = FontFamily.SansSerif,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    letterSpacing = 1.2.sp,
-                    color = Color(0xFF9E8FB8)
-                )
-            )
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            // Big, Confident, Solid Balance
-            Text(
-                text = balance,
-                style = TextStyle(
-                    fontFamily = FontFamily.SansSerif,
-                    fontSize = 38.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = (-0.5).sp,
-                    color = Color.White
-                )
-            )
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // Clean Savings Badge
+            // Right: Minimalist Corridor Flags Chip
             Surface(
                 shape = RoundedCornerShape(14.dp),
-                color = Color(0xFF211638),
-                border = BorderStroke(1.dp, Color(0xFF332454))
+                color = Color(0xFF14131A),
+                border = BorderStroke(1.dp, Color(0xFF22212C))
             ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
+                    modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
+                    UsaFlag(width = 15.dp, height = 10.dp)
                     Text(
-                        text = "Saved $savedAmount",
+                        text = "⇄",
                         style = TextStyle(
-                            fontFamily = FontFamily.SansSerif,
-                            fontSize = 12.sp,
+                            fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF34D399)
+                            color = Color(0xFFAE9EF8)
                         )
                     )
-                    Text(
-                        text = "vs bank wire fees",
-                        style = TextStyle(
-                            fontFamily = FontFamily.SansSerif,
-                            fontSize = 11.5.sp,
-                            fontWeight = FontWeight.Normal,
-                            color = Color(0xFFB5A8D8)
-                        )
-                    )
+                    IndiaFlag(width = 15.dp, height = 10.dp)
                 }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(38.dp))
+
+        // Center: Balance & Context
+        Text(
+            text = "TOTAL TRANSFERRED",
+            style = TextStyle(
+                fontFamily = FontFamily.SansSerif,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = 1.2.sp,
+                color = Color(0xFF7E7B8D)
+            )
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Big, Confident, Solid Balance
+        Text(
+            text = balance,
+            style = TextStyle(
+                fontFamily = FontFamily.SansSerif,
+                fontSize = 42.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = (-0.8).sp,
+                color = Color.White
+            )
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Clean Savings Badge
+        Surface(
+            shape = RoundedCornerShape(14.dp),
+            color = Color(0xFF14131A),
+            border = BorderStroke(1.dp, Color(0xFF22212C))
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(5.dp)
+            ) {
+                Text(
+                    text = "Saved $savedAmount",
+                    style = TextStyle(
+                        fontFamily = FontFamily.SansSerif,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF34D399)
+                    )
+                )
+                Text(
+                    text = "vs bank wire fees",
+                    style = TextStyle(
+                        fontFamily = FontFamily.SansSerif,
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.Normal,
+                        color = Color(0xFF7E7B8D)
+                    )
+                )
             }
         }
     }
@@ -533,8 +361,8 @@ private fun SolidSemiCircleVaultHeader(
 private fun CorridorRateCapsule() {
     Surface(
         shape = RoundedCornerShape(18.dp),
-        color = Color(0xFF140E22),
-        border = BorderStroke(1.dp, Color(0xFF261A3C))
+        color = Color(0xFF14131A),
+        border = BorderStroke(1.dp, Color(0xFF22212C))
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
@@ -622,8 +450,8 @@ private fun QuickContactItem(
             modifier = Modifier
                 .size(48.dp)
                 .clip(CircleShape)
-                .background(Color(0xFF171126))
-                .border(1.dp, color.copy(alpha = 0.5f), CircleShape),
+                .background(Color(0xFF14131A))
+                .border(1.dp, Color(0xFF24222E), CircleShape),
             contentAlignment = Alignment.Center
         ) {
             Text(
@@ -654,7 +482,7 @@ private fun QuickContactItem(
             style = TextStyle(
                 fontFamily = FontFamily.SansSerif,
                 fontSize = 10.sp,
-                color = Color(0xFF7A6F94)
+                color = Color(0xFF6B6878)
             )
         )
     }
@@ -675,8 +503,8 @@ private fun QuickAddContactItem(onClick: () -> Unit) {
             modifier = Modifier
                 .size(48.dp)
                 .clip(CircleShape)
-                .background(Color(0xFF130E20))
-                .border(1.dp, Color(0xFF2C2046), CircleShape),
+                .background(Color(0xFF111016))
+                .border(1.dp, Color(0xFF24222E), CircleShape),
             contentAlignment = Alignment.Center
         ) {
             Text(
@@ -697,7 +525,7 @@ private fun QuickAddContactItem(onClick: () -> Unit) {
                 fontFamily = FontFamily.SansSerif,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = PayxPalette.TextSecondary
+                color = Color(0xFF8E8B9C)
             )
         )
 
@@ -706,7 +534,7 @@ private fun QuickAddContactItem(onClick: () -> Unit) {
             style = TextStyle(
                 fontFamily = FontFamily.SansSerif,
                 fontSize = 10.sp,
-                color = Color(0xFF7A6F94)
+                color = Color(0xFF6B6878)
             )
         )
     }
@@ -727,8 +555,8 @@ private fun TransactionCard(
 ) {
     Surface(
         shape = RoundedCornerShape(16.dp),
-        color = Color(0xFF130E20),
-        border = BorderStroke(1.dp, Color(0xFF221735)),
+        color = Color(0xFF14131A),
+        border = BorderStroke(1.dp, Color(0xFF22212C)),
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
@@ -736,7 +564,7 @@ private fun TransactionCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 12.dp),
+                .padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
@@ -749,8 +577,8 @@ private fun TransactionCard(
                     modifier = Modifier
                         .size(40.dp)
                         .clip(CircleShape)
-                        .background(avatarColor.copy(alpha = 0.20f))
-                        .border(1.dp, avatarColor.copy(alpha = 0.40f), CircleShape),
+                        .background(avatarColor.copy(alpha = 0.18f))
+                        .border(1.dp, avatarColor.copy(alpha = 0.35f), CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
@@ -780,7 +608,7 @@ private fun TransactionCard(
                         style = TextStyle(
                             fontFamily = FontFamily.SansSerif,
                             fontSize = 11.5.sp,
-                            color = Color(0xFF7A6F94)
+                            color = Color(0xFF6B6878)
                         )
                     )
                 }
@@ -802,7 +630,7 @@ private fun TransactionCard(
                     style = TextStyle(
                         fontFamily = FontFamily.SansSerif,
                         fontSize = 11.5.sp,
-                        color = Color(0xFF9E8FB8)
+                        color = Color(0xFF8E8B9C)
                     )
                 )
             }
@@ -820,8 +648,8 @@ private fun BottomNavigationDock(
     modifier: Modifier = Modifier
 ) {
     Surface(
-        color = Color(0xFF0F0A1C),
-        border = BorderStroke(1.dp, Color(0xFF221738)),
+        color = Color(0xFF0F0E14),
+        border = BorderStroke(1.dp, Color(0xFF1C1B24)),
         modifier = modifier.fillMaxWidth()
     ) {
         Row(
@@ -866,15 +694,13 @@ private fun BottomNavigationDock(
                     .clip(RoundedCornerShape(23.dp))
                     .background(Color(0xFFAE9EF8))
                     .clickable(onClick = onSend)
-                    .padding(horizontal = 24.dp),
+                    .padding(horizontal = 26.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center
                 ) {
-                    ActionUpRightArrow(color = Color(0xFF130B24))
-                    Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = "TRANSFER",
                         style = TextStyle(
@@ -898,7 +724,7 @@ private fun BottomNavigationDock(
                 Icon(
                     imageVector = Icons.Default.Settings,
                     contentDescription = "Settings",
-                    tint = Color(0xFF7A6F94),
+                    tint = Color(0xFF6B6878),
                     modifier = Modifier.size(23.dp)
                 )
                 Spacer(modifier = Modifier.height(3.dp))
@@ -907,86 +733,10 @@ private fun BottomNavigationDock(
                     style = TextStyle(
                         fontSize = 10.5.sp,
                         fontWeight = FontWeight.Medium,
-                        color = Color(0xFF7A6F94)
+                        color = Color(0xFF6B6878)
                     )
                 )
             }
         }
-    }
-}
-
-/**
- * Minimal Canvas Arrow: Up-Right Remittance Arrow
- */
-@Composable
-private fun ActionUpRightArrow(color: Color) {
-    Canvas(modifier = Modifier.size(12.dp)) {
-        val stroke = 2.dp.toPx()
-        val cap = StrokeCap.Round
-
-        // Diagonal shaft
-        drawLine(
-            color = color,
-            start = Offset(size.width * 0.15f, size.height * 0.85f),
-            end = Offset(size.width * 0.85f, size.height * 0.15f),
-            strokeWidth = stroke,
-            cap = cap
-        )
-
-        // Top horizontal wing
-        drawLine(
-            color = color,
-            start = Offset(size.width * 0.40f, size.height * 0.15f),
-            end = Offset(size.width * 0.85f, size.height * 0.15f),
-            strokeWidth = stroke,
-            cap = cap
-        )
-
-        // Right vertical wing
-        drawLine(
-            color = color,
-            start = Offset(size.width * 0.85f, size.height * 0.60f),
-            end = Offset(size.width * 0.85f, size.height * 0.15f),
-            strokeWidth = stroke,
-            cap = cap
-        )
-    }
-}
-
-/**
- * Minimal Canvas Arrow: Down-Left Inflow Arrow
- */
-@Composable
-private fun ActionDownLeftArrow(color: Color) {
-    Canvas(modifier = Modifier.size(12.dp)) {
-        val stroke = 2.dp.toPx()
-        val cap = StrokeCap.Round
-
-        // Diagonal shaft
-        drawLine(
-            color = color,
-            start = Offset(size.width * 0.85f, size.height * 0.15f),
-            end = Offset(size.width * 0.15f, size.height * 0.85f),
-            strokeWidth = stroke,
-            cap = cap
-        )
-
-        // Left horizontal wing
-        drawLine(
-            color = color,
-            start = Offset(size.width * 0.60f, size.height * 0.85f),
-            end = Offset(size.width * 0.15f, size.height * 0.85f),
-            strokeWidth = stroke,
-            cap = cap
-        )
-
-        // Bottom vertical wing
-        drawLine(
-            color = color,
-            start = Offset(size.width * 0.15f, size.height * 0.40f),
-            end = Offset(size.width * 0.15f, size.height * 0.85f),
-            strokeWidth = stroke,
-            cap = cap
-        )
     }
 }
