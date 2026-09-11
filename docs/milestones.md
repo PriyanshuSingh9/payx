@@ -11,20 +11,21 @@
 
 ## Phase 1 — Backend + domain + local chain
 
-- [ ] Port reference orchestration (intents, mock ramps, poller) to Solana client
-- [ ] Unit tests for `src/lib` (quotes, rails, corridors)
-- [ ] API tests for quote/transfer/webhook routes
-- [ ] `solana-test-validator` local flow via `dev.sh`
-- [ ] Prisma migrate against Neon branch
+- [x] Port reference orchestration (intents, mock ramps, poller) to Solana client
+- [x] Unit tests for `src/lib` (quotes, rails, corridors, unified state machine)
+- [x] API tests for quote/transfer/webhook routes and Dev Console
+- [x] USDC -> USDC -> INR pipeline simulation engine with Mock and Onmeta adapters
+- [x] Webhook processing with idempotency and duplicate event protection
+- [x] `solana-test-validator` local flow via `dev.sh`
+- [x] Prisma migrate against Neon branch
 
 ## Phase 2 — Anchor program on devnet
 
-- [ ] Install Solana CLI + Anchor toolchain (see verification notes)
+- [x] Install Solana CLI + Anchor toolchain (Solana CLI 4.2.2 / Anchor 0.31.0 via avm)
 - [x] `payx_escrow` contract logic and security hardening (access control, PDA vault validation, 24h timelock)
 - [x] `payx_escrow` unit tests (Rust `cargo test`) + integration test suite (`tests/payx_escrow.test.ts`)
 - [ ] Deploy to devnet, record program ID in backend env + contracts doc
-
-- [ ] Backend event listener switches from polling to состави websocket
+- [ ] Backend event listener switches from polling to websocket
 - [ ] Timelock refund path exercised on devnet
 
 ## Phase 3 — Android app
@@ -37,7 +38,9 @@
 
 ## Phase 4 — Ramps, hardening, mainnet readiness
 
-- [ ] Real Transak/Stripe on-ramp + OnMeta off-ramp behind corridor config
-- [ ] KYC hooks, reconciliation export, rate-limiting, audit logging
+- [x] Provider adapter architecture (OffRampProvider, OnmetaAdapter, MockOffRampAdapter)
+- [x] Webhook delay reconciliation and rate limiting for payment pipeline
+- [ ] Real Transak/Stripe on-ramp + Onmeta off-ramp behind corridor config
+- [ ] KYC hooks, reconciliation export, audit logging
 - [ ] Mainnet program deploy, USDC mainnet mint wiring, Solscan links
 - [ ] Load test quote path; chaos test poller/restart recovery

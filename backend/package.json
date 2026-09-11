@@ -7,9 +7,9 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "start": "node dist/server.js",
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && node -e \"const fs = require('fs'); fs.mkdirSync('dist/public', { recursive: true }); fs.copyFileSync('src/public/index.html', 'dist/public/index.html');\"",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "node --test dist/**/*.test.js",
+    "test": "tsx --test ../tests/**/*.test.ts",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:push": "prisma db push",

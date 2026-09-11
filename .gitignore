@@ -27,6 +27,7 @@ target/deploy/*-keypair.json
 target/
 programs/payx_escrow/.anchor/
 programs/payx_escrow/test-ledger/
+test-ledger/
 .anchor/
 .DS_Store
 
@@ -36,6 +37,7 @@ programs/payx_escrow/test-ledger/
 build/
 .gradle/
 local.properties
+gradle-daemon-jvm.properties
 *.apk
 *.aab
 android/*/.gradle/
