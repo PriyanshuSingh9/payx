@@ -19,21 +19,18 @@ enum TransactionStatus {
 }
 
 model User {
-  id                  String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  googleSubject       String?       @unique @map("firebase_uid") @db.Text
-  email               String        @unique @db.Text
-  displayName         String?       @map("display_name") @db.Text
-  photoUrl            String?       @map("photo_url") @db.Text
-  phoneNumber         String?       @map("phone_number") @db.Text
-  walletAddress       String        @unique @map("wallet_address") @db.Text
-  country             String        @default("US") @db.Text
-  bankDetails         String?       @map("bank_details") @db.Text
-  availableBalanceUsd Decimal       @default(0) @map("available_balance_usd") @db.Decimal(12, 2)
-  lifetimeSavingsUsd  Decimal       @default(0) @map("lifetime_savings_usd") @db.Decimal(12, 2)
-  createdAt           DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt           DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
-  sentTransactions    Transaction[] @relation("sender")
-  receivedTransactions Transaction[] @relation("receiver")
+  id                   String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  googleSubject        String?       @unique @map("firebase_uid") @db.Text
+  email                String        @unique @db.Text
+  displayName          String?       @map("display_name") @db.Text
+  photoUrl             String?       @map("photo_url") @db.Text
+  phoneNumber          String?       @map("phone_number") @db.Text
+  walletAddress        String        @unique @map("wallet_address") @db.Text
+  country              String        @default("US") @db.Text
+  availableBalanceUsd  Decimal       @default(0) @map("available_balance_usd") @db.Decimal(12, 2)
+  lifetimeSavingsUsd   Decimal       @default(0) @map("lifetime_savings_usd") @db.Decimal(12, 2)
+  createdAt            DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@map("users")
 }
@@ -69,29 +66,29 @@ model ExchangeRate {
 }
 
 model Transaction {
-  id                String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  senderId          String            @map("sender_id") @db.Uuid
-  receiverId        String            @map("receiver_id") @db.Uuid
-  sender            User              @relation("sender", fields: [senderId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  receiver          User              @relation("receiver", fields: [receiverId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  corridorId        String            @map("corridor_id") @db.Uuid
-  corridor          Corridor          @relation(fields: [corridorId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  amountSource      Decimal           @map("amount_source") @db.Decimal(12, 2)
-  amountUsdc        Decimal           @map("amount_usdc") @db.Decimal(18, 8)
-  amountDest        Decimal           @map("amount_dest") @db.Decimal(12, 2)
-  feeSource         Decimal           @map("fee_source") @db.Decimal(8, 2)
-  status            TransactionStatus @default(pending)
-  createdAt         DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
-  completedAt       DateTime?         @map("completed_at") @db.Timestamptz(6)
+  id                 String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  senderId           String            @map("sender_id") @db.Uuid
+  receiverId         String            @map("receiver_id") @db.Uuid
+  corridorId         String            @map("corridor_id") @db.Uuid
+  corridor           Corridor          @relation(fields: [corridorId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  amountSource       Decimal           @map("amount_source") @db.Decimal(12, 2)
+  amountUsdc         Decimal           @map("amount_usdc") @db.Decimal(18, 8)
+  amountDest         Decimal           @map("amount_dest") @db.Decimal(12, 2)
+  feeSource          Decimal           @map("fee_source") @db.Decimal(8, 2)
+  status             TransactionStatus @default(pending)
+  failureReason      String?           @map("failure_reason") @db.Text
+  createdAt          DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  completedAt        DateTime?         @map("completed_at") @db.Timestamptz(6)
 
   // ─── Escrow & rate lock (Solana) ──────────────────────────────
-  lockedSourceToUsdc Decimal? @map("locked_source_to_usdc") @db.Decimal(18, 8)
-  lockedUsdcToDest   Decimal? @map("locked_usdc_to_dest") @db.Decimal(12, 4)
-  escrowPda          String?  @map("escrow_pda") @db.Text
-  escrowState        String?  @map("escrow_state") @db.VarChar(20)
-  escrowTxHash       String?  @unique @map("escrow_tx_hash") @db.Text
-  releaseTxHash      String?  @unique @map("release_tx_hash") @db.Text
-  solanaSignature    String?  @unique @map("solana_signature") @db.Text
+  escrowId           BigInt?           @unique @map("escrow_id")
+  lockedSourceToUsdc Decimal?          @map("locked_source_to_usdc") @db.Decimal(18, 8)
+  lockedUsdcToDest   Decimal?          @map("locked_usdc_to_dest") @db.Decimal(12, 4)
+  escrowPda          String?           @map("escrow_pda") @db.Text
+  escrowState        String?           @map("escrow_state") @db.VarChar(20)
+  escrowTxHash       String?           @unique @map("escrow_tx_hash") @db.Text
+  releaseTxHash      String?           @unique @map("release_tx_hash") @db.Text
+  solanaSignature    String?           @unique @map("solana_signature") @db.Text
   rampOrders         RampOrder[]
 
   @@index([senderId])

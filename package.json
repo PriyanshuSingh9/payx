@@ -12,7 +12,8 @@
     "test": "pnpm --dir backend run test",
     "test:contract": "tsx --test tests/**/*.test.ts",
     "db:generate": "pnpm --dir backend run db:generate",
-    "db:migrate": "pnpm --dir backend run db:migrate"
+    "db:migrate": "pnpm --dir backend run db:migrate",
+    "db:studio": "pnpm --dir backend run db:studio"
   },
   "devDependencies": {
     "@coral-xyz/anchor": "^0.32.1",

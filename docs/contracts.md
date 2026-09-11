@@ -111,16 +111,25 @@ Implementations:
 ## 4. Database (Neon Postgres via Prisma)
 
 - `User`: id, googleSubject (unique), email (unique), displayName, photoUrl,
-  phoneNumber, walletAddress (unique, Solana base58), country, bankDetails,
+  phoneNumber, walletAddress (unique, Solana base58), country,
   availableBalanceUsd, lifetimeSavingsUsd, timestamps.
 - `Corridor`: sourceCurrency, destCurrency, destRail (UPI/PIX/SEPA/FPS/SPEI),
-  inProvider, outProvider, feeBps, etaSeconds, enabled, unique(source, dest).
+  inProvider, outProvider, feeBps, etaSeconds, enabled, unique(corridor_key).
 - `ExchangeRate`: baseCurrency, quoteCurrency, rate, cheaperPercentage, asOf,
   unique(base, quote).
+<<<<<<< HEAD
 - `Transaction`: sender, receiver, corridor, amountSource, amountUsdc,
   amountDest, feeSource, status,
   lockedSourceToUsdc, lockedUsdcToDest, escrowPda, escrowState, escrowTxHash,
   releaseTxHash, solanaSignature, timestamps + indexes.
+=======
+- `Transaction`: sender, receiver, corridor,
+  amountSource, amountUsdc, amountDest, feeSource, status (`pending |
+  escrow_locked | offramp_pending | offramp_ready | escrow_released |
+  completed | failed | refunded`), failureReason, escrowId (u64 matching
+  Anchor escrow), lockedSourceToUsdc, lockedUsdcToDest, escrowPda,
+  escrowState, escrowTxHash, releaseTxHash, solanaSignature, timestamps + indexes.
+>>>>>>> 718ead4 (feat: initialize backend service with Prisma schema, database scripts, and API contracts documentation)
 - `RampOrder`: type (`onramp | offramp`), transaction, externalOrderId (unique),
   status, fiatCurrency, fiatAmount, cryptoCurrency (USDC), cryptoAmount,
   walletAddress, bankDetails, txHash, metadata.
