@@ -15,7 +15,7 @@ development environment across Linux, macOS, and Windows. Follow top to bottom; 
 | Java JDK | 17 (Eclipse Temurin) | required by Gradle 8.14 and AGP 8.x; point `JAVA_HOME` to this JDK |
 | Android Studio | Narwhal (2025.1) or newer | provides SDK Manager and emulator (see section 5) |
 | Neon account | free tier works | pooled `DATABASE_URL` + direct `DIRECT_URL` |
-| Google OAuth client | Web client ID | used to verify ID tokens at `/auth/google` |
+| Google OAuth client | Web client ID **and** Android client | Web ID verifies tokens at `/auth/google`; Android client is package `com.payx.app` + debug SHA-1 |
 
 ### OS Space and Virtualization Notes
 
@@ -201,6 +201,25 @@ adb reverse tcp:8899 tcp:8899
 ```
 
 (`dev.sh` and `dev.ps1` execute this automatically; see section 6.)
+
+### Google Sign-In & Auth Configuration
+
+Google Sign-In is PayX-only. Do not reuse another app's OAuth clients.
+
+Put PayX's Google client ID in `backend/.env` as `GOOGLE_CLIENT_ID`. The
+Android app reads that same value at build time (or
+`GOOGLE_SERVER_CLIENT_ID` in `android/local.properties`). Do not put a
+client secret in the app or in env; this flow only uses the client ID.
+
+In the **PayX** Google Cloud project, create:
+
+- **Web application** client — this ID goes in `GOOGLE_CLIENT_ID`
+- **Android** client — package `com.payx.app`, SHA-1 from this machine's debug keystore:
+  - Linux / macOS: `keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android`
+  - Windows: `keytool -list -v -keystore "%USERPROFILE%\.android\debug.keystore" -alias androiddebugkey -storepass android`
+
+The emulator/device must have a Google account, Play Services, and a reachable
+backend (`./dev.sh` or `pnpm dev`).
 
 ## 6. One-Command Local Environment
 
