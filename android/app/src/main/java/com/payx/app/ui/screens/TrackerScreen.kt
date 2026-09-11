@@ -69,6 +69,9 @@ import java.util.Locale
 @Composable
 fun TrackerScreen(
     transferId: String = "px-demo-transfer",
+    recipientName: String = "Priya Sharma",
+    inrAmount: String = "₹1,79,761.50",
+    usdAmount: String = "$2,000.00",
     onDone: () -> Unit
 ) {
     val scope = rememberCoroutineScope()
@@ -216,6 +219,9 @@ fun TrackerScreen(
                     ThermalReceiptPaper(
                         transferId = transferId,
                         dateStr = currentDateStr,
+                        recipientName = recipientName,
+                        inrAmount = inrAmount,
+                        usdAmount = usdAmount,
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
@@ -329,6 +335,9 @@ private fun PrinterSlotHeader(isPrinting: Boolean) {
 private fun ThermalReceiptPaper(
     transferId: String,
     dateStr: String,
+    recipientName: String = "Priya Sharma",
+    inrAmount: String = "₹1,79,761.50",
+    usdAmount: String = "$2,000.00",
     modifier: Modifier = Modifier
 ) {
     val teethShape = remember {
@@ -460,8 +469,10 @@ private fun ThermalReceiptPaper(
             Spacer(modifier = Modifier.height(14.dp))
 
             // Large Amount Disbursed
+            val displayInr = if (inrAmount.startsWith("₹")) inrAmount else "₹$inrAmount"
+            val displayUsd = if (usdAmount.startsWith("$")) usdAmount else "$$usdAmount"
             Text(
-                text = "₹1,79,761.50",
+                text = displayInr,
                 style = TextStyle(
                     fontFamily = FontFamily.Serif,
                     fontSize = 32.sp,
@@ -471,7 +482,7 @@ private fun ThermalReceiptPaper(
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
-                text = "$2,000.00 USD sent via Solana Escrow",
+                text = "$displayUsd USD sent via Solana Escrow",
                 style = TextStyle(
                     fontSize = 12.sp,
                     color = PayxPalette.TextSecondary
@@ -537,12 +548,14 @@ private fun ThermalReceiptPaper(
             Spacer(modifier = Modifier.height(12.dp))
 
             // Detailed Receipt Key-Values
-            ReceiptDetailRow(label = "Recipient", value = "Priya Sharma")
-            ReceiptDetailRow(label = "Destination UPI", value = "priya.sharma@upi")
+            ReceiptDetailRow(label = "Recipient", value = recipientName)
+            val upiHandle = "${recipientName.lowercase().replace(" ", ".")}@upi"
+            ReceiptDetailRow(label = "Destination UPI", value = upiHandle)
             ReceiptDetailRow(label = "Sender", value = "Priyanshu Singh")
-            ReceiptDetailRow(label = "Transfer Fee (3.25%)", value = "-$65.00 USD")
+            ReceiptDetailRow(label = "Transfer Fee (3.25%)", value = "-$0.00 USD (Promo)")
             ReceiptDetailRow(label = "Date & Time", value = dateStr)
-            ReceiptDetailRow(label = "Transfer ID", value = "PX-8942-US-IN")
+            val shortId = if (transferId.length > 16) transferId.take(16).uppercase() else transferId.uppercase()
+            ReceiptDetailRow(label = "Transfer ID", value = shortId)
             ReceiptDetailRow(label = "Escrow PDA", value = "8zB3...4xK2 (Solscan)")
 
             Spacer(modifier = Modifier.height(12.dp))

@@ -63,9 +63,9 @@ import com.payx.app.ui.theme.PayxPalette
 import java.text.DecimalFormat
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloat
@@ -86,8 +86,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
@@ -97,11 +98,8 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.IntOffset
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlin.math.cos
+import kotlin.math.absoluteValue
 import kotlin.math.roundToInt
-import kotlin.math.sin
-import kotlin.math.sqrt
-import java.util.Random
 private val PlusJakartaSans = FontFamily(
     Font(R.font.plus_jakarta_sans, FontWeight.Normal),
     Font(R.font.plus_jakarta_sans, FontWeight.Medium),
@@ -110,18 +108,6 @@ private val PlusJakartaSans = FontFamily(
 )
 
 private val MontaguSlab = FontFamily(Font(R.font.montagu_slab))
-
-private data class ConfettiParticle(
-    val x: Float,
-    val y: Float,
-    val vx: Float,
-    val vy: Float,
-    val color: Color,
-    val size: Float,
-    val isCircle: Boolean,
-    val rotation: Float,
-    val rotationSpeed: Float
-)
 
 data class Recipient(
     val id: String,
@@ -158,7 +144,7 @@ private val sampleRecipients = listOf(
 @Composable
 fun SendScreen(
     onBack: () -> Unit = {},
-    onSubmitted: (String) -> Unit
+    onSubmitted: (transferId: String, recipientName: String, inrAmount: String, usdAmount: String) -> Unit
 ) {
     var selectedRecipient by remember { mutableStateOf<Recipient?>(null) }
     val screenBackground = Color(0xFF09090D)
@@ -184,7 +170,14 @@ fun SendScreen(
                 SendMoneyScreen(
                     recipient = recipient,
                     onBack = { selectedRecipient = null },
-                    onConfirm = { onSubmitted("tx_${recipient.id}_${System.currentTimeMillis()}") }
+                    onConfirm = { inr, usd ->
+                        onSubmitted(
+                            "tx_${recipient.id}_${System.currentTimeMillis()}",
+                            recipient.name,
+                            inr,
+                            usd
+                        )
+                    }
                 )
             }
         }
@@ -454,7 +447,7 @@ private fun RecipientItemCard(
 private fun SendMoneyScreen(
     recipient: Recipient,
     onBack: () -> Unit,
-    onConfirm: () -> Unit
+    onConfirm: (inrAmount: String, usdAmount: String) -> Unit
 ) {
     var amountInput by remember { mutableStateOf("2000") }
     var isProcessingPayment by remember { mutableStateOf(false) }
@@ -846,17 +839,19 @@ private fun SendMoneyScreen(
             )
         }
 
-        // Paytm Style Payment Sending Animation Overlay
+        // Fast Arrow & Confirmed Message Overlay
         AnimatedVisibility(
             visible = isProcessingPayment,
-            enter = fadeIn(animationSpec = tween(260)) + scaleIn(initialScale = 0.94f, animationSpec = tween(300)),
+            enter = fadeIn(animationSpec = tween(180)),
             exit = fadeOut(animationSpec = tween(200))
         ) {
-            PaytmPaymentSendingOverlay(
+            FastArrowPaymentOverlay(
                 recipient = recipient,
                 inrAmount = inrFormatter.format(receiveInr),
                 usdAmount = usdFormatter.format(amountDouble),
-                onComplete = onConfirm
+                onComplete = {
+                    onConfirm(inrFormatter.format(receiveInr), usdFormatter.format(amountDouble))
+                }
             )
         }
     }
@@ -1189,460 +1184,559 @@ private fun SwipeToConfirmButton(
 }
 
 // -----------------------------------------------------------------------------
-// PAYTM STYLE PAYMENT SENDING & SUCCESS OVERLAY
+// PREMIUM SUPERSONIC ARROW OVERLAY & ANIMATED CONFIRMED TICK
 // -----------------------------------------------------------------------------
 @Composable
-private fun PaytmPaymentSendingOverlay(
+private fun FastArrowPaymentOverlay(
     recipient: Recipient,
     inrAmount: String,
     usdAmount: String,
     onComplete: () -> Unit
 ) {
     val haptics = LocalHapticFeedback.current
-    var phase by remember { mutableStateOf(0) } // 0: UPI connecting, 1: Solana escrow lock, 2: Payment Successful!
+    var isConfirmedPhase by remember { mutableStateOf(false) }
+    val flightProgress = remember { Animatable(0f) }
+    val flashAnim = remember { Animatable(0f) }
+    val tickAnim = remember { Animatable(0f) }
 
-    // Confetti particles initialized once with stable random seed
-    val particles = remember {
-        val colors = listOf(
-            Color(0xFF34D399), // Emerald Green
-            Color(0xFF00BAF2), // Paytm Cyan
-            Color(0xFFA855F7), // Vivid Purple
-            Color(0xFFFBBF24), // Gold
-            Color(0xFFFFFFFF)  // Crisp White
-        )
-        val random = Random(1337)
-        List(48) {
-            val angle = random.nextFloat() * 2f * Math.PI.toFloat()
-            val speed = 300f + random.nextFloat() * 650f
-            ConfettiParticle(
-                x = 0f,
-                y = 0f,
-                vx = cos(angle) * speed,
-                vy = sin(angle) * speed,
-                color = colors[random.nextInt(colors.size)],
-                size = 5f + random.nextFloat() * 7f,
-                isCircle = random.nextBoolean(),
-                rotation = random.nextFloat() * 360f,
-                rotationSpeed = (random.nextFloat() - 0.5f) * 900f
-            )
-        }
-    }
-
-    // Sequence of progression
-    LaunchedEffect(Unit) {
-        // Stage 0: Initiating UPI connection
-        delay(900)
-        haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-        phase = 1
-
-        // Stage 1: Solana Blockchain Escrow
-        delay(1100)
-        phase = 2
-        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-
-        // Stage 2: Success Celebration & Auto-advance
-        delay(2900)
-        onComplete()
-    }
-
-    // Radar Soundwave continuous looping animation
-    val infiniteTransition = rememberInfiniteTransition(label = "RadarWaves")
-    val radarPhase by infiniteTransition.animateFloat(
+    // Continuous engine plasma & warp tunnel oscillations
+    val infiniteTransition = rememberInfiniteTransition(label = "SupersonicInfinite")
+    val enginePulse by infiniteTransition.animateFloat(
+        initialValue = 0.88f,
+        targetValue = 1.15f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(220, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "enginePulse"
+    )
+    val warpFlow by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(1800, easing = LinearEasing),
+            animation = tween(420, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
-        label = "radarPhase"
+        label = "warpFlow"
     )
-    val radarSweepAngle by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
+    val microFlutter by infiniteTransition.animateFloat(
+        initialValue = -1.5f,
+        targetValue = 1.5f,
         animationSpec = infiniteRepeatable(
-            animation = tween(2200, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
+            animation = tween(75, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
         ),
-        label = "radarSweep"
+        label = "microFlutter"
     )
 
-    // Success Shockwave expansion
-    val shockwaveProgress by animateFloatAsState(
-        targetValue = if (phase == 2) 1f else 0f,
-        animationSpec = tween(durationMillis = 900, easing = FastOutSlowInEasing),
-        label = "shockwave"
-    )
+    // Complete payment sequence:
+    // 1. Liftoff from launch pad to center (400ms)
+    // 2. Supersonic Cruise Hold in place at center (1800ms) with warp speed tunnel
+    // 3. Hypersonic blast-off through top (350ms)
+    // 4. Apex flash (120ms)
+    // 5. Confirmed message & animated tick checkmark stroke (1600ms)
+    // 6. Direct automatic dispatch into thermal receipt printer
+    LaunchedEffect(Unit) {
+        // Stage 1: Smooth Liftoff to center
+        haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+        flightProgress.animateTo(
+            targetValue = 0.20f,
+            animationSpec = tween(durationMillis = 400, easing = FastOutSlowInEasing)
+        )
 
-    // Confetti flight progression
-    val confettiProgress by animateFloatAsState(
-        targetValue = if (phase == 2) 1f else 0f,
-        animationSpec = tween(durationMillis = 1400, easing = LinearOutSlowInEasing),
-        label = "confetti"
-    )
+        // Stage 2: Supersonic Cruise Hold in place at center (held for 1800ms)
+        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+        flightProgress.animateTo(
+            targetValue = 0.80f,
+            animationSpec = tween(durationMillis = 1800, easing = LinearEasing)
+        )
 
-    // Center Hero Orb scale bounce on success
-    val orbScale by animateFloatAsState(
-        targetValue = if (phase == 2) 1.05f else 1f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow),
-        label = "orbScale"
-    )
+        // Stage 3: Hypersonic Blast-Off through the top
+        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+        flightProgress.animateTo(
+            targetValue = 1.0f,
+            animationSpec = tween(
+                durationMillis = 350,
+                easing = CubicBezierEasing(0.35f, 0f, 0.1f, 1f)
+            )
+        )
+
+        // Stage 4: Apex shockwave flash
+        flashAnim.animateTo(
+            targetValue = 1f,
+            animationSpec = tween(durationMillis = 120, easing = LinearEasing)
+        )
+
+        // Stage 5: Enter Confirmed Phase with Animated Tick
+        isConfirmedPhase = true
+        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+
+        // Animate checkmark drawing stroke-by-stroke
+        tickAnim.animateTo(
+            targetValue = 1f,
+            animationSpec = tween(durationMillis = 450, easing = FastOutSlowInEasing)
+        )
+
+        // Hold confirmed state with tick animation for optimal satisfaction
+        delay(1600)
+
+        // Directly print the receipt in TrackerScreen
+        onComplete()
+    }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xF209090D))
+            .background(Color(0xF908080C))
             .clickable(enabled = false) {}, // Scrim captures touches
         contentAlignment = Alignment.Center
     ) {
-        // Ambient radial glow behind the radar
-        Box(
-            modifier = Modifier
-                .size(340.dp)
-                .background(
-                    Brush.radialGradient(
+        if (!isConfirmedPhase) {
+            val p = flightProgress.value
+
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val canvasWidth = size.width
+                val canvasHeight = size.height
+                val centerX = canvasWidth / 2f
+
+                val startY = canvasHeight * 0.75f
+                val centerY = canvasHeight * 0.48f
+                val targetY = -320f
+
+                val currentY = when {
+                    p <= 0.20f -> {
+                        val t = p / 0.20f
+                        startY + (centerY - startY) * t
+                    }
+                    p <= 0.80f -> {
+                        centerY + microFlutter.dp.toPx()
+                    }
+                    else -> {
+                        val t = (p - 0.80f) / 0.20f
+                        centerY + (targetY - centerY) * t
+                    }
+                }
+
+                // 1. Hyperspace Warp Tunnel Streaks streaming down across the screen
+                val streakDefs = listOf(
+                    Triple(-145f, 0.12f, 1.2f),
+                    Triple(-115f, 0.45f, 1.6f),
+                    Triple(-85f, 0.78f, 1.1f),
+                    Triple(-60f, 0.25f, 1.4f),
+                    Triple(-38f, 0.60f, 1.8f),
+                    Triple(-18f, 0.05f, 2.0f),
+                    Triple(18f, 0.35f, 2.0f),
+                    Triple(38f, 0.70f, 1.8f),
+                    Triple(60f, 0.15f, 1.4f),
+                    Triple(85f, 0.50f, 1.1f),
+                    Triple(115f, 0.85f, 1.6f),
+                    Triple(145f, 0.30f, 1.2f),
+                    Triple(-130f, 0.90f, 1.5f),
+                    Triple(-48f, 0.40f, 1.7f),
+                    Triple(48f, 0.80f, 1.7f),
+                    Triple(130f, 0.20f, 1.5f)
+                )
+
+                streakDefs.forEach { (xOffsetDp, phaseOffset, speedMult) ->
+                    val streakY = ((warpFlow * speedMult + phaseOffset) % 1f) * canvasHeight
+                    val streakLength = 80.dp.toPx() * speedMult
+                    val streakX = centerX + xOffsetDp.dp.toPx()
+                    val distFromCenterY = (streakY - canvasHeight / 2f).absoluteValue
+                    val edgeAlpha = (1f - (distFromCenterY / (canvasHeight * 0.52f))).coerceIn(0f, 1f)
+
+                    if (edgeAlpha > 0f) {
+                        drawLine(
+                            brush = Brush.verticalGradient(
+                                colors = listOf(
+                                    Color.Transparent,
+                                    Color(0xFF6EE7B7).copy(alpha = 0.8f * edgeAlpha),
+                                    Color.Transparent
+                                ),
+                                startY = streakY,
+                                endY = streakY + streakLength
+                            ),
+                            start = Offset(streakX, streakY),
+                            end = Offset(streakX, streakY + streakLength),
+                            strokeWidth = 2.dp.toPx(),
+                            cap = StrokeCap.Round
+                        )
+                    }
+                }
+
+                // 2. Ambient Plasma Aura around Engine
+                val auraRadius = 140.dp.toPx() * enginePulse
+                drawCircle(
+                    brush = Brush.radialGradient(
                         colors = listOf(
-                            if (phase == 2) Color(0x3334D399) else Color(0x3300BAF2),
+                            Color(0x6634D399),
+                            Color(0x33A855F7),
                             Color.Transparent
-                        )
-                    )
-                )
-        )
-
-        // Canvas for Radar Waves, Rotating Sweep, Shockwave, and Confetti Explosion
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val canvasCenter = center
-
-            // 1. Paytm Concentric Soundwave Radar Rings
-            val waveOffsets = listOf(0f, 0.25f, 0.5f, 0.75f)
-            waveOffsets.forEach { offset ->
-                val wave = (radarPhase + offset) % 1f
-                val radius = 54.dp.toPx() + (165.dp.toPx() - 54.dp.toPx()) * sqrt(wave)
-                val alpha = (1f - wave).coerceIn(0f, 1f) * (if (phase == 2) 0.8f else 0.5f)
-                val waveColor = if (phase == 2) Color(0xFF34D399) else Color(0xFF00BAF2)
-                drawCircle(
-                    color = waveColor.copy(alpha = alpha),
-                    radius = radius,
-                    center = canvasCenter,
-                    style = Stroke(width = (3.dp - 1.5.dp * wave).toPx())
-                )
-            }
-
-            // 2. Rotating Radar Sweep Beam (during processing)
-            if (phase < 2) {
-                rotate(radarSweepAngle, pivot = canvasCenter) {
-                    drawArc(
-                        brush = Brush.sweepGradient(
-                            0f to Color.Transparent,
-                            0.75f to Color.Transparent,
-                            1f to Color(0x6600BAF2)
                         ),
-                        startAngle = 0f,
-                        sweepAngle = 90f,
-                        useCenter = true,
-                        topLeft = Offset(canvasCenter.x - 110.dp.toPx(), canvasCenter.y - 110.dp.toPx()),
-                        size = androidx.compose.ui.geometry.Size(220.dp.toPx(), 220.dp.toPx())
+                        center = Offset(centerX, currentY + 30.dp.toPx()),
+                        radius = auraRadius
+                    ),
+                    center = Offset(centerX, currentY + 30.dp.toPx()),
+                    radius = auraRadius
+                )
+
+                // 3. Wide Diffuse Plume Trail
+                val plumeLength = 460.dp.toPx()
+                drawLine(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            Color(0x8834D399),
+                            Color(0x66A855F7),
+                            Color.Transparent
+                        ),
+                        startY = currentY + 28.dp.toPx(),
+                        endY = currentY + plumeLength
+                    ),
+                    start = Offset(centerX, currentY + 28.dp.toPx()),
+                    end = Offset(centerX, currentY + plumeLength),
+                    strokeWidth = 44.dp.toPx() * enginePulse,
+                    cap = StrokeCap.Round
+                )
+
+                // 4. Focused Supersonic Exhaust Core Beam
+                drawLine(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            Color.White,
+                            Color(0xFF6EE7B7),
+                            Color(0xFF34D399),
+                            PayxPalette.VividPurple,
+                            Color.Transparent
+                        ),
+                        startY = currentY + 26.dp.toPx(),
+                        endY = currentY + plumeLength * 0.85f
+                    ),
+                    start = Offset(centerX, currentY + 26.dp.toPx()),
+                    end = Offset(centerX, currentY + plumeLength * 0.85f),
+                    strokeWidth = 8.5.dp.toPx() * enginePulse,
+                    cap = StrokeCap.Round
+                )
+
+                // 5. Supersonic Mach Shock Diamonds
+                val diamondDistances = listOf(30.dp, 62.dp, 100.dp, 145.dp, 195.dp)
+                diamondDistances.forEachIndexed { index, dist ->
+                    val dy = currentY + dist.toPx()
+                    val discRadius = (16.dp - (index * 2.2).dp).toPx() * enginePulse
+                    val alpha = (1f - (index * 0.18f)).coerceIn(0f, 1f)
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            colors = listOf(
+                                Color.White.copy(alpha = alpha * 0.95f),
+                                Color(0xFF34D399).copy(alpha = alpha * 0.55f),
+                                Color.Transparent
+                            ),
+                            center = Offset(centerX, dy),
+                            radius = discRadius
+                        ),
+                        center = Offset(centerX, dy),
+                        radius = discRadius
                     )
                 }
-            }
 
-            // 3. Shockwave Ring on Success
-            if (phase == 2 && shockwaveProgress > 0f) {
-                val shockwaveRadius = 60.dp.toPx() + 240.dp.toPx() * shockwaveProgress
-                val shockwaveAlpha = (1f - shockwaveProgress).coerceIn(0f, 1f)
+                // 6. Supersonic Dart Arrow (Needle Nose & Swept Wings)
+                val arrowHalfWidth = 22.dp.toPx()
+                val arrowLength = 46.dp.toPx()
+                val notchDepth = 14.dp.toPx()
+
+                val arrowPath = Path().apply {
+                    moveTo(centerX, currentY) // Needle tip
+                    lineTo(centerX + arrowHalfWidth, currentY + arrowLength) // Right wingtip
+                    lineTo(centerX, currentY + arrowLength - notchDepth) // Thruster notch center
+                    lineTo(centerX - arrowHalfWidth, currentY + arrowLength) // Left wingtip
+                    close()
+                }
+
+                // Body Gradient Fill
+                drawPath(
+                    path = arrowPath,
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            Color.White,
+                            Color(0xFF6EE7B7),
+                            Color(0xFF34D399),
+                            Color(0xFF059669)
+                        ),
+                        startY = currentY,
+                        endY = currentY + arrowLength
+                    )
+                )
+
+                // Razor-sharp Central Titanium Spine Highlight
+                drawLine(
+                    color = Color.White.copy(alpha = 0.95f),
+                    start = Offset(centerX, currentY),
+                    end = Offset(centerX, currentY + arrowLength - notchDepth),
+                    strokeWidth = 2.dp.toPx(),
+                    cap = StrokeCap.Round
+                )
+
+                // Wingtip Stabilizer Lights
                 drawCircle(
-                    color = Color(0xFF34D399).copy(alpha = shockwaveAlpha * 0.9f),
-                    radius = shockwaveRadius,
-                    center = canvasCenter,
-                    style = Stroke(width = (6.dp * (1f - shockwaveProgress)).toPx())
+                    color = Color(0xFF6EE7B7),
+                    center = Offset(centerX + arrowHalfWidth, currentY + arrowLength),
+                    radius = 3.dp.toPx()
+                )
+                drawCircle(
+                    color = Color(0xFF6EE7B7),
+                    center = Offset(centerX - arrowHalfWidth, currentY + arrowLength),
+                    radius = 3.dp.toPx()
                 )
             }
 
-            // 4. Celebratory Confetti Particle Explosion
-            if (phase == 2 && confettiProgress > 0f) {
-                val pProg = confettiProgress
-                particles.forEach { p ->
-                    val px = p.vx * pProg
-                    val py = p.vy * pProg + (240f * pProg * pProg) // downward gravity curve
-                    val pAlpha = (1f - pProg).coerceIn(0f, 1f)
-                    val particleCenter = Offset(canvasCenter.x + px, canvasCenter.y + py)
-
-                    rotate(p.rotation + p.rotationSpeed * pProg, pivot = particleCenter) {
-                        if (p.isCircle) {
-                            drawCircle(
-                                color = p.color.copy(alpha = pAlpha),
-                                radius = p.size,
-                                center = particleCenter
-                            )
-                        } else {
-                            drawRect(
-                                color = p.color.copy(alpha = pAlpha),
-                                topLeft = Offset(particleCenter.x - p.size, particleCenter.y - p.size * 0.6f),
-                                size = androidx.compose.ui.geometry.Size(p.size * 2f, p.size * 1.2f)
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
-        // Foreground Content Overlay
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .statusBarsPadding()
-                .navigationBarsPadding()
-                .padding(horizontal = 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.SpaceBetween
-        ) {
-            // Top Encrypted Rail Pill
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.padding(top = 16.dp)
-            ) {
-                Surface(
-                    shape = RoundedCornerShape(16.dp),
-                    color = Color(0xFF14131C),
-                    border = BorderStroke(1.dp, Color(0xFF282538))
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(7.dp)
-                                .clip(CircleShape)
-                                .background(if (phase == 2) Color(0xFF34D399) else Color(0xFF00BAF2))
-                        )
-                        Spacer(modifier = Modifier.width(7.dp))
-                        Text(
-                            text = if (phase == 2) "PAYMENT COMPLETED" else "INSTANT UPI SETTLEMENT",
-                            style = TextStyle(
-                                fontFamily = PlusJakartaSans,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 1.2.sp,
-                                color = if (phase == 2) Color(0xFF34D399) else Color(0xFFE2E0EC)
-                            )
-                        )
-                    }
-                }
-            }
-
-            // Center Hero Content (Badge + Amounts + Status)
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                // Center Glowing Orb (Recipient Avatar -> Spring Checkmark)
+            // Apex Shockwave Flash
+            val flashVal = flashAnim.value
+            if (flashVal > 0f && flashVal < 1f) {
                 Box(
                     modifier = Modifier
-                        .size(96.dp)
-                        .graphicsLayer {
-                            scaleX = orbScale
-                            scaleY = orbScale
-                        }
-                        .shadow(
-                            elevation = 20.dp,
-                            shape = CircleShape,
-                            spotColor = if (phase == 2) Color(0xFF34D399) else Color(0xFF00BAF2),
-                            ambientColor = if (phase == 2) Color(0xFF34D399) else Color(0xFF00BAF2)
-                        )
-                        .clip(CircleShape)
-                        .background(
-                            Brush.linearGradient(
-                                if (phase == 2) {
-                                    listOf(Color(0xFF34D399), Color(0xFF059669))
-                                } else {
-                                    listOf(Color(0xFF1B1926), Color(0xFF0E0D14))
-                                }
-                            )
-                        )
-                        .border(
-                            width = 2.5.dp,
-                            brush = Brush.linearGradient(
-                                if (phase == 2) {
-                                    listOf(Color(0xFF6EE7B7), Color(0xFF10B981))
-                                } else {
-                                    listOf(Color(0xFF00BAF2), PayxPalette.VividPurple)
-                                }
-                            ),
-                            shape = CircleShape
-                        ),
-                    contentAlignment = Alignment.Center
+                        .fillMaxSize()
+                        .background(Color.White.copy(alpha = (1f - flashVal) * 0.5f))
+                )
+            }
+        } else {
+            // Confirmed Message & Animated Tick Display
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding()
+                    .navigationBarsPadding()
+                    .padding(horizontal = 24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
+                // Top Status Tag Pill
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.padding(top = 20.dp)
                 ) {
-                    AnimatedContent(
-                        targetState = phase == 2,
-                        transitionSpec = {
-                            (scaleIn(spring(dampingRatio = Spring.DampingRatioMediumBouncy)) + fadeIn()) togetherWith
-                                    (scaleOut() + fadeOut())
-                        },
-                        label = "OrbIconTransition"
-                    ) { isSuccess ->
-                        if (isSuccess) {
-                            Icon(
-                                imageVector = Icons.Default.Check,
-                                contentDescription = "Payment Successful",
-                                tint = Color.White,
-                                modifier = Modifier.size(48.dp)
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = Color(0xFF14131C),
+                        border = BorderStroke(1.dp, Color(0xFF282538))
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(7.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFF34D399))
                             )
-                        } else {
-                            Box(contentAlignment = Alignment.Center) {
-                                Text(
-                                    text = recipient.avatarInitials,
-                                    style = TextStyle(
-                                        fontFamily = PlusJakartaSans,
-                                        fontSize = 32.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color.White
-                                    )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "PAYMENT CONFIRMED • SOLANA ESCROW",
+                                style = TextStyle(
+                                    fontFamily = PlusJakartaSans,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 1.2.sp,
+                                    color = Color(0xFF34D399)
                                 )
-                                // Corridor flag badge
-                                Surface(
-                                    shape = CircleShape,
-                                    color = Color(0xFF09090D),
-                                    border = BorderStroke(1.5.dp, Color(0xFF09090D)),
-                                    modifier = Modifier
-                                        .align(Alignment.BottomEnd)
-                                        .offset(x = 4.dp, y = 4.dp)
-                                ) {
-                                    IndiaFlag(width = 20.dp, height = 14.dp)
-                                }
-                            }
+                            )
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // Recipient Name
-                Text(
-                    text = if (phase == 2) "Sent to ${recipient.name}" else "Sending to ${recipient.name}",
-                    style = TextStyle(
-                        fontFamily = PlusJakartaSans,
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color.White
+                // Center Confirmed Details & Animated Drawn Tick Circle
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    AnimatedCheckmarkCircle(
+                        modifier = Modifier
+                            .size(80.dp)
+                            .shadow(
+                                elevation = 24.dp,
+                                shape = CircleShape,
+                                spotColor = Color(0xFF34D399),
+                                ambientColor = Color(0xFF34D399)
+                            ),
+                        tickProgress = tickAnim.value
                     )
-                )
 
-                Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(24.dp))
 
-                // Huge Typographic Rupee Amount in MontaguSlab
-                Text(
-                    text = "₹$inrAmount",
-                    style = TextStyle(
-                        fontFamily = MontaguSlab,
-                        fontSize = 38.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = (-0.5).sp,
-                        color = if (phase == 2) Color(0xFF34D399) else Color.White
-                    )
-                )
-
-                Spacer(modifier = Modifier.height(6.dp))
-
-                // USD Conversion reference
-                Text(
-                    text = "($$usdAmount USD via PayX Escrow)",
-                    style = TextStyle(
-                        fontFamily = PlusJakartaSans,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Normal,
-                        color = Color(0xFF7E7B94)
-                    )
-                )
-
-                Spacer(modifier = Modifier.height(20.dp))
-
-                // Dynamic Status Pill
-                AnimatedContent(
-                    targetState = phase,
-                    transitionSpec = { fadeIn(tween(200)) togetherWith fadeOut(tween(200)) },
-                    label = "StatusStepTransition"
-                ) { currentPhase ->
-                    Surface(
-                        shape = RoundedCornerShape(20.dp),
-                        color = when (currentPhase) {
-                            2 -> Color(0xFF12281E)
-                            1 -> Color(0xFF221A36)
-                            else -> Color(0xFF0D2332)
-                        },
-                        border = BorderStroke(
-                            1.dp,
-                            when (currentPhase) {
-                                2 -> Color(0xFF059669)
-                                1 -> Color(0xFF382A56)
-                                else -> Color(0xFF00779E)
-                            }
+                    Text(
+                        text = "Sent to ${recipient.name}",
+                        style = TextStyle(
+                            fontFamily = PlusJakartaSans,
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFFE2E0EC)
                         )
+                    )
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    Text(
+                        text = "₹$inrAmount",
+                        style = TextStyle(
+                            fontFamily = MontaguSlab,
+                            fontSize = 42.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = (-0.5).sp,
+                            color = Color(0xFF34D399)
+                        )
+                    )
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Text(
+                        text = "($$usdAmount USD via PayX Escrow)",
+                        style = TextStyle(
+                            fontFamily = PlusJakartaSans,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Normal,
+                            color = Color(0xFF7E7B94)
+                        )
+                    )
+
+                    Spacer(modifier = Modifier.height(22.dp))
+
+                    // Verified Corridor Reference Capsule
+                    Surface(
+                        shape = RoundedCornerShape(18.dp),
+                        color = Color(0xFF14131C),
+                        border = BorderStroke(1.dp, Color(0xFF282538))
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 9.dp),
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
+                            IndiaFlag(width = 20.dp, height = 14.dp)
+                            Spacer(modifier = Modifier.width(10.dp))
                             Text(
-                                text = when (currentPhase) {
-                                    0 -> "Connecting to Indian Banking Rails..."
-                                    1 -> "Securing Escrow on Solana Blockchain..."
-                                    else -> "UPI Ref: 4829 1048 2910 • Instant Transfer"
-                                },
+                                text = "UPI Ref: 4829 1048 2910 • Instant Settlement",
                                 style = TextStyle(
                                     fontFamily = PlusJakartaSans,
                                     fontSize = 12.5.sp,
                                     fontWeight = FontWeight.Medium,
-                                    color = when (currentPhase) {
-                                        2 -> Color(0xFF34D399)
-                                        1 -> PayxPalette.SoftLavender
-                                        else -> Color(0xFF38BDF8)
-                                    }
+                                    color = Color(0xFFE2E0EC)
                                 )
                             )
                         }
                     }
                 }
-            }
 
-            // Bottom Action (View in Tracker button on success)
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 20.dp)
-                    .height(56.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                if (phase == 2) {
-                    Surface(
-                        onClick = onComplete,
-                        shape = RoundedCornerShape(28.dp),
-                        color = PayxPalette.VividPurple,
-                        shadowElevation = 12.dp,
-                        modifier = Modifier.fillMaxSize()
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Text(
-                                text = "VIEW IN TRACKER",
-                                style = TextStyle(
-                                    fontFamily = PlusJakartaSans,
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    letterSpacing = 1.sp,
-                                    color = Color.White
-                                )
-                            )
-                        }
-                    }
-                } else {
+                // Bottom Automatic Thermal Printing Indicator
+                Row(
+                    modifier = Modifier.padding(bottom = 28.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(7.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF34D399))
+                    )
                     Text(
-                        text = "Do not close the app while payment is in progress",
+                        text = "PRINTING THERMAL RECEIPT...",
                         style = TextStyle(
                             fontFamily = PlusJakartaSans,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Normal,
-                            color = Color(0xFF5E5B70)
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.2.sp,
+                            color = Color(0xFF88849E)
                         )
                     )
                 }
+            }
+        }
+    }
+}
+
+/**
+ * Animated checkmark orb that draws the checkmark stroke dynamically in emerald/white.
+ */
+@Composable
+private fun AnimatedCheckmarkCircle(
+    modifier: Modifier = Modifier,
+    tickProgress: Float
+) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val cx = w / 2f
+        val cy = h / 2f
+        val radius = w / 2f
+
+        // 1. Glowing Emerald Background Disc
+        drawCircle(
+            brush = Brush.linearGradient(
+                colors = listOf(Color(0xFF34D399), Color(0xFF059669)),
+                start = Offset(0f, 0f),
+                end = Offset(w, h)
+            ),
+            radius = radius
+        )
+
+        // 2. High-glow outer rim
+        drawCircle(
+            brush = Brush.linearGradient(
+                colors = listOf(Color(0xFF6EE7B7), Color(0xFF10B981))
+            ),
+            radius = radius,
+            style = Stroke(width = 2.5.dp.toPx())
+        )
+
+        // 3. Expanding Pulse Halo
+        if (tickProgress > 0.4f) {
+            val haloFrac = (tickProgress - 0.4f) / 0.6f
+            drawCircle(
+                color = Color(0xFF34D399).copy(alpha = (1f - haloFrac) * 0.45f),
+                radius = radius + 14.dp.toPx() * haloFrac,
+                style = Stroke(width = 2.dp.toPx())
+            )
+        }
+
+        // 4. Animated Checkmark Stroke
+        val p0 = Offset(cx - 15.dp.toPx(), cy + 1.dp.toPx())
+        val p1 = Offset(cx - 4.dp.toPx(), cy + 12.dp.toPx())
+        val p2 = Offset(cx + 17.dp.toPx(), cy - 10.dp.toPx())
+
+        val strokeW = 4.5.dp.toPx()
+
+        if (tickProgress > 0f) {
+            if (tickProgress <= 0.35f) {
+                val frac = tickProgress / 0.35f
+                val currentP = Offset(
+                    p0.x + (p1.x - p0.x) * frac,
+                    p0.y + (p1.y - p0.y) * frac
+                )
+                drawLine(
+                    color = Color.White,
+                    start = p0,
+                    end = currentP,
+                    strokeWidth = strokeW,
+                    cap = StrokeCap.Round
+                )
+            } else {
+                // First segment fully drawn
+                drawLine(
+                    color = Color.White,
+                    start = p0,
+                    end = p1,
+                    strokeWidth = strokeW,
+                    cap = StrokeCap.Round
+                )
+                // Second segment animating
+                val frac = ((tickProgress - 0.35f) / 0.65f).coerceIn(0f, 1f)
+                val currentP = Offset(
+                    p1.x + (p2.x - p1.x) * frac,
+                    p1.y + (p2.y - p1.y) * frac
+                )
+                drawLine(
+                    color = Color.White,
+                    start = p1,
+                    end = currentP,
+                    strokeWidth = strokeW,
+                    cap = StrokeCap.Round
+                )
             }
         }
     }

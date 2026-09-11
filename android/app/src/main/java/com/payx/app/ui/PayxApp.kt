@@ -11,9 +11,11 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.runtime.Composable
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.payx.app.ui.screens.DashboardScreen
 import com.payx.app.ui.screens.LoginScreen
 import com.payx.app.ui.screens.ReceiverScreen
@@ -25,11 +27,23 @@ object Routes {
     const val LOGIN = "login"
     const val DASHBOARD = "dashboard"
     const val SEND = "send"
-    const val TRACKER = "tracker/{transferId}"
+    const val TRACKER = "tracker/{transferId}?recipient={recipient}&inr={inr}&usd={usd}"
     const val RECEIVER = "receiver"
     const val SETTINGS = "settings"
 
-    fun tracker(transferId: String) = "tracker/$transferId"
+    fun tracker(
+        transferId: String,
+        recipient: String? = null,
+        inr: String? = null,
+        usd: String? = null
+    ): String {
+        val base = "tracker/$transferId"
+        val params = mutableListOf<String>()
+        if (!recipient.isNullOrBlank()) params.add("recipient=${java.net.URLEncoder.encode(recipient, "UTF-8")}")
+        if (!inr.isNullOrBlank()) params.add("inr=${java.net.URLEncoder.encode(inr, "UTF-8")}")
+        if (!usd.isNullOrBlank()) params.add("usd=${java.net.URLEncoder.encode(usd, "UTF-8")}")
+        return if (params.isNotEmpty()) "$base?${params.joinToString("&")}" else base
+    }
 }
 
 private val smoothDecel = CubicBezierEasing(0.16f, 1f, 0.3f, 1f)
@@ -106,12 +120,32 @@ fun PayxApp() {
         ) {
             SendScreen(
                 onBack = { nav.popBackStack() },
-                onSubmitted = { id -> nav.navigate(Routes.tracker(id)) }
+                onSubmitted = { id, recipient, inr, usd ->
+                    nav.navigate(Routes.tracker(id, recipient, inr, usd))
+                }
             )
         }
 
         composable(
             route = Routes.TRACKER,
+            arguments = listOf(
+                navArgument("transferId") { type = NavType.StringType },
+                navArgument("recipient") {
+                    type = NavType.StringType
+                    defaultValue = "Priya Sharma"
+                    nullable = true
+                },
+                navArgument("inr") {
+                    type = NavType.StringType
+                    defaultValue = "₹1,79,761.50"
+                    nullable = true
+                },
+                navArgument("usd") {
+                    type = NavType.StringType
+                    defaultValue = "$2,000.00"
+                    nullable = true
+                }
+            ),
             enterTransition = {
                 slideInVertically(
                     initialOffsetY = { (it * 0.14f).toInt() },
@@ -123,8 +157,14 @@ fun PayxApp() {
             }
         ) { backStackEntry ->
             val id = backStackEntry.arguments?.getString("transferId") ?: "px-demo-transfer"
+            val recipient = backStackEntry.arguments?.getString("recipient") ?: "Priya Sharma"
+            val inr = backStackEntry.arguments?.getString("inr") ?: "₹1,79,761.50"
+            val usd = backStackEntry.arguments?.getString("usd") ?: "$2,000.00"
             TrackerScreen(
                 transferId = id,
+                recipientName = recipient,
+                inrAmount = inr,
+                usdAmount = usd,
                 onDone = {
                     nav.navigate(Routes.DASHBOARD) {
                         popUpTo(Routes.DASHBOARD) { inclusive = false }
