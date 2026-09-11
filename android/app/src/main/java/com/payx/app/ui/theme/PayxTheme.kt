@@ -22,6 +22,8 @@ object PayxPalette {
     val CoralAccent = Color(0xFFFF5B79)
     val CyberGreen = Color(0xFF00E676)
     val GoldAccent = Color(0xFFFFB800)
+    val NeonLime = Color(0xFFD4FF32)
+    val NeonLimeMuted = Color(0x33D4FF32)
 
     val TextPrimary = Color(0xFFFFFFFF)
     val TextSecondary = Color(0xFF9E97AA)

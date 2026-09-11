@@ -26,7 +26,13 @@ object Routes {
 fun PayxApp() {
     val nav = rememberNavController()
     NavHost(navController = nav, startDestination = Routes.LOGIN) {
-        composable(Routes.LOGIN) { LoginScreen(onSignedIn = { nav.navigate(Routes.DASHBOARD) }) }
+        composable(Routes.LOGIN) {
+            LoginScreen(onSignedIn = {
+                nav.navigate(Routes.DASHBOARD) {
+                    popUpTo(Routes.LOGIN) { inclusive = true }
+                }
+            })
+        }
         composable(Routes.DASHBOARD) {
             DashboardScreen(
                 onSend = { nav.navigate(Routes.SEND) },
@@ -35,7 +41,10 @@ fun PayxApp() {
             )
         }
         composable(Routes.SEND) {
-            SendScreen(onSubmitted = { id -> nav.navigate(Routes.tracker(id)) })
+            SendScreen(
+                onBack = { nav.popBackStack() },
+                onSubmitted = { id -> nav.navigate(Routes.tracker(id)) }
+            )
         }
         composable(Routes.TRACKER) { TrackerScreen(onDone = { nav.popBackStack() }) }
         composable(Routes.RECEIVER) { ReceiverScreen() }

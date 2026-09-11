@@ -5,6 +5,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,30 +24,18 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountBalanceWallet
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -57,6 +46,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.payx.app.ui.components.IndiaFlag
+import com.payx.app.ui.components.UsaFlag
 import com.payx.app.ui.theme.PayxPalette
 
 @Composable
@@ -65,7 +56,6 @@ fun DashboardScreen(
     onTrack: (String) -> Unit,
     onSettings: () -> Unit
 ) {
-    var activeTab by remember { mutableStateOf(0) }
     val scrollState = rememberScrollState()
 
     Box(
@@ -79,758 +69,505 @@ fun DashboardScreen(
                 .fillMaxSize()
                 .statusBarsPadding()
                 .verticalScroll(scrollState)
-                .padding(horizontal = 20.dp)
-                .padding(bottom = 100.dp)
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 120.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-            // 1. Top Bar: Profile Avatar + Search + Notifications
-            DashboardHeader(onProfileClick = onSettings)
-
-            Spacer(modifier = Modifier.height(28.dp))
-
-            // 2. Total Balance Hero
-            Text(
-                text = "Total Balance",
-                style = TextStyle(
-                    fontFamily = FontFamily.SansSerif,
-                    fontSize = 15.sp,
-                    color = PayxPalette.TextSecondary
-                )
-            )
-
-            Spacer(modifier = Modifier.height(6.dp))
-
+            // 1. Top Greeting: "Hello [P] Priyanshu"
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.Center,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
-                    text = "$8,890.00",
+                    text = "Hello",
                     style = TextStyle(
-                        fontFamily = FontFamily.SansSerif,
-                        fontSize = 38.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = (-0.5).sp,
-                        color = Color.White
+                        fontFamily = FontFamily.Serif,
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Normal,
+                        color = PayxPalette.TextPrimary
                     )
                 )
 
-                // Currency Tag Pill
-                Surface(
-                    shape = RoundedCornerShape(20.dp),
-                    color = Color(0xFF1E1A2C),
-                    border = BorderStroke(1.dp, Color(0xFF322A45))
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        UsaMiniFlag()
-                        Text(
-                            text = "USD",
-                            style = TextStyle(
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color.White
-                            )
-                        )
-                    }
-                }
-            }
+                Spacer(modifier = Modifier.width(10.dp))
 
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Text(
-                text = "Money hold: 4,000.00",
-                style = TextStyle(
-                    fontSize = 13.sp,
-                    color = PayxPalette.TextTertiary
-                )
-            )
-
-            Spacer(modifier = Modifier.height(22.dp))
-
-            // 3. Purple Gradient Virtual Card (Eva K. - 9154)
-            HeroVirtualCard(
-                onSendClick = onSend
-            )
-
-            Spacer(modifier = Modifier.height(22.dp))
-
-            // 4. Two Column Metrics: Cash Savings & Top Spend Day
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
-                MetricCard(
-                    title = "Cash Savings",
-                    value = "€0.00",
-                    badgeColor = PayxPalette.CyberGreen,
-                    modifier = Modifier.weight(1f)
-                )
-                MetricCard(
-                    title = "Top Spend Day",
-                    value = "Wed - $480",
-                    badgeColor = PayxPalette.CoralAccent,
-                    modifier = Modifier.weight(1f)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(22.dp))
-
-            // 5. Earn Statistic Bar Chart Card
-            EarnStatisticCard()
-
-            Spacer(modifier = Modifier.height(22.dp))
-
-            // 6. Cash Flow Progress Card
-            CashFlowCard()
-
-            Spacer(modifier = Modifier.height(16.dp))
-        }
-
-        // 7. Floating Bottom Navigation Bar
-        FloatingBottomBar(
-            activeTab = activeTab,
-            onTabSelected = { tab ->
-                activeTab = tab
-                if (tab == 4) onSettings()
-                if (tab == 2) onSend()
-            },
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .navigationBarsPadding()
-                .padding(horizontal = 24.dp, vertical = 12.dp)
-        )
-    }
-}
-
-@Composable
-private fun DashboardHeader(onProfileClick: () -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        // Profile Avatar Button
-        Box(
-            modifier = Modifier
-                .size(44.dp)
-                .clip(CircleShape)
-                .background(Color(0xFF1E1A2C))
-                .border(1.dp, Color(0xFF2F2843), CircleShape)
-                .clickable(onClick = onProfileClick),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Default.Person,
-                contentDescription = "Profile",
-                tint = Color(0xFFD8B4FE),
-                modifier = Modifier.size(22.dp)
-            )
-        }
-
-        // Search & Notifications Buttons
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFF1E1A2C))
-                    .border(1.dp, Color(0xFF2F2843), CircleShape)
-                    .clickable { },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Search,
-                    contentDescription = "Search",
-                    tint = Color.White,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-
-            Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFF1E1A2C))
-                    .border(1.dp, Color(0xFF2F2843), CircleShape)
-                    .clickable { },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Notifications,
-                    contentDescription = "Notifications",
-                    tint = Color.White,
-                    modifier = Modifier.size(20.dp)
-                )
-                // Notification Dot
+                // Profile Avatar Circle with Letter P
                 Box(
                     modifier = Modifier
-                        .size(8.dp)
-                        .align(Alignment.TopEnd)
-                        .padding(top = 10.dp, end = 10.dp)
+                        .size(36.dp)
                         .clip(CircleShape)
-                        .background(PayxPalette.CoralAccent)
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun HeroVirtualCard(onSendClick: () -> Unit) {
-    val cardGradient = Brush.linearGradient(
-        colors = listOf(
-            PayxPalette.CardGradientStart,
-            PayxPalette.CardGradientEnd
-        ),
-        start = Offset(0f, 0f),
-        end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
-    )
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(204.dp)
-            .shadow(
-                elevation = 16.dp,
-                shape = RoundedCornerShape(26.dp),
-                spotColor = Color(0x66A855F7),
-                ambientColor = Color(0x33A855F7)
-            )
-            .clip(RoundedCornerShape(26.dp))
-            .background(cardGradient)
-    ) {
-        // Subtle decorative topographic lines across the card
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val strokeColor = Color(0x22FFFFFF)
-            val path = Path().apply {
-                moveTo(0f, size.height * 0.4f)
-                cubicTo(
-                    size.width * 0.3f, size.height * 0.2f,
-                    size.width * 0.6f, size.height * 0.6f,
-                    size.width, size.height * 0.35f
-                )
-            }
-            drawPath(path, color = strokeColor, style = Stroke(width = 2.dp.toPx()))
-
-            val path2 = Path().apply {
-                moveTo(0f, size.height * 0.6f)
-                cubicTo(
-                    size.width * 0.4f, size.height * 0.35f,
-                    size.width * 0.7f, size.height * 0.75f,
-                    size.width, size.height * 0.5f
-                )
-            }
-            drawPath(path2, color = strokeColor, style = Stroke(width = 1.5.dp.toPx()))
-        }
-
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(20.dp),
-            verticalArrangement = Arrangement.SpaceBetween
-        ) {
-            // Card Top Row: Card number, Expiry, Mastercard Logo
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        .background(Color(0xFF0F3624))
+                        .border(1.dp, Color(0xFF1E5C3E), CircleShape),
+                    contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "•••• 9154",
+                        text = "P",
                         style = TextStyle(
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color.White
-                        )
-                    )
-                }
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Text(
-                        text = "12/24",
-                        style = TextStyle(
-                            fontSize = 13.sp,
-                            color = Color(0xCCFFFFFF)
-                        )
-                    )
-                    // Mastercard Badge (overlapping circles)
-                    MastercardGlyph()
-                }
-            }
-
-            // Card Middle: Total Budget
-            Column {
-                Text(
-                    text = "Total Budget",
-                    style = TextStyle(
-                        fontSize = 12.sp,
-                        color = Color(0xD9FFFFFF)
-                    )
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = "$2,320.00",
-                        style = TextStyle(
-                            fontSize = 28.sp,
+                            fontFamily = FontFamily.SansSerif,
+                            fontSize = 17.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color.White
                         )
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "USD",
-                        style = TextStyle(
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = Color(0xE6FFFFFF)
-                        )
-                    )
-                }
-            }
-
-            // Card Bottom Actions: Deposit & Send
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                // Deposit Pill Button
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(42.dp)
-                        .clip(RoundedCornerShape(21.dp))
-                        .background(Color(0x28FFFFFF))
-                        .clickable { },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.AccountBalanceWallet,
-                            contentDescription = "Wallet",
-                            tint = Color.White,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Text(
-                            text = "Deposit",
-                            style = TextStyle(
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color.White
-                            )
-                        )
-                    }
                 }
 
-                // Send Pill Button
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(42.dp)
-                        .clip(RoundedCornerShape(21.dp))
-                        .background(Color(0x28FFFFFF))
-                        .clickable(onClick = onSendClick),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        SendDiagonalArrow(modifier = Modifier.size(14.dp))
-                        Text(
-                            text = "Send",
-                            style = TextStyle(
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color.White
-                            )
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
+                Spacer(modifier = Modifier.width(10.dp))
 
-@Composable
-private fun MetricCard(
-    title: String,
-    value: String,
-    badgeColor: Color,
-    modifier: Modifier = Modifier
-) {
-    Surface(
-        shape = RoundedCornerShape(22.dp),
-        color = PayxPalette.DarkSurface,
-        border = BorderStroke(1.dp, PayxPalette.BorderSubtle),
-        modifier = modifier.height(108.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.SpaceBetween
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
                 Text(
-                    text = title,
+                    text = "Priyanshu",
                     style = TextStyle(
-                        fontSize = 13.sp,
-                        color = PayxPalette.TextSecondary
-                    )
-                )
-                Box(
-                    modifier = Modifier
-                        .size(8.dp)
-                        .clip(CircleShape)
-                        .background(badgeColor)
-                )
-            }
-
-            Text(
-                text = value,
-                style = TextStyle(
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-            )
-        }
-    }
-}
-
-@Composable
-private fun EarnStatisticCard() {
-    Surface(
-        shape = RoundedCornerShape(24.dp),
-        color = PayxPalette.DarkSurface,
-        border = BorderStroke(1.dp, PayxPalette.BorderSubtle),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(18.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Earn Statistic",
-                    style = TextStyle(
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color.White
-                    )
-                )
-
-                Surface(
-                    shape = RoundedCornerShape(16.dp),
-                    color = Color(0xFF221C32),
-                    border = BorderStroke(1.dp, Color(0xFF352C4D))
-                ) {
-                    Text(
-                        text = "Week ▾",
-                        style = TextStyle(
-                            fontSize = 12.sp,
-                            color = PayxPalette.TextSecondary
-                        ),
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(18.dp))
-
-            // Colorful Stacked Bar Chart
-            val days = listOf("Sun", "Mon", "Tue", "Wed", "Thr", "Fri", "Sat")
-            val coralRatios = listOf(0.4f, 0.65f, 0.3f, 0.5f, 0.8f, 0.6f, 0.45f)
-            val purpleRatios = listOf(0.5f, 0.25f, 0.6f, 0.4f, 0.15f, 0.35f, 0.5f)
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(90.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Bottom
-            ) {
-                for (i in days.indices) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.width(32.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .width(22.dp)
-                                .height(60.dp)
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(Color(0xFF262035))
-                        ) {
-                            Column(modifier = Modifier.fillMaxSize()) {
-                                // Coral segment
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .weight(coralRatios[i])
-                                        .background(PayxPalette.CoralAccent)
-                                )
-                                // Purple segment
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .weight(purpleRatios[i])
-                                        .background(PayxPalette.VividPurple)
-                                )
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text(
-                            text = days[i],
-                            style = TextStyle(
-                                fontSize = 11.sp,
-                                color = PayxPalette.TextTertiary
-                            )
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun CashFlowCard() {
-    Surface(
-        shape = RoundedCornerShape(24.dp),
-        color = PayxPalette.DarkSurface,
-        border = BorderStroke(1.dp, PayxPalette.BorderSubtle),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(18.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Cash Flow",
-                    style = TextStyle(
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color.White
-                    )
-                )
-                Text(
-                    text = "$2,000.00 / $3,200.00",
-                    style = TextStyle(
-                        fontSize = 13.sp,
-                        color = PayxPalette.CyberGreen
+                        fontFamily = FontFamily.Serif,
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Normal,
+                        color = PayxPalette.TextPrimary
                     )
                 )
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(48.dp))
 
-            // Cyber Green Progress Bar
+            // 2. Central Hero: Savings Aura & Big Savings Total
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(8.dp)
-                    .clip(RoundedCornerShape(4.dp))
-                    .background(Color(0xFF242035))
+                    .clip(RoundedCornerShape(32.dp)),
+                contentAlignment = Alignment.Center
             ) {
-                Box(
+                // Cyber glow aura background
+                Canvas(
                     modifier = Modifier
-                        .fillMaxWidth(0.62f)
-                        .height(8.dp)
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(PayxPalette.CyberGreen)
+                        .fillMaxWidth()
+                        .height(240.dp)
+                ) {
+                    val center = Offset(size.width / 2f, size.height / 2f)
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            colors = listOf(
+                                Color(0x3300E676),
+                                Color(0x22A855F7),
+                                Color(0x0A0E0C15),
+                                Color.Transparent
+                            ),
+                            center = center,
+                            radius = size.width * 0.45f
+                        ),
+                        radius = size.width * 0.45f,
+                        center = center
+                    )
+                }
+
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.padding(vertical = 24.dp)
+                ) {
+                    Text(
+                        text = "You have saved",
+                        style = TextStyle(
+                            fontFamily = FontFamily.SansSerif,
+                            fontSize = 15.sp,
+                            color = PayxPalette.TextSecondary
+                        )
+                    )
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // Savings Pill: [$66.85] -> on a transfer of
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(14.dp),
+                            color = PayxPalette.NeonLime,
+                            shadowElevation = 4.dp
+                        ) {
+                            Text(
+                                text = "$66.85",
+                                style = TextStyle(
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = Color.Black
+                                ),
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        Text(
+                            text = "→",
+                            style = TextStyle(
+                                fontSize = 14.sp,
+                                color = PayxPalette.TextTertiary
+                            )
+                        )
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        Text(
+                            text = "on a transfer of",
+                            style = TextStyle(
+                                fontSize = 14.sp,
+                                color = PayxPalette.TextSecondary
+                            )
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(18.dp))
+
+                    // Giant Amount: $ 2,450.00 in Serif
+                    Text(
+                        text = "$ 2,450.00",
+                        style = TextStyle(
+                            fontFamily = FontFamily.Serif,
+                            fontSize = 44.sp,
+                            fontWeight = FontWeight.Normal,
+                            letterSpacing = (-0.5).sp,
+                            color = PayxPalette.TextPrimary
+                        )
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(28.dp))
+
+            // 3. Live Currency Ticker Capsule
+            Surface(
+                shape = RoundedCornerShape(24.dp),
+                color = PayxPalette.DarkSurfaceElevated,
+                border = BorderStroke(1.dp, PayxPalette.BorderSubtle),
+                shadowElevation = 8.dp
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    UsaFlag(width = 20.dp, height = 14.dp)
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    Text(
+                        text = "1 USD",
+                        style = TextStyle(
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = PayxPalette.TextPrimary
+                        )
+                    )
+
+                    Spacer(modifier = Modifier.width(10.dp))
+
+                    Text(
+                        text = "⇄",
+                        style = TextStyle(
+                            fontSize = 15.sp,
+                            color = PayxPalette.TextTertiary
+                        )
+                    )
+
+                    Spacer(modifier = Modifier.width(10.dp))
+
+                    Text(
+                        text = "₹92.90",
+                        style = TextStyle(
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = PayxPalette.TextPrimary
+                        )
+                    )
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    IndiaFlag(width = 20.dp, height = 14.dp)
+
+                    Spacer(modifier = Modifier.width(14.dp))
+
+                    // Pulsing LIVE dot
+                    Box(
+                        modifier = Modifier
+                            .size(6.dp)
+                            .clip(CircleShape)
+                            .background(PayxPalette.CyberGreen)
+                    )
+
+                    Spacer(modifier = Modifier.width(6.dp))
+
+                    Text(
+                        text = "LIVE",
+                        style = TextStyle(
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.sp,
+                            color = PayxPalette.CyberGreen
+                        )
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(44.dp))
+
+            // 4. Recent Transactions Header: "Recent Transactions" VIEW ALL
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Recent Transactions",
+                    style = TextStyle(
+                        fontFamily = FontFamily.Serif,
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = PayxPalette.TextPrimary
+                    )
+                )
+
+                Text(
+                    text = "VIEW ALL",
+                    style = TextStyle(
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp,
+                        color = PayxPalette.TextTertiary
+                    ),
+                    modifier = Modifier.clickable { }
                 )
             }
-        }
-    }
-}
 
-@Composable
-private fun FloatingBottomBar(
-    activeTab: Int,
-    onTabSelected: (Int) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Surface(
-        shape = RoundedCornerShape(32.dp),
-        color = Color(0xFF141020),
-        border = BorderStroke(1.dp, Color(0xFF2D2540)),
-        shadowElevation = 18.dp,
-        modifier = modifier.fillMaxWidth()
-    ) {
-        Row(
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Transaction 1: Sent to Priya Sharma (-$500.00)
+            TransactionRow(
+                title = "Sent to Priya Sharma",
+                subtitle = "Apr 16, 17:45",
+                amount = "-$500.00",
+                onClick = { onTrack("tx_priya_500") }
+            )
+
+            Spacer(modifier = Modifier.height(18.dp))
+
+            // Transaction 2: Sent to Rahul Verma (-$250.00)
+            TransactionRow(
+                title = "Sent to Rahul Verma",
+                subtitle = "Apr 11, 17:45",
+                amount = "-$250.00",
+                onClick = { onTrack("tx_rahul_250") }
+            )
+        }
+
+        // 5. Bottom Navigation Bar with Center Neon TRANSFER Pill
+        Surface(
+            color = PayxPalette.DarkSurface,
+            border = BorderStroke(1.dp, PayxPalette.BorderSubtle),
             modifier = Modifier
+                .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
         ) {
-            // Tab 0: Home
-            IconButton(onClick = { onTabSelected(0) }) {
-                Box(
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(horizontal = 28.dp, vertical = 10.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Home Tab
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier
-                        .size(42.dp)
-                        .clip(CircleShape)
-                        .background(if (activeTab == 0) PayxPalette.VividPurple else Color.Transparent),
-                    contentAlignment = Alignment.Center
+                        .clickable(
+                            indication = null,
+                            interactionSource = remember { MutableInteractionSource() }
+                        ) { }
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Home,
                         contentDescription = "Home",
-                        tint = if (activeTab == 0) Color.White else PayxPalette.TextTertiary
+                        tint = PayxPalette.TextPrimary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.height(3.dp))
+                    Text(
+                        text = "Home",
+                        style = TextStyle(
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = PayxPalette.TextPrimary
+                        )
+                    )
+                }
+
+                // Center High-Energy Transfer Pill Button
+                Box(
+                    modifier = Modifier
+                        .height(48.dp)
+                        .shadow(12.dp, RoundedCornerShape(26.dp))
+                        .clip(RoundedCornerShape(26.dp))
+                        .background(PayxPalette.NeonLime)
+                        .clickable(onClick = onSend)
+                        .padding(horizontal = 26.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        TransferArrowIcon()
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        Text(
+                            text = "TRANSFER",
+                            style = TextStyle(
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                letterSpacing = 1.sp,
+                                color = Color.Black
+                            )
+                        )
+                    }
+                }
+
+                // Settings Tab
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier
+                        .clickable(onClick = onSettings)
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Settings,
+                        contentDescription = "Settings",
+                        tint = PayxPalette.TextTertiary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.height(3.dp))
+                    Text(
+                        text = "Settings",
+                        style = TextStyle(
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = PayxPalette.TextTertiary
+                        )
                     )
                 }
             }
+        }
+    }
+}
 
-            // Tab 1: Cards / Wallet
-            IconButton(onClick = { onTabSelected(1) }) {
-                Icon(
-                    imageVector = Icons.Default.CreditCard,
-                    contentDescription = "Cards",
-                    tint = if (activeTab == 1) PayxPalette.VividPurple else PayxPalette.TextTertiary
-                )
-            }
-
-            // Center Action Button (Circular FAB for Send / Swap)
+@Composable
+private fun TransactionRow(
+    title: String,
+    subtitle: String,
+    amount: String,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            // Dark Green Circle with Upward Arrow
             Box(
                 modifier = Modifier
-                    .size(52.dp)
+                    .size(46.dp)
                     .clip(CircleShape)
-                    .background(
-                        Brush.linearGradient(
-                            listOf(PayxPalette.CardGradientStart, PayxPalette.CardGradientEnd)
-                        )
-                    )
-                    .clickable { onTabSelected(2) },
+                    .background(Color(0xFF1B382A))
+                    .border(1.dp, Color(0xFF28543E), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = "Send",
-                    tint = Color.White,
-                    modifier = Modifier.size(26.dp)
-                )
+                UpwardTransactionArrow()
             }
 
-            // Tab 3: Analytics
-            IconButton(onClick = { onTabSelected(3) }) {
-                Icon(
-                    imageVector = Icons.Default.AccountBalanceWallet,
-                    contentDescription = "Analytics",
-                    tint = if (activeTab == 3) PayxPalette.VividPurple else PayxPalette.TextTertiary
+            Column {
+                Text(
+                    text = title,
+                    style = TextStyle(
+                        fontFamily = FontFamily.SansSerif,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = PayxPalette.TextPrimary
+                    )
                 )
-            }
-
-            // Tab 4: Settings
-            IconButton(onClick = { onTabSelected(4) }) {
-                Icon(
-                    imageVector = Icons.Default.Settings,
-                    contentDescription = "Settings",
-                    tint = if (activeTab == 4) PayxPalette.VividPurple else PayxPalette.TextTertiary
+                Spacer(modifier = Modifier.height(3.dp))
+                Text(
+                    text = subtitle,
+                    style = TextStyle(
+                        fontSize = 13.sp,
+                        color = PayxPalette.TextTertiary
+                    )
                 )
             }
         }
-    }
-}
 
-@Composable
-private fun MastercardGlyph() {
-    Canvas(modifier = Modifier.size(width = 28.dp, height = 18.dp)) {
-        val radius = size.height / 2f
-        drawCircle(
-            color = Color(0xFFEB001B),
-            radius = radius,
-            center = Offset(radius, radius)
-        )
-        drawCircle(
-            color = Color(0xFFF79E1B),
-            radius = radius,
-            center = Offset(size.width - radius, radius)
-        )
-    }
-}
-
-@Composable
-private fun SendDiagonalArrow(modifier: Modifier = Modifier) {
-    Canvas(modifier = modifier) {
-        val stroke = 2.dp.toPx()
-        // Line from bottom-left to top-right
-        drawLine(
-            color = Color.White,
-            start = Offset(size.width * 0.2f, size.height * 0.8f),
-            end = Offset(size.width * 0.8f, size.height * 0.2f),
-            strokeWidth = stroke,
-            cap = StrokeCap.Round
-        )
-        // Arrow head
-        drawLine(
-            color = Color.White,
-            start = Offset(size.width * 0.45f, size.height * 0.2f),
-            end = Offset(size.width * 0.8f, size.height * 0.2f),
-            strokeWidth = stroke,
-            cap = StrokeCap.Round
-        )
-        drawLine(
-            color = Color.White,
-            start = Offset(size.width * 0.8f, size.height * 0.2f),
-            end = Offset(size.width * 0.8f, size.height * 0.55f),
-            strokeWidth = stroke,
-            cap = StrokeCap.Round
-        )
-    }
-}
-
-@Composable
-private fun UsaMiniFlag(modifier: Modifier = Modifier) {
-    Canvas(
-        modifier = modifier
-            .size(width = 18.dp, height = 12.dp)
-            .clip(RoundedCornerShape(2.dp))
-    ) {
-        val stripeH = size.height / 7f
-        for (i in 0 until 7) {
-            drawRect(
-                color = if (i % 2 == 0) Color(0xFFB22234) else Color.White,
-                topLeft = Offset(0f, i * stripeH),
-                size = Size(size.width, stripeH)
+        Text(
+            text = amount,
+            style = TextStyle(
+                fontSize = 17.sp,
+                fontWeight = FontWeight.Bold,
+                color = PayxPalette.TextPrimary
             )
-        }
-        drawRect(
-            color = Color(0xFF3C3B6E),
-            topLeft = Offset.Zero,
-            size = Size(size.width * 0.45f, stripeH * 4)
         )
+    }
+}
+
+@Composable
+private fun UpwardTransactionArrow() {
+    Canvas(modifier = Modifier.size(16.dp)) {
+        val stroke = 2.dp.toPx()
+        val cap = StrokeCap.Round
+        val color = Color.White
+
+        // Vertical stem
+        drawLine(
+            color = color,
+            start = Offset(size.width / 2f, size.height * 0.85f),
+            end = Offset(size.width / 2f, size.height * 0.15f),
+            strokeWidth = stroke,
+            cap = cap
+        )
+
+        // Left wing
+        drawLine(
+            color = color,
+            start = Offset(size.width * 0.2f, size.height * 0.45f),
+            end = Offset(size.width / 2f, size.height * 0.15f),
+            strokeWidth = stroke,
+            cap = cap
+        )
+
+        // Right wing
+        drawLine(
+            color = color,
+            start = Offset(size.width * 0.8f, size.height * 0.45f),
+            end = Offset(size.width / 2f, size.height * 0.15f),
+            strokeWidth = stroke,
+            cap = cap
+        )
+    }
+}
+
+@Composable
+private fun TransferArrowIcon() {
+    Canvas(modifier = Modifier.size(14.dp)) {
+        val path = Path().apply {
+            moveTo(0f, 0f)
+            lineTo(size.width, size.height * 0.5f)
+            lineTo(0f, size.height)
+            lineTo(size.width * 0.3f, size.height * 0.5f)
+            close()
+        }
+        drawPath(path = path, color = Color.Black)
     }
 }
