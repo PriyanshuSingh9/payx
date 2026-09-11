@@ -25,6 +25,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -39,18 +40,28 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.payx.app.data.PaymentDto
 import com.payx.app.data.SessionUser
+import com.payx.app.payments.DashboardUiState
 import com.payx.app.ui.components.IndiaFlag
 import com.payx.app.ui.components.UsaFlag
+import java.text.DecimalFormat
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 @Composable
 fun DashboardScreen(
     user: SessionUser?,
+    state: DashboardUiState,
     onSend: () -> Unit,
     onTrack: (String) -> Unit,
     onSettings: () -> Unit
 ) {
     val scrollState = rememberScrollState()
+    val usdFormatter = remember { DecimalFormat("$#,##0.00") }
+    val inrFormatter = remember { DecimalFormat("₹#,##,##0") }
+    val rateFormatter = remember { DecimalFormat("#,##0.00") }
+    val avatarColors = listOf(Color(0xFF7C3AED), Color(0xFF4F46E5), Color(0xFF9333EA))
 
     // Pure clean matte obsidian background with zero purplish glow
     val screenBackground = Color(0xFF09090D)
@@ -71,15 +82,14 @@ fun DashboardScreen(
             // 1. Clean Flat Minimal Header (No semi-circle, no purple aura)
             DashboardHeader(
                 userName = user?.firstName ?: "there",
-                balance = "$2,450.00",
-                savedAmount = "$66.85",
+                balance = usdFormatter.format(state.totalTransferredUsd),
+                savedAmount = usdFormatter.format(state.savedUsd),
                 onSettings = onSettings
             )
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // 2. Real-time Exchange Rate Ticker Pill
-            CorridorRateCapsule()
+            CorridorRateCapsule(rate = state.liveRate, rateFormatter = rateFormatter)
 
             Spacer(modifier = Modifier.height(32.dp))
 
@@ -106,30 +116,20 @@ fun DashboardScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    QuickContactItem(
-                        initials = "PS",
-                        name = "Priya",
-                        rail = "UPI",
-                        color = Color(0xFF7C3AED),
-                        onClick = { onTrack("tx_priya_500") }
-                    )
-
-                    QuickContactItem(
-                        initials = "RV",
-                        name = "Rahul",
-                        rail = "IMPS",
-                        color = Color(0xFF4F46E5),
-                        onClick = { onTrack("tx_rahul_250") }
-                    )
-
-                    QuickContactItem(
-                        initials = "AS",
-                        name = "Arjun",
-                        rail = "UPI",
-                        color = Color(0xFF9333EA),
-                        onClick = onSend
-                    )
-
+                    state.recentRecipients.forEachIndexed { index, payment ->
+                        QuickContactItem(
+                            initials = payment.recipient.name
+                                .split(" ")
+                                .mapNotNull { it.firstOrNull()?.uppercaseChar() }
+                                .take(2)
+                                .joinToString("")
+                                .ifBlank { "?" },
+                            name = payment.recipient.name.substringBefore(" "),
+                            rail = if (!payment.recipient.upiId.isNullOrBlank()) "UPI" else "IMPS",
+                            color = avatarColors[index % avatarColors.size],
+                            onClick = onSend
+                        )
+                    }
                     QuickAddContactItem(onClick = onSend)
                 }
             }
@@ -171,29 +171,54 @@ fun DashboardScreen(
 
                 Spacer(modifier = Modifier.height(14.dp))
 
-                // Card 1: Priya Sharma
-                TransactionCard(
-                    title = "Priya Sharma",
-                    subtitle = "Yesterday, 17:45 • Solana Settled",
-                    fiatAmount = "-$500.00",
-                    inrEquivalent = "≈ ₹41,950",
-                    initials = "PS",
-                    avatarColor = Color(0xFF7C3AED),
-                    onClick = { onTrack("tx_priya_500") }
-                )
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                // Card 2: Rahul Verma
-                TransactionCard(
-                    title = "Rahul Verma",
-                    subtitle = "Apr 11, 14:20 • Solana Settled",
-                    fiatAmount = "-$250.00",
-                    inrEquivalent = "≈ ₹20,975",
-                    initials = "RV",
-                    avatarColor = Color(0xFF4F46E5),
-                    onClick = { onTrack("tx_rahul_250") }
-                )
+                when {
+                    state.isLoading && state.payments.isEmpty() -> {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(80.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(
+                                color = Color(0xFFAE9EF8),
+                                strokeWidth = 2.dp,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                    }
+                    state.payments.isEmpty() -> {
+                        Text(
+                            text = state.error ?: "No transfers yet. Send USDC to see activity.",
+                            style = TextStyle(
+                                fontFamily = FontFamily.SansSerif,
+                                fontSize = 13.sp,
+                                color = Color(0xFF7E7B8D)
+                            ),
+                            modifier = Modifier.padding(vertical = 12.dp)
+                        )
+                    }
+                    else -> {
+                        state.payments.take(8).forEachIndexed { index, payment ->
+                            if (index > 0) Spacer(modifier = Modifier.height(10.dp))
+                            TransactionCard(
+                                title = payment.recipient.name.ifBlank { "Recipient" },
+                                subtitle = dashboardSubtitle(payment),
+                                fiatAmount = "-${usdFormatter.format(payment.sourceAmount)}",
+                                inrEquivalent = payment.destinationAmount?.let {
+                                    "≈ ${inrFormatter.format(it)}"
+                                } ?: payment.statusLabel,
+                                initials = payment.recipient.name
+                                    .split(" ")
+                                    .mapNotNull { it.firstOrNull()?.uppercaseChar() }
+                                    .take(2)
+                                    .joinToString("")
+                                    .ifBlank { "PX" },
+                                avatarColor = avatarColors[index % avatarColors.size],
+                                onClick = { onTrack(payment.id) }
+                            )
+                        }
+                    }
+                }
             }
         }
 
@@ -360,7 +385,23 @@ private fun DashboardHeader(
  * Clean Realtime Exchange Rate Pill
  */
 @Composable
-private fun CorridorRateCapsule() {
+private fun dashboardSubtitle(payment: PaymentDto): String {
+    val parsed = payment.createdAt.let {
+        runCatching {
+            SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US).parse(it)
+        }.getOrNull()
+    }
+    val whenLabel = parsed?.let {
+        SimpleDateFormat("MMM d, HH:mm", Locale.US).format(it)
+    } ?: payment.statusLabel
+    return "$whenLabel • ${payment.statusLabel}"
+}
+
+@Composable
+private fun CorridorRateCapsule(
+    rate: Double?,
+    rateFormatter: DecimalFormat
+) {
     Surface(
         shape = RoundedCornerShape(18.dp),
         color = Color(0xFF14131A),
@@ -375,7 +416,7 @@ private fun CorridorRateCapsule() {
             Spacer(modifier = Modifier.width(7.dp))
 
             Text(
-                text = "1 USD",
+                text = "1 USDC",
                 style = TextStyle(
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
@@ -396,7 +437,7 @@ private fun CorridorRateCapsule() {
             Spacer(modifier = Modifier.width(8.dp))
 
             Text(
-                text = "₹92.90",
+                text = if (rate == null) "—" else "₹${rateFormatter.format(rate)}",
                 style = TextStyle(
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,

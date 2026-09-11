@@ -46,6 +46,11 @@ support idempotency via the `Idempotency-Key` header. Errors return
 | POST | `/api/v1/payments/:id/simulate-step` | none | Dev Console step driver (`confirm`, `settle`, `create_offramp`, `payout_processing`, `payout_success`) |
 | POST | `/api/v1/payments/:id/fail` | none | Inject failure state (`insufficient_funds`, `quote_expired`, `solana_failed`, `offramp_failed`, `payout_failed`) |
 | GET | `/api/v1/quote?amount=` | none | Pure quote preview for USDC to INR |
+
+Android send/track/dashboard consume this pipeline (simulation mode):
+`GET /recipients`, `GET /api/v1/quote`, `POST /api/v1/payments`,
+`GET /api/v1/payments`, `GET /api/v1/payments/:id`,
+`POST /api/v1/payments/:id/simulate-step`. Default `mode` is `full_simulation`.
 | POST | `/api/v1/recipients/validate` | none | Validate Indian UPI ID or Bank Account + IFSC format |
 | POST | `/webhooks/onmeta` | `x-onmeta-signature`, `x-event-id` | Asynchronous Onmeta off-ramp webhook with duplicate protection |
 

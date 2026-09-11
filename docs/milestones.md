@@ -32,9 +32,12 @@
 
 - [x] Android Studio + SDK 36, Compose BOM, MWA dependency
 - [x] Auth (Google sign-in, Keystore wallet, session storage)
-- [ ] Corridor picker, quote card, rail validation, 4-stage tracker, receipt
-- [ ] Receiver view, address book, settings/logout
-- [ ] `adb reverse` device testing against local backend
+- [x] Send quotes via `GET /api/v1/quote`, creates payments via `POST /api/v1/payments`
+- [x] Tracker polls `GET /api/v1/payments/:id` and drives the simulation timeline
+- [x] Dashboard lists `GET /api/v1/payments` (totals, rate, recent activity)
+- [ ] Receiver view live inbound list
+- [x] Settings/logout
+- [x] `adb reverse` device testing against local backend
 
 ## Phase 4 — Ramps, hardening, mainnet readiness
 

@@ -23,7 +23,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -35,6 +34,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -62,44 +62,23 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.payx.app.data.AddressBookRecipient
+import com.payx.app.data.OffRampQuoteDto
+import com.payx.app.payments.SendUiState
 import com.payx.app.ui.components.IndiaFlag
 import com.payx.app.ui.theme.PayxPalette
 import java.text.DecimalFormat
 
-data class Recipient(
-    val id: String,
-    val name: String,
-    val email: String,
-    val avatarInitials: String
-)
-
-private val sampleRecipients = listOf(
-    Recipient(
-        id = "1",
-        name = "Priya Sharma",
-        email = "priya.sharma@payx.demo",
-        avatarInitials = "PS"
-    ),
-    Recipient(
-        id = "2",
-        name = "Rahul Verma",
-        email = "rahul.verma@payx.demo",
-        avatarInitials = "RV"
-    ),
-    Recipient(
-        id = "3",
-        name = "Sarah Smith",
-        email = "sarah.smith@payx.demo",
-        avatarInitials = "SS"
-    )
-)
-
 @Composable
 fun SendScreen(
-    onBack: () -> Unit = {},
-    onSubmitted: (String) -> Unit
+    state: SendUiState,
+    onSearchQueryChange: (String) -> Unit,
+    onAmountChange: (String) -> Unit,
+    onRefreshRecipients: () -> Unit,
+    onSubmit: (AddressBookRecipient) -> Unit,
+    onBack: () -> Unit = {}
 ) {
-    var selectedRecipient by remember { mutableStateOf<Recipient?>(null) }
+    var selectedRecipient by remember { mutableStateOf<AddressBookRecipient?>(null) }
 
     val ambientBackground = Brush.verticalGradient(
         colorStops = arrayOf(
@@ -135,17 +114,27 @@ fun SendScreen(
             label = "SendFlowTransition"
         ) { recipient ->
             if (recipient == null) {
-                // Step 1: Send To (Image 2)
                 SendToScreen(
+                    recipients = state.filteredRecipients,
+                    isLoading = state.recipientsLoading,
+                    error = state.recipientsError,
+                    searchQuery = state.searchQuery,
+                    onSearchQueryChange = onSearchQueryChange,
+                    onRefresh = onRefreshRecipients,
                     onBack = onBack,
                     onRecipientSelected = { selectedRecipient = it }
                 )
             } else {
-                // Step 2: Send Money (Image 3)
                 SendMoneyScreen(
                     recipient = recipient,
+                    amountInput = state.amountInput,
+                    quote = state.quote,
+                    quoteLoading = state.quoteLoading,
+                    isSubmitting = state.isSubmitting,
+                    submitError = state.submitError,
+                    onAmountChange = onAmountChange,
                     onBack = { selectedRecipient = null },
-                    onConfirm = { onSubmitted("tx_${recipient.id}_${System.currentTimeMillis()}") }
+                    onConfirm = { onSubmit(recipient) }
                 )
             }
         }
@@ -157,22 +146,15 @@ fun SendScreen(
 // -----------------------------------------------------------------------------
 @Composable
 private fun SendToScreen(
+    recipients: List<AddressBookRecipient>,
+    isLoading: Boolean,
+    error: String?,
+    searchQuery: String,
+    onSearchQueryChange: (String) -> Unit,
+    onRefresh: () -> Unit,
     onBack: () -> Unit,
-    onRecipientSelected: (Recipient) -> Unit
+    onRecipientSelected: (AddressBookRecipient) -> Unit
 ) {
-    var searchQuery by remember { mutableStateOf("") }
-
-    val filteredRecipients = remember(searchQuery) {
-        if (searchQuery.isBlank()) {
-            sampleRecipients
-        } else {
-            sampleRecipients.filter {
-                it.name.contains(searchQuery, ignoreCase = true) ||
-                        it.email.contains(searchQuery, ignoreCase = true)
-            }
-        }
-    }
-
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -234,7 +216,7 @@ private fun SendToScreen(
 
                 BasicTextField(
                     value = searchQuery,
-                    onValueChange = { searchQuery = it },
+                    onValueChange = onSearchQueryChange,
                     textStyle = TextStyle(
                         fontSize = 15.sp,
                         color = PayxPalette.TextPrimary
@@ -245,7 +227,7 @@ private fun SendToScreen(
                     decorationBox = { innerTextField ->
                         if (searchQuery.isEmpty()) {
                             Text(
-                                text = "Search by name or email",
+                                text = "Search by name or UPI",
                                 style = TextStyle(
                                     fontSize = 15.sp,
                                     color = PayxPalette.TextSecondary
@@ -260,21 +242,62 @@ private fun SendToScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Recipient List
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            items(filteredRecipients, key = { it.id }) { recipient ->
-                RecipientItemRow(
-                    recipient = recipient,
-                    onClick = { onRecipientSelected(recipient) }
+        when {
+            isLoading -> {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(color = PayxPalette.VividPurple)
+                }
+            }
+            error != null -> {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 32.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = error,
+                        style = TextStyle(fontSize = 14.sp, color = PayxPalette.TextSecondary)
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "Retry",
+                        style = TextStyle(
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = PayxPalette.SoftLavender
+                        ),
+                        modifier = Modifier.clickable(onClick = onRefresh)
+                    )
+                }
+            }
+            recipients.isEmpty() -> {
+                Text(
+                    text = "No recipients yet.",
+                    style = TextStyle(fontSize = 14.sp, color = PayxPalette.TextSecondary),
+                    modifier = Modifier.padding(top = 32.dp)
                 )
-                HorizontalDivider(
-                    color = Color(0xFF1E1A2C),
-                    thickness = 0.5.dp,
-                    modifier = Modifier.padding(start = 66.dp)
-                )
+            }
+            else -> {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    items(recipients, key = { it.id }) { recipient ->
+                        RecipientItemRow(
+                            recipient = recipient,
+                            onClick = { onRecipientSelected(recipient) }
+                        )
+                        HorizontalDivider(
+                            color = Color(0xFF1E1A2C),
+                            thickness = 0.5.dp,
+                            modifier = Modifier.padding(start = 66.dp)
+                        )
+                    }
+                }
             }
         }
     }
@@ -282,7 +305,7 @@ private fun SendToScreen(
 
 @Composable
 private fun RecipientItemRow(
-    recipient: Recipient,
+    recipient: AddressBookRecipient,
     onClick: () -> Unit
 ) {
     Row(
@@ -311,7 +334,7 @@ private fun RecipientItemRow(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = recipient.avatarInitials,
+                    text = recipient.initials,
                     style = TextStyle(
                         fontFamily = FontFamily.SansSerif,
                         fontSize = 18.sp,
@@ -333,7 +356,7 @@ private fun RecipientItemRow(
                 )
                 Spacer(modifier = Modifier.height(3.dp))
                 Text(
-                    text = recipient.email,
+                    text = recipient.subtitle,
                     style = TextStyle(
                         fontSize = 13.sp,
                         color = PayxPalette.TextSecondary
@@ -363,21 +386,25 @@ private fun RecipientItemRow(
 // -----------------------------------------------------------------------------
 @Composable
 private fun SendMoneyScreen(
-    recipient: Recipient,
+    recipient: AddressBookRecipient,
+    amountInput: String,
+    quote: OffRampQuoteDto?,
+    quoteLoading: Boolean,
+    isSubmitting: Boolean,
+    submitError: String?,
+    onAmountChange: (String) -> Unit,
     onBack: () -> Unit,
     onConfirm: () -> Unit
 ) {
-    var amountInput by remember { mutableStateOf("2000") }
-
     val amountDouble = amountInput.toDoubleOrNull() ?: 0.0
-    val feeRate = 0.0325
-    val feeAmount = amountDouble * feeRate
-    val exchangeRate = 92.90
-    val netSend = (amountDouble - feeAmount).coerceAtLeast(0.0)
-    val receiveInr = netSend * exchangeRate
-
     val inrFormatter = remember { DecimalFormat("#,##,##0.00") }
     val usdFormatter = remember { DecimalFormat("#,##0.00") }
+    val receiveInr = quote?.recipientAmount ?: 0.0
+    val feeInr = quote?.offRampFee ?: 0.0
+    val rate = quote?.exchangeRate ?: 0.0
+    val etaMin = quote?.estimatedMinutesMin ?: 5
+    val etaMax = quote?.estimatedMinutesMax ?: 30
+    val canSubmit = !isSubmitting && amountDouble > 0.0 && quote != null
 
     Box(
         modifier = Modifier
@@ -443,7 +470,7 @@ private fun SendMoneyScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = recipient.avatarInitials,
+                    text = recipient.initials,
                     style = TextStyle(
                         fontSize = 28.sp,
                         fontWeight = FontWeight.Bold,
@@ -469,7 +496,7 @@ private fun SendMoneyScreen(
 
             // Recipient Email
             Text(
-                text = recipient.email,
+                text = recipient.subtitle,
                 style = TextStyle(
                     fontSize = 13.sp,
                     color = PayxPalette.TextSecondary
@@ -500,11 +527,7 @@ private fun SendMoneyScreen(
 
                 BasicTextField(
                     value = amountInput,
-                    onValueChange = {
-                        if (it.length <= 6 && it.all { char -> char.isDigit() }) {
-                            amountInput = it
-                        }
-                    },
+                    onValueChange = onAmountChange,
                     textStyle = TextStyle(
                         fontFamily = FontFamily.Serif,
                         fontSize = 48.sp,
@@ -560,7 +583,7 @@ private fun SendMoneyScreen(
                             )
                             Spacer(modifier = Modifier.width(5.dp))
                             Text(
-                                text = "LIVE",
+                                text = if (quoteLoading) "UPDATING" else "LIVE",
                                 style = TextStyle(
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
@@ -573,10 +596,9 @@ private fun SendMoneyScreen(
 
                     Spacer(modifier = Modifier.height(18.dp))
 
-                    // You send row
                     BreakdownRow(
                         label = "You send",
-                        value = "$${usdFormatter.format(amountDouble)}"
+                        value = "$${usdFormatter.format(amountDouble)} USDC"
                     )
 
                     Spacer(modifier = Modifier.height(12.dp))
@@ -596,7 +618,7 @@ private fun SendMoneyScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "Total fees (3.25%)",
+                                text = "Off-ramp fee (0.50%)",
                                 style = TextStyle(
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Medium,
@@ -605,7 +627,7 @@ private fun SendMoneyScreen(
                             )
 
                             Text(
-                                text = "-$${usdFormatter.format(feeAmount)}",
+                                text = if (quote == null) "—" else "-₹${inrFormatter.format(feeInr)}",
                                 style = TextStyle(
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.SemiBold,
@@ -620,7 +642,7 @@ private fun SendMoneyScreen(
                     // Exchange rate row
                     BreakdownRow(
                         label = "Exchange rate",
-                        value = "1 USD = ₹92.90"
+                        value = if (quote == null) "—" else "1 USDC = ₹${inrFormatter.format(rate)}"
                     )
 
                     Spacer(modifier = Modifier.height(18.dp))
@@ -648,7 +670,7 @@ private fun SendMoneyScreen(
                         )
 
                         Text(
-                            text = "₹${inrFormatter.format(receiveInr)}",
+                            text = if (quote == null) "—" else "₹${inrFormatter.format(receiveInr)}",
                             style = TextStyle(
                                 fontFamily = FontFamily.Serif,
                                 fontSize = 21.sp,
@@ -662,7 +684,7 @@ private fun SendMoneyScreen(
 
                     // Footnote: Estimated delivery
                     Text(
-                        text = "Estimated delivery: 5-10 minutes via UPI",
+                        text = "Estimated delivery: $etaMin-$etaMax minutes via ${recipient.railLabel}",
                         style = TextStyle(
                             fontSize = 12.sp,
                             color = PayxPalette.TextSecondary
@@ -672,39 +694,59 @@ private fun SendMoneyScreen(
             }
         }
 
-        // Bottom Action Button: Matching Login Screen "Continue with Google" Gradient Button
-        Box(
+        Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
                 .navigationBarsPadding()
-                .padding(horizontal = 24.dp, vertical = 20.dp)
-                .height(58.dp)
-                .shadow(
-                    elevation = 14.dp,
-                    shape = RoundedCornerShape(29.dp),
-                    spotColor = Color(0x66A855F7),
-                    ambientColor = Color(0x33A855F7)
-                )
-                .clip(RoundedCornerShape(29.dp))
-                .background(
-                    Brush.horizontalGradient(
-                        listOf(PayxPalette.CardGradientStart, PayxPalette.CardGradientEnd)
-                    )
-                )
-                .clickable(onClick = onConfirm),
-            contentAlignment = Alignment.Center
+                .padding(horizontal = 24.dp, vertical = 20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(
-                text = "SEND MONEY",
-                style = TextStyle(
-                    fontFamily = FontFamily.SansSerif,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    letterSpacing = 0.5.sp,
-                    color = Color.White
+            if (!submitError.isNullOrBlank()) {
+                Text(
+                    text = submitError,
+                    style = TextStyle(fontSize = 12.sp, color = Color(0xFFF87171)),
+                    modifier = Modifier.padding(bottom = 10.dp)
                 )
-            )
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(58.dp)
+                    .shadow(
+                        elevation = 14.dp,
+                        shape = RoundedCornerShape(29.dp),
+                        spotColor = Color(0x66A855F7),
+                        ambientColor = Color(0x33A855F7)
+                    )
+                    .clip(RoundedCornerShape(29.dp))
+                    .background(
+                        Brush.horizontalGradient(
+                            listOf(PayxPalette.CardGradientStart, PayxPalette.CardGradientEnd)
+                        )
+                    )
+                    .clickable(enabled = canSubmit, onClick = onConfirm),
+                contentAlignment = Alignment.Center
+            ) {
+                if (isSubmitting) {
+                    CircularProgressIndicator(
+                        color = Color.White,
+                        strokeWidth = 2.dp,
+                        modifier = Modifier.size(22.dp)
+                    )
+                } else {
+                    Text(
+                        text = "SEND MONEY",
+                        style = TextStyle(
+                            fontFamily = FontFamily.SansSerif,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            letterSpacing = 0.5.sp,
+                            color = Color.White
+                        )
+                    )
+                }
+            }
         }
     }
 }

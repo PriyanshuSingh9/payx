@@ -1,7 +1,6 @@
 package com.payx.app.ui.screens
 
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
@@ -14,7 +13,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -32,15 +30,15 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Share
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -58,32 +56,37 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.payx.app.data.PaymentDto
+import com.payx.app.payments.TrackerUiState
 import com.payx.app.ui.components.IndiaFlag
 import com.payx.app.ui.components.UsaFlag
 import com.payx.app.ui.theme.PayxPalette
-import kotlinx.coroutines.launch
+import java.text.DecimalFormat
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
 @Composable
 fun TrackerScreen(
-    transferId: String = "px-demo-transfer",
+    state: TrackerUiState,
     onDone: () -> Unit
 ) {
-    val scope = rememberCoroutineScope()
     val printAnim = remember { Animatable(0f) }
+    val payment = state.payment
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(payment?.id, payment?.status) {
+        printAnim.snapTo(0f)
         printAnim.animateTo(
             targetValue = 1f,
             animationSpec = tween(durationMillis = 1800, easing = LinearOutSlowInEasing)
         )
     }
 
-    val currentDateStr = remember {
+    val currentDateStr = remember(payment?.updatedAt, payment?.createdAt) {
+        val raw = payment?.completedAt ?: payment?.updatedAt ?: payment?.createdAt
+        val parsed = raw?.let { runCatching { SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US).parse(it) }.getOrNull() }
         val sdf = SimpleDateFormat("MMM dd, yyyy - HH:mm", Locale.US)
-        sdf.format(Date())
+        sdf.format(parsed ?: Date())
     }
 
     Box(
@@ -161,7 +164,7 @@ fun TrackerScreen(
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = "Anchor On-Chain Escrow #0x7A9B",
+                        text = payment?.id ?: state.paymentId,
                         style = TextStyle(
                             fontSize = 11.sp,
                             letterSpacing = 0.5.sp,
@@ -172,13 +175,7 @@ fun TrackerScreen(
 
                 IconButton(
                     onClick = {
-                        scope.launch {
-                            printAnim.snapTo(0f)
-                            printAnim.animateTo(
-                                targetValue = 1f,
-                                animationSpec = tween(durationMillis = 1800, easing = LinearOutSlowInEasing)
-                            )
-                        }
+                        // reprint is driven by payment status changes
                     },
                     modifier = Modifier.align(Alignment.CenterEnd)
                 ) {
@@ -193,7 +190,10 @@ fun TrackerScreen(
             Spacer(modifier = Modifier.height(4.dp))
 
             // Printer Dispenser Unit (Feeder Slot)
-            PrinterSlotHeader(isPrinting = printAnim.value < 1f)
+            PrinterSlotHeader(
+                isPrinting = printAnim.value < 1f || state.isAdvancing,
+                label = if (state.isAdvancing) "ADVANCING PIPELINE..." else null
+            )
 
             // Printed Receipt Container with Downward Feeder Roll Animation
             Box(
@@ -213,11 +213,27 @@ fun TrackerScreen(
                         .height(currentHeight)
                         .clipToBounds()
                 ) {
-                    ThermalReceiptPaper(
-                        transferId = transferId,
-                        dateStr = currentDateStr,
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                    if (state.isLoading && payment == null) {
+                        Box(
+                            modifier = Modifier.fillMaxWidth().height(180.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(color = PayxPalette.VividPurple)
+                        }
+                    } else if (state.error != null && payment == null) {
+                        Text(
+                            text = state.error,
+                            style = TextStyle(fontSize = 13.sp, color = Color(0xFFF87171)),
+                            modifier = Modifier.padding(24.dp)
+                        )
+                    } else {
+                        ThermalReceiptPaper(
+                            payment = payment,
+                            paymentId = state.paymentId,
+                            dateStr = currentDateStr,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
                 }
             }
 
@@ -270,7 +286,7 @@ fun TrackerScreen(
  * Modern Thermal Printer Feeder Slot Header
  */
 @Composable
-private fun PrinterSlotHeader(isPrinting: Boolean) {
+private fun PrinterSlotHeader(isPrinting: Boolean, label: String? = null) {
     Surface(
         shape = RoundedCornerShape(12.dp),
         color = Color(0xFF0F0B18),
@@ -300,7 +316,8 @@ private fun PrinterSlotHeader(isPrinting: Boolean) {
                         )
                 )
                 Text(
-                    text = if (isPrinting) "PRINTING RECEIPT..." else "PAYX THERMAL DISPENSER",
+                    text = label
+                        ?: if (isPrinting) "PRINTING RECEIPT..." else "PAYX THERMAL DISPENSER",
                     style = TextStyle(
                         fontSize = 9.sp,
                         letterSpacing = 1.sp,
@@ -327,10 +344,28 @@ private fun PrinterSlotHeader(isPrinting: Boolean) {
  */
 @Composable
 private fun ThermalReceiptPaper(
-    transferId: String,
+    payment: PaymentDto?,
+    paymentId: String,
     dateStr: String,
     modifier: Modifier = Modifier
 ) {
+    val inrFormatter = remember { DecimalFormat("#,##,##0.00") }
+    val usdFormatter = remember { DecimalFormat("#,##0.00") }
+    val receiveInr = payment?.destinationAmount ?: payment?.quote?.recipientAmount ?: 0.0
+    val sendUsd = payment?.sourceAmount ?: 0.0
+    val rate = payment?.exchangeRate ?: payment?.quote?.exchangeRate ?: 0.0
+    val fee = payment?.fees?.offRampFee ?: payment?.quote?.offRampFee ?: 0.0
+    val signature = payment?.blockchainTransaction?.transactionSignature.orEmpty()
+    val shortSig = if (signature.length > 10) {
+        signature.take(4) + "..." + signature.takeLast(4)
+    } else {
+        signature.ifBlank { "pending" }
+    }
+    val utr = payment?.offRampOrder?.payoutReference
+    val recipientName = payment?.recipient?.name ?: "Recipient"
+    val destination = payment?.recipient?.upiId
+        ?: payment?.recipient?.phone
+        ?: "—"
     val teethShape = remember {
         GenericShape { size, _ ->
             val w = size.width
@@ -446,7 +481,7 @@ private fun ThermalReceiptPaper(
                     }
 
                     Text(
-                        text = "PAYMENT COMPLETED",
+                        text = payment?.statusLabel ?: "LOADING PAYMENT",
                         style = TextStyle(
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
@@ -461,7 +496,7 @@ private fun ThermalReceiptPaper(
 
             // Large Amount Disbursed
             Text(
-                text = "₹1,79,761.50",
+                text = "₹${inrFormatter.format(receiveInr)}",
                 style = TextStyle(
                     fontFamily = FontFamily.Serif,
                     fontSize = 32.sp,
@@ -471,7 +506,7 @@ private fun ThermalReceiptPaper(
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
-                text = "$2,000.00 USD sent via Solana Escrow",
+                text = "$${usdFormatter.format(sendUsd)} USDC sent via Solana escrow",
                 style = TextStyle(
                     fontSize = 12.sp,
                     color = PayxPalette.TextSecondary
@@ -511,7 +546,7 @@ private fun ThermalReceiptPaper(
                 }
 
                 Text(
-                    text = "1 USD = ₹92.90",
+                    text = if (rate == 0.0) "—" else "1 USDC = ₹${inrFormatter.format(rate)}",
                     style = TextStyle(
                         fontSize = 11.sp,
                         color = PayxPalette.SoftLavender
@@ -537,13 +572,15 @@ private fun ThermalReceiptPaper(
             Spacer(modifier = Modifier.height(12.dp))
 
             // Detailed Receipt Key-Values
-            ReceiptDetailRow(label = "Recipient", value = "Priya Sharma")
-            ReceiptDetailRow(label = "Destination UPI", value = "priya.sharma@upi")
-            ReceiptDetailRow(label = "Sender", value = "Priyanshu Singh")
-            ReceiptDetailRow(label = "Transfer Fee (3.25%)", value = "-$65.00 USD")
+            ReceiptDetailRow(label = "Recipient", value = recipientName)
+            ReceiptDetailRow(label = "Destination", value = destination)
+            ReceiptDetailRow(label = "Off-ramp fee", value = "₹${inrFormatter.format(fee)}")
             ReceiptDetailRow(label = "Date & Time", value = dateStr)
-            ReceiptDetailRow(label = "Transfer ID", value = "PX-8942-US-IN")
-            ReceiptDetailRow(label = "Escrow PDA", value = "8zB3...4xK2 (Solscan)")
+            ReceiptDetailRow(label = "Payment ID", value = payment?.id ?: paymentId)
+            ReceiptDetailRow(label = "Solana sig", value = shortSig)
+            if (!utr.isNullOrBlank()) {
+                ReceiptDetailRow(label = "UTR", value = utr)
+            }
 
             Spacer(modifier = Modifier.height(12.dp))
 
