@@ -134,30 +134,23 @@ fun LoginScreen(onSignedIn: () -> Unit) {
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     PayxHeaderLogo()
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = "PAY",
-                            style = TextStyle(
-                                fontFamily = FontFamily.SansSerif,
-                                fontSize = 21.sp,
-                                fontWeight = FontWeight.Black,
-                                letterSpacing = 1.sp,
-                                color = Color.White
-                            )
-                        )
-                        Text(
-                            text = "X",
-                            style = TextStyle(
-                                fontFamily = FontFamily.SansSerif,
-                                fontSize = 22.sp,
-                                fontWeight = FontWeight.Black,
-                                letterSpacing = 1.sp,
-                                brush = Brush.horizontalGradient(
-                                    listOf(PayxPalette.VividPurple, PayxPalette.SoftLavender)
+                    // Single text with sweeping gradient — premium fintech wordmark
+                    Text(
+                        text = "PayX",
+                        style = TextStyle(
+                            fontFamily = FontFamily.SansSerif,
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            letterSpacing = 2.sp,
+                            brush = Brush.horizontalGradient(
+                                colorStops = arrayOf(
+                                    0.0f to Color.White,
+                                    0.55f to Color(0xFFD0C4FC),
+                                    1.0f to Color(0xFFAE9EF8)
                                 )
                             )
                         )
-                    }
+                    )
                 }
 
                 IconButton(
@@ -271,8 +264,8 @@ fun LoginScreen(onSignedIn: () -> Unit) {
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            // Google G logo — no white background, rendered directly
-                            GoogleOfficialLogo(modifier = Modifier.size(22.dp))
+                            // Google G logo with transparent background
+                            GoogleOfficialLogo(modifier = Modifier.size(20.dp))
                             Spacer(modifier = Modifier.width(12.dp))
                             Text(
                                 text = "Continue with Google",
@@ -1042,17 +1035,12 @@ private object GooglePaths {
 
 /**
  * Official Google "G" 4-Color Vector Logo
- * Draws a contained dark disc first so the inner arc gap shows dark, not white.
+ * Completely transparent background — renders 4-color G directly on parent surface.
  */
 @Composable
 private fun GoogleOfficialLogo(modifier: Modifier = Modifier) {
     Canvas(modifier = modifier) {
         val s = size.minDimension / 24f
-        // Dark disc — prevents button surface bleeding through inner arc cutout
-        drawCircle(
-            color = Color(0xFF211660),
-            radius = size.minDimension / 2f
-        )
         scale(scaleX = s, scaleY = s, pivot = Offset.Zero) {
             drawPath(GooglePaths.bluePath, color = Color(0xFF4285F4))
             drawPath(GooglePaths.greenPath, color = Color(0xFF34A853))
