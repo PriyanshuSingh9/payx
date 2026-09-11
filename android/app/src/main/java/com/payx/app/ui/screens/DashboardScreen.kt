@@ -161,6 +161,7 @@ fun DashboardScreen(
                         .padding(horizontal = 20.dp),
                     horizontalArrangement = Arrangement.spacedBy(22.dp),
                     verticalAlignment = Alignment.CenterVertically
+                ) {
                     if (state.recentRecipients.isNotEmpty()) {
                         state.recentRecipients.forEach { payment ->
                             val initial = payment.recipient.name.firstOrNull()?.uppercaseChar()?.toString() ?: "R"
