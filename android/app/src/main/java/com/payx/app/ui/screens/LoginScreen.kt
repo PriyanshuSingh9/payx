@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -50,8 +51,10 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -69,8 +72,8 @@ import kotlin.math.sin
 fun LoginScreen(onSignedIn: () -> Unit) {
     val ambientBackground = Brush.verticalGradient(
         colorStops = arrayOf(
-            0.0f to Color(0xFF191328),
-            0.35f to Color(0xFF110E1A),
+            0.0f to Color(0xFF181226),
+            0.35f to Color(0xFF100D18),
             0.70f to PayxPalette.Obsidian,
             1.0f to PayxPalette.Obsidian
         )
@@ -95,11 +98,11 @@ fun LoginScreen(onSignedIn: () -> Unit) {
             drawPath(path1, color = purpleGlow, style = Stroke(width = 1.5.dp.toPx()))
 
             val path2 = Path().apply {
-                moveTo(0f, size.height * 0.42f)
+                moveTo(0f, size.height * 0.44f)
                 cubicTo(
-                    size.width * 0.4f, size.height * 0.48f,
-                    size.width * 0.65f, size.height * 0.36f,
-                    size.width, size.height * 0.44f
+                    size.width * 0.4f, size.height * 0.50f,
+                    size.width * 0.65f, size.height * 0.38f,
+                    size.width, size.height * 0.46f
                 )
             }
             drawPath(path2, color = Color(0x10A855F7), style = Stroke(width = 1.2.dp.toPx()))
@@ -110,11 +113,11 @@ fun LoginScreen(onSignedIn: () -> Unit) {
                 .fillMaxSize()
                 .statusBarsPadding()
                 .navigationBarsPadding()
-                .padding(horizontal = 24.dp, vertical = 12.dp),
+                .padding(horizontal = 24.dp, vertical = 14.dp),
             verticalArrangement = Arrangement.SpaceBetween,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Top Bar with PayX wordmark & logo
+            // Top Bar: Premium PayX Logo & Wordmark
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -126,17 +129,33 @@ fun LoginScreen(onSignedIn: () -> Unit) {
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    PayxMiniLogo()
-                    Text(
-                        text = "payx",
-                        style = TextStyle(
-                            fontFamily = FontFamily.SansSerif,
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = (-0.5).sp,
-                            color = Color.White
-                        )
-                    )
+                    PayxHeaderLogo()
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "PAY",
+                                style = TextStyle(
+                                    fontFamily = FontFamily.SansSerif,
+                                    fontSize = 21.sp,
+                                    fontWeight = FontWeight.Black,
+                                    letterSpacing = 1.sp,
+                                    color = Color.White
+                                )
+                            )
+                            Text(
+                                text = "X",
+                                style = TextStyle(
+                                    fontFamily = FontFamily.SansSerif,
+                                    fontSize = 22.sp,
+                                    fontWeight = FontWeight.Black,
+                                    letterSpacing = 1.sp,
+                                    brush = Brush.horizontalGradient(
+                                        listOf(PayxPalette.VividPurple, PayxPalette.SoftLavender)
+                                    )
+                                )
+                            )
+                        }
+                    }
                 }
 
                 IconButton(
@@ -151,91 +170,69 @@ fun LoginScreen(onSignedIn: () -> Unit) {
                 }
             }
 
-            // Center Dynamic Animated Sticker Cluster
-            AnimatedHeroCluster(
+            // Crazy Animated PayX Holographic Escrow & Remittance Cluster
+            PayxHolographicCluster(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(290.dp)
+                    .height(310.dp)
             )
 
-            // Headline & Information
+            // Luxury Headings Section
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Trust pill badge
-                Surface(
-                    shape = RoundedCornerShape(16.dp),
-                    color = Color(0xFF1E1630),
-                    border = BorderStroke(1.dp, Color(0xFF352752)),
-                    modifier = Modifier.padding(bottom = 14.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        PulsingDot()
-                        Text(
-                            text = "Backed by Solana Escrow & Neon EVM",
-                            style = TextStyle(
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Medium,
-                                letterSpacing = 0.4.sp,
-                                color = PayxPalette.SoftLavender
-                            )
-                        )
-                    }
-                }
-
-                // Bold Headline
                 Text(
                     text = "Global Wealth,\nSeamlessly Curated.",
                     style = TextStyle(
                         fontFamily = FontFamily.Serif,
                         fontWeight = FontWeight.Normal,
-                        fontSize = 36.sp,
-                        lineHeight = 42.sp,
-                        letterSpacing = (-0.6).sp,
-                        color = PayxPalette.TextPrimary,
+                        fontSize = 38.sp,
+                        lineHeight = 44.sp,
+                        letterSpacing = (-0.8).sp,
+                        brush = Brush.verticalGradient(
+                            colors = listOf(
+                                Color.White,
+                                Color(0xFFF3E8FF),
+                                Color(0xFFD8B4FE)
+                            )
+                        ),
                         textAlign = TextAlign.Center
                     )
                 )
 
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
-                // Subtitle
                 Text(
-                    text = "Experience cross-border remittance with instant settlement and non-custodial cryptographic guarantees.",
+                    text = "Instant non-custodial remittance protocol powered by on-chain escrow custody and automated fiat settlement.",
                     style = TextStyle(
                         fontFamily = FontFamily.SansSerif,
                         fontWeight = FontWeight.Normal,
                         fontSize = 13.5.sp,
-                        lineHeight = 19.sp,
+                        lineHeight = 20.sp,
                         color = PayxPalette.TextSecondary,
                         textAlign = TextAlign.Center
                     ),
-                    modifier = Modifier.padding(horizontal = 12.dp)
+                    modifier = Modifier.padding(horizontal = 14.dp)
                 )
             }
 
-            // Bottom Actions Section
+            // Bottom Action Area
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Terms of Service
                 Text(
                     text = "By continuing, you agree to our Terms of Service\nand Privacy Policy.",
                     style = TextStyle(
                         fontFamily = FontFamily.SansSerif,
-                        fontSize = 11.5.sp,
-                        lineHeight = 16.sp,
+                        fontSize = 12.sp,
+                        lineHeight = 17.sp,
                         fontWeight = FontWeight.Normal,
                         color = PayxPalette.TextTertiary,
                         textAlign = TextAlign.Center
                     ),
-                    modifier = Modifier.padding(bottom = 14.dp)
+                    modifier = Modifier.padding(bottom = 16.dp)
                 )
 
                 // Continue with Google Button
@@ -247,14 +244,14 @@ fun LoginScreen(onSignedIn: () -> Unit) {
                     onClick = onSignedIn,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(54.dp)
+                        .height(56.dp)
                         .shadow(
-                            elevation = 12.dp,
-                            shape = RoundedCornerShape(27.dp),
+                            elevation = 14.dp,
+                            shape = RoundedCornerShape(28.dp),
                             spotColor = Color(0x66A855F7),
                             ambientColor = Color(0x33A855F7)
                         ),
-                    shape = RoundedCornerShape(27.dp),
+                    shape = RoundedCornerShape(28.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color.Transparent,
                         contentColor = Color.White
@@ -272,13 +269,13 @@ fun LoginScreen(onSignedIn: () -> Unit) {
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            GoogleWhiteGlyph(modifier = Modifier.size(19.dp))
-                            Spacer(modifier = Modifier.width(10.dp))
+                            GoogleWhiteGlyph(modifier = Modifier.size(20.dp))
+                            Spacer(modifier = Modifier.width(12.dp))
                             Text(
                                 text = "Continue with Google",
                                 style = TextStyle(
                                     fontFamily = FontFamily.SansSerif,
-                                    fontSize = 15.sp,
+                                    fontSize = 16.sp,
                                     fontWeight = FontWeight.SemiBold,
                                     letterSpacing = (-0.2).sp,
                                     color = Color.White
@@ -289,117 +286,105 @@ fun LoginScreen(onSignedIn: () -> Unit) {
                 }
 
                 Spacer(modifier = Modifier.height(10.dp))
-
-                // Connect Wallet / Secondary Option
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(48.dp)
-                        .clip(RoundedCornerShape(24.dp))
-                        .background(Color(0xFF1B1528))
-                        .border(1.dp, Color(0xFF2E2345), RoundedCornerShape(24.dp))
-                        .clickable(onClick = onSignedIn),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "Connect Solana Wallet",
-                        style = TextStyle(
-                            fontFamily = FontFamily.SansSerif,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = PayxPalette.SoftLavender
-                        )
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(6.dp))
             }
         }
     }
 }
 
 /**
- * Animated Sticker Cluster with multiple floating micro-animated elements
+ * Unique PayX Holographic Remittance Cluster with crazy multi-layered micro-animations
  */
 @Composable
-private fun AnimatedHeroCluster(modifier: Modifier = Modifier) {
-    val transition = rememberInfiniteTransition(label = "hero_cluster")
+private fun PayxHolographicCluster(modifier: Modifier = Modifier) {
+    val transition = rememberInfiniteTransition(label = "payx_crazy_cluster")
 
-    // Micro-animation floating offsets with varied durations and phase shifts
-    val floatY1 by transition.animateFloat(
-        initialValue = -7f,
-        targetValue = 7f,
-        animationSpec = infiniteRepeatable(tween(2600, easing = FastOutSlowInEasing), RepeatMode.Reverse),
-        label = "floatY1"
-    )
-    val floatY2 by transition.animateFloat(
-        initialValue = 8f,
-        targetValue = -8f,
-        animationSpec = infiniteRepeatable(tween(3200, easing = FastOutSlowInEasing), RepeatMode.Reverse),
-        label = "floatY2"
-    )
-    val floatY3 by transition.animateFloat(
-        initialValue = -6f,
-        targetValue = 6f,
-        animationSpec = infiniteRepeatable(tween(2900, easing = FastOutSlowInEasing), RepeatMode.Reverse),
-        label = "floatY3"
-    )
-    val floatY4 by transition.animateFloat(
-        initialValue = 7f,
-        targetValue = -7f,
-        animationSpec = infiniteRepeatable(tween(2400, easing = FastOutSlowInEasing), RepeatMode.Reverse),
-        label = "floatY4"
-    )
-    val floatY5 by transition.animateFloat(
-        initialValue = -9f,
-        targetValue = 9f,
-        animationSpec = infiniteRepeatable(tween(3500, easing = FastOutSlowInEasing), RepeatMode.Reverse),
-        label = "floatY5"
-    )
-
-    // Rotations & pulses
-    val starRotation by transition.animateFloat(
+    // Continuous 360° Orbital Rotations
+    val orbitAngle by transition.animateFloat(
         initialValue = 0f,
         targetValue = 360f,
-        animationSpec = infiniteRepeatable(tween(16000, easing = LinearEasing), RepeatMode.Restart),
-        label = "starRotation"
+        animationSpec = infiniteRepeatable(tween(8000, easing = LinearEasing), RepeatMode.Restart),
+        label = "orbitAngle"
     )
-    val centerScale by transition.animateFloat(
-        initialValue = 0.97f,
-        targetValue = 1.03f,
-        animationSpec = infiniteRepeatable(tween(2400, easing = FastOutSlowInEasing), RepeatMode.Reverse),
-        label = "centerScale"
+    val counterAngle by transition.animateFloat(
+        initialValue = 360f,
+        targetValue = 0f,
+        animationSpec = infiniteRepeatable(tween(12000, easing = LinearEasing), RepeatMode.Restart),
+        label = "counterAngle"
     )
-    val rotSway1 by transition.animateFloat(
-        initialValue = -5f,
-        targetValue = 5f,
-        animationSpec = infiniteRepeatable(tween(3000, easing = FastOutSlowInEasing), RepeatMode.Reverse),
-        label = "rotSway1"
+
+    // Breathing Pulses & Halos
+    val coreScale by transition.animateFloat(
+        initialValue = 0.95f,
+        targetValue = 1.05f,
+        animationSpec = infiniteRepeatable(tween(2200, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "coreScale"
     )
-    val rotSway2 by transition.animateFloat(
-        initialValue = 6f,
-        targetValue = -4f,
-        animationSpec = infiniteRepeatable(tween(2800, easing = FastOutSlowInEasing), RepeatMode.Reverse),
-        label = "rotSway2"
-    )
-    val auraGlow by transition.animateFloat(
+    val glowIntensity by transition.animateFloat(
         initialValue = 0.35f,
-        targetValue = 0.85f,
-        animationSpec = infiniteRepeatable(tween(2000, easing = FastOutSlowInEasing), RepeatMode.Reverse),
-        label = "auraGlow"
+        targetValue = 0.90f,
+        animationSpec = infiniteRepeatable(tween(1900, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "glowIntensity"
+    )
+
+    // Independent sinusoidal floating offsets for orbiting components
+    val float1 by transition.animateFloat(
+        initialValue = -9f,
+        targetValue = 9f,
+        animationSpec = infiniteRepeatable(tween(2500, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "float1"
+    )
+    val float2 by transition.animateFloat(
+        initialValue = 10f,
+        targetValue = -10f,
+        animationSpec = infiniteRepeatable(tween(3100, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "float2"
+    )
+    val float3 by transition.animateFloat(
+        initialValue = -8f,
+        targetValue = 8f,
+        animationSpec = infiniteRepeatable(tween(2800, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "float3"
+    )
+    val float4 by transition.animateFloat(
+        initialValue = 7f,
+        targetValue = -7f,
+        animationSpec = infiniteRepeatable(tween(3400, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "float4"
+    )
+
+    // 3D Tilts & Sway
+    val tilt3D_1 by transition.animateFloat(
+        initialValue = -8f,
+        targetValue = 8f,
+        animationSpec = infiniteRepeatable(tween(2900, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "tilt3D_1"
+    )
+    val tilt3D_2 by transition.animateFloat(
+        initialValue = 9f,
+        targetValue = -9f,
+        animationSpec = infiniteRepeatable(tween(3600, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "tilt3D_2"
+    )
+
+    // Twinkle & shimmer
+    val sparkleScale by transition.animateFloat(
+        initialValue = 0.65f,
+        targetValue = 1.30f,
+        animationSpec = infiniteRepeatable(tween(1400, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "sparkleScale"
     )
 
     Box(
         modifier = modifier,
         contentAlignment = Alignment.Center
     ) {
-        // Ambient Radial Glow behind the central hub
-        Canvas(modifier = Modifier.size(240.dp)) {
+        // LAYER 0: Ambient Radial Aura Behind Center Core
+        Canvas(modifier = Modifier.size(260.dp)) {
             drawCircle(
                 brush = Brush.radialGradient(
                     colors = listOf(
-                        Color(0xFFA855F7).copy(alpha = 0.35f * auraGlow),
-                        Color(0xFF6B21A8).copy(alpha = 0.15f * auraGlow),
+                        Color(0xFFB55CF8).copy(alpha = 0.32f * glowIntensity),
+                        Color(0xFF7E2AE8).copy(alpha = 0.15f * glowIntensity),
                         Color.Transparent
                     )
                 ),
@@ -407,501 +392,607 @@ private fun AnimatedHeroCluster(modifier: Modifier = Modifier) {
             )
         }
 
-        // 1. Central Hero Orb: Dark Obsidian with Glowing Surge Remittance Arrow
+        // LAYER 1: Dual Tilted Dashed Orbital Gyroscope Rings with Traveling Particles
+        Canvas(
+            modifier = Modifier
+                .size(220.dp)
+                .rotate(orbitAngle)
+        ) {
+            val dashEffect = PathEffect.dashPathEffect(floatArrayOf(12f, 10f), 0f)
+
+            // Orbital Ellipse 1 (tilted 35 deg)
+            drawOval(
+                brush = Brush.linearGradient(
+                    listOf(
+                        Color(0xFFB55CF8).copy(alpha = 0.60f),
+                        Color(0xFF38BDF8).copy(alpha = 0.15f),
+                        Color(0xFFB55CF8).copy(alpha = 0.50f)
+                    )
+                ),
+                style = Stroke(width = 1.5.dp.toPx(), pathEffect = dashEffect)
+            )
+
+            // Traveling Escrow Energy Particle on Orbit 1
+            val rad = orbitAngle * (PI / 180f).toFloat()
+            val rx = size.width / 2f
+            val ry = size.height / 2f
+            val px = rx + rx * cos(rad)
+            val py = ry + ry * sin(rad)
+
+            drawCircle(
+                color = Color.White,
+                radius = 3.5.dp.toPx(),
+                center = Offset(px, py)
+            )
+            drawCircle(
+                color = Color(0xFF38BDF8),
+                radius = 7.dp.toPx(),
+                center = Offset(px, py),
+                style = Stroke(width = 1.5.dp.toPx())
+            )
+        }
+
+        Canvas(
+            modifier = Modifier
+                .size(190.dp)
+                .rotate(counterAngle)
+        ) {
+            val dashEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 12f), 0f)
+            drawOval(
+                brush = Brush.linearGradient(
+                    listOf(
+                        Color(0xFF38BDF8).copy(alpha = 0.50f),
+                        Color(0xFFB55CF8).copy(alpha = 0.20f),
+                        Color(0xFF38BDF8).copy(alpha = 0.40f)
+                    )
+                ),
+                style = Stroke(width = 1.2.dp.toPx(), pathEffect = dashEffect)
+            )
+        }
+
+        // LAYER 2: Central Escrow Holographic Core
         Box(
             modifier = Modifier
-                .size(140.dp)
-                .scale(centerScale)
+                .size(136.dp)
+                .scale(coreScale)
                 .shadow(
-                    elevation = 20.dp,
+                    elevation = 22.dp,
                     shape = CircleShape,
-                    spotColor = Color(0x88A855F7),
-                    ambientColor = Color(0x44A855F7)
+                    spotColor = Color(0x99B55CF8),
+                    ambientColor = Color(0x44B55CF8)
                 )
                 .clip(CircleShape)
                 .background(
-                    Brush.linearGradient(
-                        listOf(Color(0xFF1E1733), Color(0xFF120E1E))
+                    Brush.radialGradient(
+                        colors = listOf(
+                            Color(0xFF2B1D45),
+                            Color(0xFF1A132C),
+                            Color(0xFF0F0B18)
+                        )
                     )
                 )
-                .border(2.dp, Color(0x66B55CF8), CircleShape),
+                .border(
+                    BorderStroke(
+                        2.dp,
+                        Brush.sweepGradient(
+                            listOf(
+                                Color(0xFFB55CF8),
+                                Color(0xFF38BDF8),
+                                Color(0xFF7E2AE8),
+                                Color(0xFFB55CF8)
+                            )
+                        )
+                    ),
+                    CircleShape
+                ),
             contentAlignment = Alignment.Center
         ) {
-            CentralGrowthSurgeCanvas(modifier = Modifier.size(110.dp))
+            // Inside Central Core: Holographic Escrow Shield with Interlocking Currency Glyphs
+            HolographicShieldCore(glow = glowIntensity)
         }
 
-        // 2. Top-Left: Playful PayX Mascot / Ghost shape
+        // LAYER 3: PAYX-EXCLUSIVE SURROUNDING REMITTANCE ELEMENTS
+
+        // 1. Top-Right: Live Cross-Border Currency Corridor Capsule ($ ⇄ ₹)
         Box(
             modifier = Modifier
                 .align(Alignment.Center)
-                .offset(x = (-64).dp, y = (-78).dp + floatY1.dp)
-                .rotate(rotSway1)
+                .offset(x = 76.dp, y = (-84).dp + float1.dp)
+                .rotate(tilt3D_1)
         ) {
-            PayxGhostMascot(modifier = Modifier.size(54.dp, 60.dp))
+            LiveCorridorPill()
         }
 
-        // 3. Top-Right: 8-Pointed Golden Amber Starburst
+        // 2. Top-Left: Faceted Instant Remittance Lightning Prism
         Box(
             modifier = Modifier
                 .align(Alignment.Center)
-                .offset(x = 68.dp, y = (-74).dp + floatY2.dp)
-                .rotate(starRotation)
+                .offset(x = (-82).dp, y = (-80).dp + float2.dp)
+                .rotate(tilt3D_2)
         ) {
-            AmberStarburst(modifier = Modifier.size(46.dp))
+            InstantSettlementPrism()
         }
 
-        // 4. Top-Right / Mid-Right: Solana 3-Bar Gradient Badge
+        // 3. Mid-Right: On-Chain Escrow Custody Vault Tag
         Box(
             modifier = Modifier
                 .align(Alignment.Center)
-                .offset(x = 88.dp, y = (-18).dp + floatY3.dp)
-                .rotate(rotSway2)
+                .offset(x = 94.dp, y = (-2).dp + float3.dp)
+                .rotate(-tilt3D_1 * 0.7f)
         ) {
-            SolanaBadge(modifier = Modifier.size(44.dp))
+            EscrowVaultTag()
         }
 
-        // 5. Far Right: Financial Candlesticks Capsule
+        // 4. Mid-Left: Cross-Border Luminous Route Globe
         Box(
             modifier = Modifier
                 .align(Alignment.Center)
-                .offset(x = 82.dp, y = 42.dp + floatY4.dp)
+                .offset(x = (-94).dp, y = 4.dp + float4.dp)
+                .rotate(tilt3D_2 * 0.8f)
         ) {
-            CandlestickCapsule(modifier = Modifier.size(46.dp, 46.dp))
+            LuminousRouteGlobe()
         }
 
-        // 6. Bottom-Right: UPI Instant Settlement Speech Bubble
+        // 5. Bottom-Right: 3D Minted Remittance Gold Coin ($/₹)
         Box(
             modifier = Modifier
                 .align(Alignment.Center)
-                .offset(x = 36.dp, y = 84.dp + floatY1.dp)
+                .offset(x = 64.dp, y = 78.dp + float2.dp)
+                .graphicsLayer {
+                    rotationY = tilt3D_1 * 2f
+                }
         ) {
-            UpiChatBubble(modifier = Modifier.size(58.dp, 40.dp))
+            MintedRemittanceCoin()
         }
 
-        // 7. Bottom-Left: Indian Rupee Coin Token
+        // 6. Bottom-Left: Instant UPI Fast Settlement Tag
         Box(
             modifier = Modifier
                 .align(Alignment.Center)
-                .offset(x = (-56).dp, y = 76.dp + floatY5.dp)
-                .rotate(-rotSway1)
+                .offset(x = (-66).dp, y = 80.dp + float1.dp)
+                .rotate(-tilt3D_2 * 0.6f)
         ) {
-            CurrencyCoinBadge(symbol = "₹", color = Color(0xFF10B981), modifier = Modifier.size(48.dp))
+            UpiFastTag()
         }
 
-        // 8. Mid-Left: USD Dollar Coin Token
+        // 7. Twinkling Prismatic Diamond Sparkles
         Box(
             modifier = Modifier
                 .align(Alignment.Center)
-                .offset(x = (-88).dp, y = (-14).dp + floatY4.dp)
-                .rotate(rotSway2)
+                .offset(x = (-12).dp, y = (-104).dp)
+                .scale(sparkleScale)
         ) {
-            CurrencyCoinBadge(symbol = "$", color = Color(0xFF38BDF8), modifier = Modifier.size(40.dp))
+            PrismDiamond(color = Color(0xFFC084FC), size = 16.dp)
         }
 
-        // 9. Floating Little Coral Mini-Star Accent (Upper Left)
         Box(
             modifier = Modifier
                 .align(Alignment.Center)
-                .offset(x = (-98).dp, y = (-62).dp + floatY2.dp)
-                .rotate(-starRotation * 0.7f)
+                .offset(x = 104.dp, y = 56.dp)
+                .scale(2f - sparkleScale)
         ) {
-            MiniStar(color = Color(0xFFFB7185), size = 18.dp)
+            PrismDiamond(color = Color(0xFF38BDF8), size = 13.dp)
         }
 
-        // 10. Floating Small Google G Coin (Lower Center)
         Box(
             modifier = Modifier
                 .align(Alignment.Center)
-                .offset(x = (-8).dp, y = 82.dp + floatY3.dp)
+                .offset(x = (-106).dp, y = (-38).dp)
+                .scale(sparkleScale * 0.85f)
         ) {
-            MiniGoogleCoin(modifier = Modifier.size(28.dp))
+            PrismDiamond(color = Color(0xFFFBBF24), size = 11.dp)
         }
     }
 }
 
 /**
- * Center Orb Canvas: Glowing upward remittance growth arrow
+ * Inside the central core: Holographic Escrow Shield with Interlocking Currency Glyphs
  */
 @Composable
-private fun CentralGrowthSurgeCanvas(modifier: Modifier = Modifier) {
-    Canvas(modifier = modifier) {
+private fun HolographicShieldCore(glow: Float) {
+    Canvas(modifier = Modifier.size(92.dp)) {
         val w = size.width
         val h = size.height
 
-        // Remittance growth surge line (upward trend curve)
-        val surgePath = Path().apply {
-            moveTo(w * 0.18f, h * 0.72f)
-            lineTo(w * 0.32f, h * 0.58f)
-            lineTo(w * 0.44f, h * 0.68f)
-            lineTo(w * 0.78f, h * 0.30f)
-        }
-
-        // Outer glow path
-        drawPath(
-            path = surgePath,
-            color = Color(0x66A855F7),
-            style = Stroke(width = 10.dp.toPx(), cap = StrokeCap.Round)
-        )
-
-        // Bright electric purple-to-teal stroke
-        drawPath(
-            path = surgePath,
-            brush = Brush.linearGradient(
-                colors = listOf(
-                    Color(0xFFB55CF8),
-                    Color(0xFF34D399),
-                    Color(0xFF10B981)
-                )
-            ),
-            style = Stroke(width = 5.dp.toPx(), cap = StrokeCap.Round)
-        )
-
-        // Arrow head pointing upward-right
-        val arrowHead = Path().apply {
-            moveTo(w * 0.58f, h * 0.30f)
-            lineTo(w * 0.82f, h * 0.28f)
-            lineTo(w * 0.80f, h * 0.52f)
-        }
-        drawPath(
-            path = arrowHead,
-            color = Color(0xFF10B981),
-            style = Stroke(width = 5.dp.toPx(), cap = StrokeCap.Round)
-        )
-    }
-}
-
-/**
- * Playful Mascot/Ghost shape in electric violet
- */
-@Composable
-private fun PayxGhostMascot(modifier: Modifier = Modifier) {
-    Canvas(modifier = modifier) {
-        val w = size.width
-        val h = size.height
-
-        val ghostPath = Path().apply {
-            moveTo(w * 0.15f, h * 0.90f)
-            cubicTo(w * 0.10f, h * 0.40f, w * 0.25f, h * 0.05f, w * 0.60f, h * 0.05f)
-            cubicTo(w * 0.95f, h * 0.05f, w * 0.95f, h * 0.50f, w * 0.85f, h * 0.90f)
-            cubicTo(w * 0.70f, h * 0.80f, w * 0.55f, h * 0.95f, w * 0.40f, h * 0.85f)
-            cubicTo(w * 0.28f, h * 0.95f, w * 0.18f, h * 0.85f, w * 0.15f, h * 0.90f)
+        // Shield Path
+        val shieldPath = Path().apply {
+            moveTo(w * 0.50f, h * 0.12f)
+            cubicTo(w * 0.78f, h * 0.12f, w * 0.88f, h * 0.20f, w * 0.88f, h * 0.44f)
+            cubicTo(w * 0.88f, h * 0.72f, w * 0.68f, h * 0.88f, w * 0.50f, h * 0.96f)
+            cubicTo(w * 0.32f, h * 0.88f, w * 0.12f, h * 0.72f, w * 0.12f, h * 0.44f)
+            cubicTo(w * 0.12f, h * 0.20f, w * 0.22f, h * 0.12f, w * 0.50f, h * 0.12f)
             close()
         }
 
+        // Outer glow on shield
         drawPath(
-            path = ghostPath,
+            path = shieldPath,
+            color = Color(0xFFB55CF8).copy(alpha = 0.30f * glow),
+            style = Stroke(width = 6.dp.toPx())
+        )
+
+        // Gradient Shield outline
+        drawPath(
+            path = shieldPath,
             brush = Brush.verticalGradient(
-                listOf(Color(0xFFC084FC), Color(0xFF8B5CF6))
+                listOf(Color(0xFFD8B4FE), Color(0xFF7E2AE8))
+            ),
+            style = Stroke(width = 2.4.dp.toPx())
+        )
+
+        // Shield inner dark crystal fill
+        drawPath(
+            path = shieldPath,
+            brush = Brush.radialGradient(
+                colors = listOf(
+                    Color(0xFF3B2763).copy(alpha = 0.8f),
+                    Color(0xFF1E1436).copy(alpha = 0.9f)
+                ),
+                center = Offset(w * 0.5f, h * 0.5f)
             )
         )
 
-        // Playful cartoon eyes
-        val eyeRadius = w * 0.08f
-        drawCircle(
-            color = Color(0xFF1E1436),
-            radius = eyeRadius,
-            center = Offset(w * 0.52f, h * 0.38f)
-        )
-        drawCircle(
-            color = Color(0xFF1E1436),
-            radius = eyeRadius,
-            center = Offset(w * 0.74f, h * 0.36f)
-        )
-    }
-}
-
-/**
- * 8-Pointed Golden Amber Starburst
- */
-@Composable
-private fun AmberStarburst(modifier: Modifier = Modifier) {
-    Canvas(modifier = modifier) {
-        val center = Offset(size.width / 2f, size.height / 2f)
-        val outerR = size.width / 2f
-        val innerR = outerR * 0.42f
-        val points = 8
-
-        val path = Path()
-        for (i in 0 until points * 2) {
-            val r = if (i % 2 == 0) outerR else innerR
-            val angle = (i * PI / points).toFloat()
-            val x = center.x + r * cos(angle)
-            val y = center.y + r * sin(angle)
-            if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
+        // Dynamic Curvature Upward Currency Flow Path Inside Shield
+        val flowLine = Path().apply {
+            moveTo(w * 0.28f, h * 0.64f)
+            cubicTo(w * 0.36f, h * 0.46f, w * 0.58f, h * 0.62f, w * 0.72f, h * 0.36f)
         }
-        path.close()
 
         drawPath(
-            path = path,
-            brush = Brush.radialGradient(
-                listOf(Color(0xFFFDE047), Color(0xFFF59E0B))
-            )
+            path = flowLine,
+            brush = Brush.horizontalGradient(
+                listOf(Color(0xFF38BDF8), Color(0xFFB55CF8))
+            ),
+            style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round)
         )
+
+        // Arrow head pointing upward
+        val arrow = Path().apply {
+            moveTo(w * 0.58f, h * 0.36f)
+            lineTo(w * 0.74f, h * 0.34f)
+            lineTo(w * 0.72f, h * 0.50f)
+        }
+        drawPath(
+            path = arrow,
+            color = Color(0xFF38BDF8),
+            style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round)
+        )
+
+        // Center Lock Keyhole Icon Accent
+        drawCircle(
+            color = Color.White,
+            radius = 3.5.dp.toPx(),
+            center = Offset(w * 0.50f, h * 0.44f)
+        )
+        val keyholeBody = Path().apply {
+            moveTo(w * 0.47f, h * 0.44f)
+            lineTo(w * 0.45f, h * 0.56f)
+            lineTo(w * 0.55f, h * 0.56f)
+            lineTo(w * 0.53f, h * 0.44f)
+            close()
+        }
+        drawPath(keyholeBody, color = Color.White)
     }
 }
 
 /**
- * Solana 3-Bar Gradient Badge
+ * 1. Live Cross-Border Corridor Pill (USD ⇄ INR • LIVE)
  */
 @Composable
-private fun SolanaBadge(modifier: Modifier = Modifier) {
+private fun LiveCorridorPill() {
+    Surface(
+        shape = RoundedCornerShape(18.dp),
+        color = Color(0xFF1E1530),
+        border = BorderStroke(1.dp, Color(0xFF4C3672)),
+        shadowElevation = 8.dp
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(5.dp)
+        ) {
+            UsaFlag(width = 14.dp, height = 10.dp)
+            Text(
+                text = "⇄",
+                style = TextStyle(
+                    fontSize = 11.sp,
+                    color = PayxPalette.SoftLavender,
+                    fontWeight = FontWeight.Bold
+                )
+            )
+            IndiaFlag(width = 14.dp, height = 10.dp)
+            Box(
+                modifier = Modifier
+                    .size(5.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFF34D399))
+            )
+        }
+    }
+}
+
+/**
+ * 2. Faceted Instant Remittance Lightning Prism
+ */
+@Composable
+private fun InstantSettlementPrism() {
     Box(
-        modifier = modifier
-            .clip(CircleShape)
-            .background(Color(0xFF1A1428))
-            .border(1.dp, Color(0xFF382A56), CircleShape),
+        modifier = Modifier
+            .size(44.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(
+                Brush.linearGradient(
+                    listOf(Color(0xFF261942), Color(0xFF150D26))
+                )
+            )
+            .border(1.dp, Color(0xFF6B42A6), RoundedCornerShape(14.dp)),
         contentAlignment = Alignment.Center
     ) {
         Canvas(modifier = Modifier.size(24.dp)) {
-            val barH = size.height * 0.16f
-            val barW = size.width * 0.75f
-            val corner = CornerRadius(2.dp.toPx(), 2.dp.toPx())
-            val solanaBrush = Brush.linearGradient(
-                listOf(Color(0xFF9945FF), Color(0xFF14F195))
-            )
+            val w = size.width
+            val h = size.height
 
-            // Top bar
-            drawRoundRect(
-                brush = solanaBrush,
-                topLeft = Offset(size.width * 0.12f, size.height * 0.18f),
-                size = Size(barW, barH),
-                cornerRadius = corner
-            )
-
-            // Mid bar
-            drawRoundRect(
-                brush = solanaBrush,
-                topLeft = Offset(size.width * 0.18f, size.height * 0.42f),
-                size = Size(barW, barH),
-                cornerRadius = corner
-            )
-
-            // Bottom bar
-            drawRoundRect(
-                brush = solanaBrush,
-                topLeft = Offset(size.width * 0.12f, size.height * 0.66f),
-                size = Size(barW, barH),
-                cornerRadius = corner
-            )
-        }
-    }
-}
-
-/**
- * Mini Financial Candlestick Capsule
- */
-@Composable
-private fun CandlestickCapsule(modifier: Modifier = Modifier) {
-    Box(
-        modifier = modifier
-            .clip(CircleShape)
-            .background(Color(0xFF191326))
-            .border(1.dp, Color(0xFF32264C), CircleShape),
-        contentAlignment = Alignment.Center
-    ) {
-        Canvas(modifier = Modifier.size(26.dp)) {
-            val stroke = 1.5.dp.toPx()
-
-            // Left orange candlestick
-            drawLine(
-                color = Color(0xFFF97316),
-                start = Offset(size.width * 0.35f, size.height * 0.20f),
-                end = Offset(size.width * 0.35f, size.height * 0.80f),
-                strokeWidth = stroke
-            )
-            drawRoundRect(
-                color = Color(0xFFF97316),
-                topLeft = Offset(size.width * 0.24f, size.height * 0.34f),
-                size = Size(size.width * 0.22f, size.height * 0.36f),
-                cornerRadius = CornerRadius(2.dp.toPx(), 2.dp.toPx())
-            )
-
-            // Right emerald candlestick
-            drawLine(
-                color = Color(0xFF10B981),
-                start = Offset(size.width * 0.72f, size.height * 0.15f),
-                end = Offset(size.width * 0.72f, size.height * 0.75f),
-                strokeWidth = stroke
-            )
-            drawRoundRect(
-                color = Color(0xFF10B981),
-                topLeft = Offset(size.width * 0.61f, size.height * 0.26f),
-                size = Size(size.width * 0.22f, size.height * 0.38f),
-                cornerRadius = CornerRadius(2.dp.toPx(), 2.dp.toPx())
-            )
-        }
-    }
-}
-
-/**
- * UPI Instant Settlement Speech Bubble in Emerald / Cyan
- */
-@Composable
-private fun UpiChatBubble(modifier: Modifier = Modifier) {
-    Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(16.dp))
-            .background(
-                Brush.linearGradient(
-                    listOf(Color(0xFF059669), Color(0xFF10B981))
+            // Faceted Lightning Prism
+            val boltLeft = Path().apply {
+                moveTo(w * 0.55f, 0f)
+                lineTo(w * 0.20f, h * 0.52f)
+                lineTo(w * 0.48f, h * 0.52f)
+                lineTo(w * 0.35f, h)
+                close()
+            }
+            drawPath(
+                path = boltLeft,
+                brush = Brush.verticalGradient(
+                    listOf(Color(0xFFFDE047), Color(0xFFF59E0B))
                 )
             )
-            .border(1.dp, Color(0x6634D399), RoundedCornerShape(16.dp)),
+
+            val boltRight = Path().apply {
+                moveTo(w * 0.55f, 0f)
+                lineTo(w * 0.48f, h * 0.52f)
+                lineTo(w * 0.35f, h)
+                lineTo(w * 0.85f, h * 0.45f)
+                lineTo(w * 0.52f, h * 0.45f)
+                close()
+            }
+            drawPath(
+                path = boltRight,
+                brush = Brush.verticalGradient(
+                    listOf(Color(0xFFF59E0B), Color(0xFFD97706))
+                )
+            )
+        }
+    }
+}
+
+/**
+ * 3. On-Chain Escrow Custody Vault Tag
+ */
+@Composable
+private fun EscrowVaultTag() {
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = Color(0xFF1C142B),
+        border = BorderStroke(1.dp, Color(0xFF3F2B60)),
+        shadowElevation = 6.dp
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Lock,
+                contentDescription = null,
+                tint = Color(0xFFC084FC),
+                modifier = Modifier.size(11.dp)
+            )
+            Text(
+                text = "ESCROW",
+                style = TextStyle(
+                    fontFamily = FontFamily.SansSerif,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.6.sp,
+                    color = Color.White
+                )
+            )
+        }
+    }
+}
+
+/**
+ * 4. Cross-Border Luminous Route Globe
+ */
+@Composable
+private fun LuminousRouteGlobe() {
+    Box(
+        modifier = Modifier
+            .size(46.dp)
+            .clip(CircleShape)
+            .background(
+                Brush.radialGradient(
+                    listOf(Color(0xFF22173B), Color(0xFF120C22))
+                )
+            )
+            .border(1.dp, Color(0xFF38BDF8).copy(alpha = 0.5f), CircleShape),
+        contentAlignment = Alignment.Center
+    ) {
+        Canvas(modifier = Modifier.size(30.dp)) {
+            val stroke = 1.dp.toPx()
+            // Latitude lines
+            drawOval(
+                color = Color(0xFF38BDF8).copy(alpha = 0.5f),
+                style = Stroke(width = stroke)
+            )
+            drawOval(
+                color = Color(0xFFB55CF8).copy(alpha = 0.5f),
+                topLeft = Offset(size.width * 0.18f, 0f),
+                size = Size(size.width * 0.64f, size.height),
+                style = Stroke(width = stroke)
+            )
+            // Equator
+            drawLine(
+                color = Color(0xFF38BDF8).copy(alpha = 0.6f),
+                start = Offset(0f, size.height / 2f),
+                end = Offset(size.width, size.height / 2f),
+                strokeWidth = stroke
+            )
+            // Route arc
+            val routeArc = Path().apply {
+                moveTo(size.width * 0.2f, size.height * 0.4f)
+                cubicTo(size.width * 0.5f, size.height * 0.15f, size.width * 0.65f, size.height * 0.35f, size.width * 0.8f, size.height * 0.6f)
+            }
+            drawPath(
+                routeArc,
+                color = Color.White,
+                style = Stroke(width = 1.6.dp.toPx(), cap = StrokeCap.Round)
+            )
+            drawCircle(color = Color(0xFF38BDF8), radius = 2.2.dp.toPx(), center = Offset(size.width * 0.2f, size.height * 0.4f))
+            drawCircle(color = Color(0xFF10B981), radius = 2.2.dp.toPx(), center = Offset(size.width * 0.8f, size.height * 0.6f))
+        }
+    }
+}
+
+/**
+ * 5. 3D Minted Remittance Coin with dual currency glyphs
+ */
+@Composable
+private fun MintedRemittanceCoin() {
+    Box(
+        modifier = Modifier
+            .size(46.dp)
+            .clip(CircleShape)
+            .background(
+                Brush.linearGradient(
+                    listOf(Color(0xFFFBBF24), Color(0xFFD97706), Color(0xFF92400E))
+                )
+            )
+            .border(1.5.dp, Color(0xFFFDE68A), CircleShape)
+            .shadow(10.dp, CircleShape, spotColor = Color(0x88F59E0B)),
         contentAlignment = Alignment.Center
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(2.dp)
+            horizontalArrangement = Arrangement.Center
         ) {
             Text(
-                text = "UPI",
+                text = "$",
+                style = TextStyle(
+                    fontFamily = FontFamily.Serif,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Black,
+                    color = Color(0xFF451A03)
+                )
+            )
+            Text(
+                text = "₹",
+                style = TextStyle(
+                    fontFamily = FontFamily.Serif,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Black,
+                    color = Color(0xFF78350F)
+                )
+            )
+        }
+    }
+}
+
+/**
+ * 6. Instant UPI Fast Settlement Tag
+ */
+@Composable
+private fun UpiFastTag() {
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = Color(0xFF13251E),
+        border = BorderStroke(1.dp, Color(0xFF10B981).copy(alpha = 0.6f)),
+        shadowElevation = 6.dp
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(6.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFF34D399))
+            )
+            Text(
+                text = "UPI SETTLE",
                 style = TextStyle(
                     fontFamily = FontFamily.SansSerif,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold,
                     letterSpacing = 0.5.sp,
-                    color = Color.White
+                    color = Color(0xFF34D399)
                 )
             )
-            Canvas(modifier = Modifier.size(9.dp, 12.dp)) {
-                val bolt = Path().apply {
-                    moveTo(size.width * 0.65f, 0f)
-                    lineTo(size.width * 0.15f, size.height * 0.55f)
-                    lineTo(size.width * 0.55f, size.height * 0.55f)
-                    lineTo(size.width * 0.35f, size.height)
-                    lineTo(size.width * 0.85f, size.height * 0.45f)
-                    lineTo(size.width * 0.50f, size.height * 0.45f)
-                    close()
-                }
-                drawPath(bolt, color = Color.White)
-            }
         }
     }
 }
 
 /**
- * Round Currency Coin Token (USD or INR)
+ * 7. Prismatic Diamond Sparkle
  */
 @Composable
-private fun CurrencyCoinBadge(
-    symbol: String,
-    color: Color,
-    modifier: Modifier = Modifier
-) {
-    Box(
-        modifier = modifier
-            .clip(CircleShape)
-            .background(
-                Brush.radialGradient(
-                    listOf(Color(0xFF261D3B), Color(0xFF140F22))
-                )
-            )
-            .border(1.dp, color.copy(alpha = 0.6f), CircleShape),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = symbol,
-            style = TextStyle(
-                fontFamily = FontFamily.Serif,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = color
-            )
-        )
-    }
-}
-
-/**
- * Mini 4-point Star Accent
- */
-@Composable
-private fun MiniStar(color: Color, size: androidx.compose.ui.unit.Dp) {
+private fun PrismDiamond(color: Color, size: androidx.compose.ui.unit.Dp) {
     Canvas(modifier = Modifier.size(size)) {
-        val center = Offset(this.size.width / 2f, this.size.height / 2f)
-        val r = this.size.width / 2f
-        val innerR = r * 0.3f
+        val w = this.size.width
+        val h = this.size.height
+        val center = Offset(w / 2f, h / 2f)
 
-        val path = Path()
-        for (i in 0 until 8) {
-            val currentR = if (i % 2 == 0) r else innerR
-            val angle = (i * PI / 4).toFloat()
-            val x = center.x + currentR * cos(angle)
-            val y = center.y + currentR * sin(angle)
-            if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
+        val path = Path().apply {
+            moveTo(center.x, 0f)
+            lineTo(w, center.y)
+            lineTo(center.x, h)
+            lineTo(0f, center.y)
+            close()
         }
-        path.close()
-
         drawPath(path, color = color)
+        drawCircle(color = Color.White, radius = w * 0.15f, center = center)
     }
 }
 
 /**
- * Mini Google Coin Badge
+ * Premium PayX Top Header Logo
  */
 @Composable
-private fun MiniGoogleCoin(modifier: Modifier = Modifier) {
+private fun PayxHeaderLogo(modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
-            .clip(CircleShape)
-            .background(Color(0xFF241C38))
-            .border(1.dp, Color(0xFF4C3872), CircleShape),
-        contentAlignment = Alignment.Center
-    ) {
-        GoogleWhiteGlyph(modifier = Modifier.size(14.dp))
-    }
-}
-
-/**
- * Pulsing Green/Purple Live Dot
- */
-@Composable
-private fun PulsingDot() {
-    val transition = rememberInfiniteTransition(label = "pulse_dot")
-    val alpha by transition.animateFloat(
-        initialValue = 0.4f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(1000, easing = FastOutSlowInEasing), RepeatMode.Reverse),
-        label = "dotAlpha"
-    )
-
-    Box(
-        modifier = Modifier
-            .size(7.dp)
-            .clip(CircleShape)
-            .background(PayxPalette.VividPurple.copy(alpha = alpha))
-    )
-}
-
-@Composable
-private fun PayxMiniLogo(modifier: Modifier = Modifier) {
-    Box(
-        modifier = modifier
-            .size(36.dp)
+            .size(38.dp)
             .clip(RoundedCornerShape(12.dp))
-            .background(Color(0xFF221838))
-            .border(1.dp, Color(0xFF3E2D5E), RoundedCornerShape(12.dp)),
+            .background(
+                Brush.linearGradient(
+                    listOf(Color(0xFF2E1C4E), Color(0xFF1B112E))
+                )
+            )
+            .border(1.dp, Color(0xFF4C3078), RoundedCornerShape(12.dp)),
         contentAlignment = Alignment.Center
     ) {
-        Canvas(modifier = Modifier.size(18.dp)) {
+        Canvas(modifier = Modifier.size(20.dp)) {
             val neonPurple = Color(0xFFD8B4FE)
-            val strokeWidth = 2.dp.toPx()
+            val strokeWidth = 2.2.dp.toPx()
 
             drawRoundRect(
                 color = neonPurple,
-                topLeft = Offset(size.width * 0.10f, size.height * 0.25f),
-                size = Size(size.width * 0.80f, size.height * 0.60f),
+                topLeft = Offset(size.width * 0.10f, size.height * 0.22f),
+                size = Size(size.width * 0.80f, size.height * 0.62f),
                 cornerRadius = CornerRadius(4.dp.toPx(), 4.dp.toPx()),
                 style = Stroke(width = strokeWidth)
             )
 
             // Right flap
             val flapW = size.width * 0.36f
-            val flapH = size.height * 0.26f
+            val flapH = size.height * 0.28f
             val flapL = size.width * 0.54f
-            val flapT = size.height * 0.42f
+            val flapT = size.height * 0.39f
 
             drawRoundRect(
-                color = Color(0xFF221838),
+                color = Color(0xFF22153B),
                 topLeft = Offset(flapL, flapT),
                 size = Size(flapW, flapH),
                 cornerRadius = CornerRadius(3.dp.toPx(), 3.dp.toPx())
