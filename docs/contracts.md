@@ -46,14 +46,19 @@ Auth: Google ID token only at `POST /auth/google`. Everything else uses
 ## 3. Anchor program `payx_escrow`
 
 - `Escrow` PDA seeds: `["escrow", escrow_id.to_le_bytes()]`.
-- Fields: id (u64), sender, receiver, mint (USDC), amount (u64 micro-USDC),
-  state (`Deposited | ReadyForFunding | Released | Refunded`),
-  depositTimestamp (i64), bump.
-- Instructions: `initialize_escrow`, `deposit` (operator or sender),
+- `Vault` PDA seeds: `["vault", escrow_pda.as_ref()]`.
+- Fields: id (u64), sender (Pubkey), receiver (Pubkey), mint (USDC Pubkey),
+  amount (u64 micro-USDC), operator (Pubkey),
+  state (`Initialized | Deposited | ReadyForFunding | Released | Refunded | Cancelled`),
+  depositTimestamp (i64), bump (u8). Total space: 162 bytes (`Escrow::LEN`).
+- Instructions: `initialize_escrow` (operator), `deposit` (operator or sender),
   `confirm_funding` (operator), `release` (operator, requires ReadyForFunding),
-  `refund` (operator), `refund_timeout` (permissionless after 24h).
-- Events: `EscrowDeposited`, `FundingConfirmed`, `EscrowReleased`, `EscrowRefunded`.
-- Errors: unauthorized, bad state transition, zero amount, timeout not reached.
+  `refund` (operator), `refund_timeout` (permissionless after 24h),
+  `cancel` (operator or sender, requires Initialized).
+- Events: `EscrowInitialized`, `EscrowDeposited`, `FundingConfirmed`,
+  `EscrowReleased`, `EscrowRefunded`, `EscrowCancelled`.
+- Errors: `ZeroAmount`, `BadMint`, `BadState`, `Unauthorized`, `TimeoutNotReached`.
+
 
 ## 4. `backend/src/lib` API
 

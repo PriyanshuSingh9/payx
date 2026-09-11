@@ -20,8 +20,10 @@
 ## Phase 2 — Anchor program on devnet
 
 - [ ] Install Solana CLI + Anchor toolchain (see verification notes)
-- [ ] `payx_escrow` unit + integration tests (`anchor test`, local validator)
+- [x] `payx_escrow` contract logic and security hardening (access control, PDA vault validation, 24h timelock)
+- [x] `payx_escrow` unit tests (Rust `cargo test`) + integration test suite (`tests/payx_escrow.test.ts`)
 - [ ] Deploy to devnet, record program ID in backend env + contracts doc
+
 - [ ] Backend event listener switches from polling to состави websocket
 - [ ] Timelock refund path exercised on devnet
 

@@ -10,7 +10,16 @@
     "build": "pnpm --dir backend run build",
     "typecheck": "pnpm --dir backend run typecheck",
     "test": "pnpm --dir backend run test",
+    "test:contract": "tsx --test tests/**/*.test.ts",
     "db:generate": "pnpm --dir backend run db:generate",
     "db:migrate": "pnpm --dir backend run db:migrate"
+  },
+  "devDependencies": {
+    "@coral-xyz/anchor": "^0.32.1",
+    "@solana/spl-token": "^0.4.15",
+    "@solana/web3.js": "^1.99.0",
+    "@types/node": "^22.20.2",
+    "tsx": "^4.23.13",
+    "typescript": "^7.0.2"
   }
 }
