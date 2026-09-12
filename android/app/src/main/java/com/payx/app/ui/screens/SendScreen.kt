@@ -69,6 +69,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.style.TextAlign
 import com.payx.app.R
 import com.payx.app.ui.components.IndiaFlag
 import com.payx.app.ui.theme.PayxPalette
@@ -209,9 +210,20 @@ fun SendScreen(
     var selectedRecipient by remember(initialRecipientId) {
         mutableStateOf<Recipient?>(
             if (!initialRecipientId.isNullOrBlank()) {
-                sampleRecipients.find { it.id == initialRecipientId || it.name.startsWith(initialRecipientId, ignoreCase = true) }
+                sampleRecipients.find {
+                    it.id == initialRecipientId ||
+                        it.name.startsWith(initialRecipientId, ignoreCase = true)
+                } ?: initialRecipientId.toIntOrNull()?.let { index ->
+                    sampleRecipients.getOrNull(index - 1)
+                }
             } else null
         )
+    }
+
+    LaunchedEffect(selectedRecipient?.id) {
+        if (selectedRecipient != null) {
+            viewModel.resetAmount()
+        }
     }
     val screenBackground = Color(0xFF09090D)
 
@@ -535,9 +547,14 @@ private fun SendMoneyScreen(
     senderWallet: String?
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    var amountInput by remember { mutableStateOf(state.amountInput.ifEmpty { "100" }) }
-    var isAmountConfirmed by remember { mutableStateOf(false) }
-    var isProcessingPayment by remember { mutableStateOf(false) }
+    var amountInput by remember(recipient.id) { mutableStateOf("") }
+    var isAmountConfirmed by remember(recipient.id) { mutableStateOf(false) }
+    var isProcessingPayment by remember(recipient.id) { mutableStateOf(false) }
+
+    LaunchedEffect(recipient.id) {
+        amountInput = ""
+        viewModel.resetAmount()
+    }
 
     val haptics = LocalHapticFeedback.current
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -1065,12 +1082,18 @@ private fun SendMoneyScreen(
                 recipient = recipient,
                 inrAmount = inrFormatter.format(receiveInr),
                 usdAmount = usdFormatter.format(amountDouble),
+                isProcessing = state.isSubmitting,
+                isCompleted = state.paymentCompleted,
+                errorMessage = state.submitError,
                 onComplete = {
                     if (state.submitError == null) {
                         onConfirm(inrFormatter.format(receiveInr), usdFormatter.format(amountDouble))
                     } else {
                         isProcessingPayment = false
                     }
+                },
+                onDismissError = {
+                    isProcessingPayment = false
                 }
             )
         }
@@ -1513,13 +1536,43 @@ private fun FastArrowPaymentOverlay(
     recipient: Recipient,
     inrAmount: String,
     usdAmount: String,
-    onComplete: () -> Unit
+    isProcessing: Boolean,
+    isCompleted: Boolean,
+    errorMessage: String? = null,
+    onComplete: () -> Unit,
+    onDismissError: () -> Unit = {}
 ) {
     val haptics = LocalHapticFeedback.current
     var isConfirmedPhase by remember { mutableStateOf(false) }
-    val flightProgress = remember { Animatable(0f) }
+    val liftoffAnim = remember { Animatable(0f) }
+    val blastOffAnim = remember { Animatable(0f) }
     val flashAnim = remember { Animatable(0f) }
     val tickAnim = remember { Animatable(0f) }
+
+    // Track start time to guarantee smooth liftoff/cruise experience
+    val startTime = remember { System.currentTimeMillis() }
+
+    // Dynamic rotating status text describing authentic payment movement stages
+    val recipientFirstName = remember(recipient.name) {
+        recipient.name.trim().substringBefore(" ").ifBlank { "recipient" }
+    }
+    var statusIndex by remember { mutableStateOf(0) }
+    val statusMessages = remember(recipientFirstName) {
+        listOf(
+            "Securing deposit in escrow vault...",
+            "Routing through instant settlement rails...",
+            "Converting USD to INR at locked rate...",
+            "Connecting to Indian banking network...",
+            "Delivering payout to $recipientFirstName..."
+        )
+    }
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(1800)
+            statusIndex = (statusIndex + 1) % statusMessages.size
+        }
+    }
 
     // Continuous engine plasma & warp tunnel oscillations
     val infiniteTransition = rememberInfiniteTransition(label = "SupersonicInfinite")
@@ -1551,59 +1604,56 @@ private fun FastArrowPaymentOverlay(
         label = "microFlutter"
     )
 
-    // Complete payment sequence:
-    // 1. Liftoff from launch pad to center (400ms)
-    // 2. Supersonic Cruise Hold in place at center (1800ms) with warp speed tunnel
-    // 3. Hypersonic blast-off through top (350ms)
-    // 4. Apex flash (120ms)
-    // 5. Confirmed message & animated tick checkmark stroke (1600ms)
-    // 6. Direct automatic dispatch into thermal receipt printer
+    // Stage 1: Smooth Liftoff to center
     LaunchedEffect(Unit) {
-        // Stage 1: Smooth Liftoff to center
         haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-        flightProgress.animateTo(
-            targetValue = 0.20f,
+        liftoffAnim.animateTo(
+            targetValue = 1f,
             animationSpec = tween(durationMillis = 400, easing = FastOutSlowInEasing)
         )
+    }
 
-        // Stage 2: Supersonic Cruise Hold in place at center (held for 1800ms)
-        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-        flightProgress.animateTo(
-            targetValue = 0.80f,
-            animationSpec = tween(durationMillis = 1800, easing = LinearEasing)
-        )
+    // Stage 2 & 3: Once payment is completed, trigger Hypersonic Blast-Off, Apex Flash, Confirmed tick, and Receipt
+    LaunchedEffect(isCompleted, errorMessage) {
+        if (isCompleted && errorMessage == null) {
+            // Ensure minimal continuous cruise so transition is ultra-smooth
+            val elapsed = System.currentTimeMillis() - startTime
+            if (elapsed < 1400) {
+                delay(1400 - elapsed)
+            }
 
-        // Stage 3: Hypersonic Blast-Off through the top
-        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-        flightProgress.animateTo(
-            targetValue = 1.0f,
-            animationSpec = tween(
-                durationMillis = 350,
-                easing = CubicBezierEasing(0.35f, 0f, 0.1f, 1f)
+            // Stage 3: Hypersonic Blast-Off through the top
+            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+            blastOffAnim.animateTo(
+                targetValue = 1.0f,
+                animationSpec = tween(
+                    durationMillis = 350,
+                    easing = CubicBezierEasing(0.35f, 0f, 0.1f, 1f)
+                )
             )
-        )
 
-        // Stage 4: Apex shockwave flash
-        flashAnim.animateTo(
-            targetValue = 1f,
-            animationSpec = tween(durationMillis = 120, easing = LinearEasing)
-        )
+            // Stage 4: Apex shockwave flash
+            flashAnim.animateTo(
+                targetValue = 1f,
+                animationSpec = tween(durationMillis = 120, easing = LinearEasing)
+            )
 
-        // Stage 5: Enter Confirmed Phase with Animated Tick
-        isConfirmedPhase = true
-        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+            // Stage 5: Enter Confirmed Phase with Animated Tick
+            isConfirmedPhase = true
+            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
 
-        // Animate checkmark drawing stroke-by-stroke
-        tickAnim.animateTo(
-            targetValue = 1f,
-            animationSpec = tween(durationMillis = 450, easing = FastOutSlowInEasing)
-        )
+            // Animate checkmark drawing stroke-by-stroke
+            tickAnim.animateTo(
+                targetValue = 1f,
+                animationSpec = tween(durationMillis = 450, easing = FastOutSlowInEasing)
+            )
 
-        // Hold confirmed state with tick animation for optimal satisfaction
-        delay(1600)
+            // Hold confirmed state with tick animation for optimal satisfaction
+            delay(1300)
 
-        // Directly print the receipt in TrackerScreen
-        onComplete()
+            // Directly transition to thermal receipt in TrackerScreen
+            onComplete()
+        }
     }
 
     Box(
@@ -1614,8 +1664,6 @@ private fun FastArrowPaymentOverlay(
         contentAlignment = Alignment.Center
     ) {
         if (!isConfirmedPhase) {
-            val p = flightProgress.value
-
             Canvas(modifier = Modifier.fillMaxSize()) {
                 val canvasWidth = size.width
                 val canvasHeight = size.height
@@ -1626,15 +1674,15 @@ private fun FastArrowPaymentOverlay(
                 val targetY = -320f
 
                 val currentY = when {
-                    p <= 0.20f -> {
-                        val t = p / 0.20f
+                    liftoffAnim.value < 1f -> {
+                        val t = liftoffAnim.value
                         startY + (centerY - startY) * t
                     }
-                    p <= 0.80f -> {
+                    blastOffAnim.value == 0f -> {
                         centerY + microFlutter.dp.toPx()
                     }
                     else -> {
-                        val t = (p - 0.80f) / 0.20f
+                        val t = blastOffAnim.value
                         centerY + (targetY - centerY) * t
                     }
                 }
@@ -1989,6 +2037,131 @@ private fun FastArrowPaymentOverlay(
                         .background(Color.White.copy(alpha = (1f - flashVal) * 0.5f))
                 )
             }
+
+            // Live In-Flight Reassuring Status HUD (Top and Bottom)
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding()
+                    .navigationBarsPadding()
+                    .padding(horizontal = 24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
+                // Top Status Block
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.padding(top = 28.dp)
+                ) {
+                    Text(
+                        text = if (recipientFirstName.isNotBlank() && recipientFirstName != "recipient") {
+                            "Sending to $recipientFirstName"
+                        } else {
+                            "Sending your transfer"
+                        },
+                        style = TextStyle(
+                            fontFamily = MontaguSlab,
+                            fontSize = 26.sp,
+                            fontWeight = FontWeight.Normal,
+                            letterSpacing = (-0.3).sp,
+                            color = Color.White
+                        )
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // Dynamic live cycling status subtitle showing payment movement
+                    AnimatedContent(
+                        targetState = statusMessages[statusIndex],
+                        transitionSpec = {
+                            (fadeIn(animationSpec = tween(220)) + slideInVertically { it / 2 }) togetherWith
+                            (fadeOut(animationSpec = tween(200)) + slideOutVertically { -it / 2 })
+                        },
+                        label = "StatusTicker"
+                    ) { msg ->
+                        Text(
+                            text = msg,
+                            textAlign = TextAlign.Center,
+                            style = TextStyle(
+                                fontFamily = PlusJakartaSans,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = Color(0xFFC4B5FD)
+                            )
+                        )
+                    }
+                }
+
+                // Bottom In-Flight Transfer Pill
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.padding(bottom = 24.dp)
+                ) {
+                    if (errorMessage != null) {
+                        Surface(
+                            shape = RoundedCornerShape(14.dp),
+                            color = Color(0xFF3B151E),
+                            border = BorderStroke(1.dp, Color(0xFFEF4444)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = errorMessage,
+                                    textAlign = TextAlign.Center,
+                                    style = TextStyle(
+                                        fontFamily = PlusJakartaSans,
+                                        fontSize = 13.sp,
+                                        color = Color(0xFFFCA5A5)
+                                    )
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Surface(
+                                    onClick = onDismissError,
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = Color(0xFFEF4444)
+                                ) {
+                                    Text(
+                                        text = "DISMISS",
+                                        style = TextStyle(
+                                            fontFamily = PlusJakartaSans,
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color.White
+                                        ),
+                                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
+                                    )
+                                }
+                            }
+                        }
+                    } else {
+                        Surface(
+                            shape = RoundedCornerShape(18.dp),
+                            color = Color(0xCC14131C),
+                            border = BorderStroke(1.dp, Color(0xFF282538))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 18.dp, vertical = 11.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                IndiaFlag(width = 20.dp, height = 14.dp)
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Text(
+                                    text = "Sending ₹$inrAmount ($$usdAmount USD) to ${recipient.name}",
+                                    style = TextStyle(
+                                        fontFamily = PlusJakartaSans,
+                                        fontSize = 12.5.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = Color(0xFFE2E0EC)
+                                    )
+                                )
+                            }
+                        }
+                    }
+                }
+            }
         } else {
             // Confirmed Message & Animated Tick Display
             Column(
@@ -2022,7 +2195,7 @@ private fun FastArrowPaymentOverlay(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "PAYMENT CONFIRMED • SOLANA ESCROW",
+                                text = "PAYMENT CONFIRMED • INSTANT SETTLEMENT",
                                 style = TextStyle(
                                     fontFamily = PlusJakartaSans,
                                     fontSize = 11.sp,

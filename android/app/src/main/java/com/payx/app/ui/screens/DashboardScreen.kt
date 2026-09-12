@@ -182,21 +182,21 @@ fun DashboardScreen(
                             name = "Priya",
                             backgroundColor = Color(0xFFE91E63),
                             showActiveDot = true,
-                            onClick = { onSend("1") }
+                            onClick = { onSend("rec_priya") }
                         )
 
                         SendAgainContact(
                             initial = "R",
                             name = "Rahul",
                             backgroundColor = Color(0xFF2E7D32),
-                            onClick = { onSend("2") }
+                            onClick = { onSend("rec_rahul") }
                         )
 
                         SendAgainContact(
                             initial = "S",
                             name = "Sarah",
                             backgroundColor = Color(0xFFF4511E),
-                            onClick = { onSend("3") }
+                            onClick = { onSend("rec_sarah") }
                         )
                     }
 
