@@ -257,31 +257,75 @@ fun TrackerScreen(
                     .weight(1f)
                     .fillMaxWidth()
                     .clipToBounds()
-                    .padding(horizontal = 24.dp)
+                    .padding(horizontal = 24.dp),
+                contentAlignment = Alignment.TopCenter
             ) {
-                val progress = printAnim.value
-                val receiptFullHeight = 470.dp
-                val currentHeight = receiptFullHeight * progress
+                if (!isCompleted) {
+                    Surface(
+                        shape = RoundedCornerShape(20.dp),
+                        color = Color(0xFF14131C),
+                        border = BorderStroke(1.dp, Color(0xFF242230)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 28.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(10.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFF34D399))
+                            )
+                            Spacer(modifier = Modifier.height(14.dp))
+                            Text(
+                                text = "Settling Transfer",
+                                style = TextStyle(
+                                    fontFamily = FontFamily.SansSerif,
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color.White
+                                )
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = "Securing funds in instant escrow vault...",
+                                textAlign = TextAlign.Center,
+                                style = TextStyle(
+                                    fontFamily = FontFamily.SansSerif,
+                                    fontSize = 13.sp,
+                                    color = PayxPalette.SoftLavender
+                                )
+                            )
+                        }
+                    }
+                } else {
+                    val progress = printAnim.value
+                    val receiptFullHeight = 470.dp
+                    val currentHeight = receiptFullHeight * progress
 
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(currentHeight)
-                        .clipToBounds()
-                ) {
-                    ThermalReceiptPaper(
-                        transferId = displayId,
-                        dateStr = currentDateStr,
-                        recipientName = displayRecipient,
-                        inrAmount = displayInr,
-                        usdAmount = displayUsd,
-                        timeTaken = displayTime,
-                        exchangeRateStr = displayRate,
-                        destinationUpi = displayUpi,
-                        escrowSignature = displayTx,
-                        tickProgress = tickAnim.value,
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(currentHeight)
+                            .clipToBounds()
+                    ) {
+                        ThermalReceiptPaper(
+                            transferId = displayId,
+                            dateStr = currentDateStr,
+                            recipientName = displayRecipient,
+                            inrAmount = displayInr,
+                            usdAmount = displayUsd,
+                            timeTaken = displayTime,
+                            exchangeRateStr = displayRate,
+                            destinationUpi = displayUpi,
+                            escrowSignature = displayTx,
+                            tickProgress = tickAnim.value,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
                 }
             }
 

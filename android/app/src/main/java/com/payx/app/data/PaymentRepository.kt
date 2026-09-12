@@ -160,6 +160,29 @@ class PaymentRepository(private val api: ApiClient) {
         return response.payment
     }
 
+    suspend fun executePayment(
+        senderWallet: String,
+        amountUsdc: Double,
+        recipient: AddressBookRecipient
+    ): PaymentDto {
+        val response = api.post<PaymentResponse, CreatePaymentRequest>(
+            "/api/v1/payments/execute",
+            CreatePaymentRequest(
+                senderWallet = senderWallet,
+                sourceAmount = amountUsdc,
+                recipient = PaymentRecipientInput(
+                    name = recipient.name,
+                    phone = recipient.phone,
+                    upiId = recipient.upiId,
+                    bankAccount = recipient.bankAccount,
+                    ifsc = recipient.ifsc
+                ),
+                mode = "full_simulation"
+            )
+        )
+        return response.payment
+    }
+
     suspend fun getPayment(id: String): PaymentDto {
         val payment = api.get<PaymentResponse>("/api/v1/payments/$id").payment
         updatePaymentInCache(payment)

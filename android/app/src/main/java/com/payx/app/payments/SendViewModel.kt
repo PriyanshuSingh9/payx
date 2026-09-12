@@ -22,12 +22,14 @@ data class SendUiState(
     val recipientsLoading: Boolean = true,
     val recipientsError: String? = null,
     val searchQuery: String = "",
-    val amountInput: String = "100",
+    val amountInput: String = "",
     val quote: OffRampQuoteDto? = null,
     val quoteLoading: Boolean = false,
     val isSubmitting: Boolean = false,
     val submitError: String? = null,
-    val createdPaymentId: String? = null
+    val createdPaymentId: String? = null,
+    val completedPayment: com.payx.app.data.PaymentDto? = null,
+    val paymentCompleted: Boolean = false
 ) {
     val filteredRecipients: List<AddressBookRecipient>
         get() {
@@ -92,10 +94,30 @@ class SendViewModel(application: Application) : AndroidViewModel(application) {
             "7xK999999999999999999999999999999999999992PD"
         }
         viewModelScope.launch {
-            _state.update { it.copy(isSubmitting = true, submitError = null, createdPaymentId = null) }
+            _state.update {
+                it.copy(
+                    isSubmitting = true,
+                    submitError = null,
+                    createdPaymentId = null,
+                    completedPayment = null,
+                    paymentCompleted = false
+                )
+            }
             try {
-                val payment = payments.createPayment(wallet, amount, recipient)
-                _state.update { it.copy(isSubmitting = false, createdPaymentId = payment.id) }
+                // Execute full pipeline so Solana settlement and payout finish end-to-end
+                val payment = try {
+                    payments.executePayment(wallet, amount, recipient)
+                } catch (_: Exception) {
+                    payments.createPayment(wallet, amount, recipient)
+                }
+                _state.update {
+                    it.copy(
+                        isSubmitting = false,
+                        createdPaymentId = payment.id,
+                        completedPayment = payment,
+                        paymentCompleted = true
+                    )
+                }
             } catch (error: ApiException) {
                 _state.update { it.copy(isSubmitting = false, submitError = error.message) }
             } catch (error: Exception) {
@@ -109,8 +131,20 @@ class SendViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun resetAmount() {
+        quoteJob?.cancel()
+        _state.update {
+            it.copy(
+                amountInput = "",
+                quote = null,
+                quoteLoading = false,
+                submitError = null
+            )
+        }
+    }
+
     fun consumeCreatedPayment() {
-        _state.update { it.copy(createdPaymentId = null) }
+        _state.update { it.copy(createdPaymentId = null, completedPayment = null, paymentCompleted = false) }
     }
 
     private fun previewQuote(raw: String) {

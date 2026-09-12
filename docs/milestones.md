@@ -39,6 +39,7 @@
 - [x] `adb reverse` device testing against local backend
 - [x] Physical device deployment and verification
 - [x] Branded PayX launcher icon with adaptive vector layers and multi-density mipmaps
+- [x] Supersonic in-flight rocket animation with dynamic Solana progress messaging and seamless receipt roll-out
 
 ## Phase 4 — Ramps, hardening, mainnet readiness
 
