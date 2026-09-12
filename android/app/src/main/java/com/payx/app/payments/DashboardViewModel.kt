@@ -39,15 +39,28 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
     private val sessionStore = SessionStore(application)
     private val payments = PaymentRepository(ApiClient { sessionStore.token })
 
-    private val _state = MutableStateFlow(DashboardUiState())
+    private val _state = MutableStateFlow(run {
+        PaymentRepository.initCache(application)
+        DashboardUiState(
+            payments = PaymentRepository.getCachedPayments() ?: emptyList(),
+            liveRate = PaymentRepository.getCachedLiveRate(),
+            isLoading = PaymentRepository.getCachedPayments() == null
+        )
+    })
     val state: StateFlow<DashboardUiState> = _state.asStateFlow()
+
+    init {
+        refresh()
+    }
 
     fun refresh() {
         viewModelScope.launch {
-            _state.update { it.copy(isLoading = it.payments.isEmpty(), error = null) }
+            if (_state.value.payments.isEmpty()) {
+                _state.update { it.copy(isLoading = true, error = null) }
+            }
             try {
-                val list = payments.listPayments(20)
-                val rate = runCatching { payments.previewQuote(1.0).exchangeRate }.getOrNull()
+                val list = payments.listPayments(20, forceRefresh = true)
+                val rate = runCatching { payments.previewQuote(1.0, forceRefresh = true).exchangeRate }.getOrNull()
                 _state.update {
                     it.copy(
                         payments = list,
@@ -60,7 +73,7 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
                 _state.update {
                     it.copy(
                         isLoading = false,
-                        error = error.message ?: "Could not load payments."
+                        error = if (it.payments.isEmpty()) (error.message ?: "Could not load payments.") else null
                     )
                 }
             }

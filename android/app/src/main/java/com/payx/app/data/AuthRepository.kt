@@ -38,6 +38,7 @@ class AuthRepository(
 
     fun signOut() {
         sessionStore.clear()
+        PaymentRepository.clearCache()
     }
 
     private suspend fun requestGoogleIdToken(activity: Activity): String {

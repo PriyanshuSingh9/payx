@@ -31,11 +31,13 @@ class ReceiverViewModel(application: Application) : AndroidViewModel(application
         refresh()
     }
 
-    fun refresh(query: String = _state.value.searchQuery) {
+    fun refresh(query: String = _state.value.searchQuery, forceRefresh: Boolean = false) {
         viewModelScope.launch {
-            _state.update { it.copy(isLoading = it.dashboard.payments.isEmpty(), error = null) }
+            if (_state.value.dashboard.payments.isEmpty()) {
+                _state.update { it.copy(isLoading = true, error = null) }
+            }
             try {
-                val data = payments.getReceiverDashboard(query)
+                val data = payments.getReceiverDashboard(query, forceRefresh = forceRefresh)
                 _state.update {
                     it.copy(
                         dashboard = data,
@@ -47,7 +49,7 @@ class ReceiverViewModel(application: Application) : AndroidViewModel(application
                 _state.update {
                     it.copy(
                         isLoading = false,
-                        error = error.message ?: "Could not load received payments."
+                        error = if (it.dashboard.payments.isEmpty()) (error.message ?: "Could not load received payments.") else null
                     )
                 }
             }
@@ -56,6 +58,6 @@ class ReceiverViewModel(application: Application) : AndroidViewModel(application
 
     fun onSearchQueryChange(query: String) {
         _state.update { it.copy(searchQuery = query) }
-        refresh(query)
+        refresh(query, forceRefresh = false)
     }
 }

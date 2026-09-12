@@ -31,12 +31,20 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import com.payx.app.data.PaymentDto
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -83,7 +91,7 @@ private val MontaguSlab = FontFamily(Font(R.font.montagu_slab))
 fun DashboardScreen(
     user: SessionUser?,
     onSend: (recipientId: String?) -> Unit,
-    onTrack: (String) -> Unit,
+    onTrack: (id: String, recipient: String, inr: String, usd: String) -> Unit = { id, _, _, _ -> },
     onSettings: () -> Unit,
     onReceiver: () -> Unit = {},
     viewModel: DashboardViewModel = viewModel()
@@ -97,19 +105,9 @@ fun DashboardScreen(
     val sendAgainScrollState = rememberScrollState()
     val screenBackground = Color(0xFF09090D)
 
-    val balanceStr = if (state.totalTransferredUsd > 0.0) {
-        "$${"%,.2f".format(state.totalTransferredUsd)}"
-    } else {
-        "$2,450.00"
-    }
-
-    val savedStr = if (state.savedUsd > 0.0) {
-        "$${"%,.2f".format(state.savedUsd)}"
-    } else {
-        "$66.85"
-    }
-
-    val rateStr = state.liveRate?.let { "₹${"%,.2f".format(it)}" } ?: "₹92.90"
+    val balanceStr = "$${"%,.2f".format(state.totalTransferredUsd)}"
+    val savedStr = "$${"%,.2f".format(state.savedUsd)}"
+    val rateStr = state.liveRate?.let { "₹${"%,.2f".format(it)}" }
 
     Box(
         modifier = Modifier
@@ -130,13 +128,14 @@ fun DashboardScreen(
                 balance = balanceStr,
                 savedAmount = savedStr,
                 exchangeRate = rateStr,
+                isLoading = state.isLoading && state.payments.isEmpty(),
                 onSettings = onSettings,
                 onReceiver = onReceiver
             )
 
             Spacer(modifier = Modifier.height(46.dp))
 
-            // 2. Quick Send Contacts Tray ("Send Again") with Updated Payees
+            // 2. Quick Send Contacts Tray ("Send Again")
             Column(
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -176,37 +175,21 @@ fun DashboardScreen(
                                 onClick = { onSend(payment.recipient.id.ifEmpty { payment.recipient.name }) }
                             )
                         }
+                        SendAgainAddContact(onClick = { onSend(null) })
+                    } else if (state.isLoading) {
+                        repeat(3) {
+                            SendAgainSkeletonContact()
+                        }
+                        SendAgainAddContact(onClick = { onSend(null) })
                     } else {
-                        SendAgainContact(
-                            initial = "P",
-                            name = "Priya",
-                            backgroundColor = Color(0xFFE91E63),
-                            showActiveDot = true,
-                            onClick = { onSend("1") }
-                        )
-
-                        SendAgainContact(
-                            initial = "R",
-                            name = "Rahul",
-                            backgroundColor = Color(0xFF2E7D32),
-                            onClick = { onSend("2") }
-                        )
-
-                        SendAgainContact(
-                            initial = "S",
-                            name = "Sarah",
-                            backgroundColor = Color(0xFFF4511E),
-                            onClick = { onSend("3") }
-                        )
+                        SendAgainAddContact(onClick = { onSend(null) })
                     }
-
-                    SendAgainAddContact(onClick = { onSend(null) })
                 }
             }
 
             Spacer(modifier = Modifier.height(28.dp))
 
-            // 3. Recent Activity Section with Synchronized Identities
+            // 3. Recent Activity Section
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -243,45 +226,24 @@ fun DashboardScreen(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 if (state.payments.isNotEmpty()) {
-                    state.payments.take(6).forEach { payment ->
-                        val initial = payment.recipient.name.firstOrNull()?.uppercaseChar()?.toString() ?: "P"
-                        val inrEquivalent = payment.destinationAmount?.let { "≈ ₹${"%,.2f".format(it)}" }
-                            ?: "≈ ₹${"%,.2f".format(payment.sourceAmount * (state.liveRate ?: 92.90))}"
+                    state.payments.take(8).forEach { payment ->
+                        val inrFormatted = payment.destinationAmount?.let { "≈ ₹${"%,.2f".format(it)}" }
+                            ?: "≈ ₹${"%,.2f".format(payment.sourceAmount * (payment.exchangeRate ?: state.liveRate ?: 87.20))}"
+                        val usdFormatted = "$${"%,.2f".format(payment.sourceAmount)}"
                         TransactionCard(
-                            title = payment.recipient.name.ifBlank { "Transfer" },
-                            subtitle = "${payment.statusLabel} • Solana Settled",
-                            fiatAmount = "-$${"%,.2f".format(payment.sourceAmount)}",
-                            inrEquivalent = inrEquivalent,
-                            initial = initial,
-                            avatarColor = getAvatarColor(initial),
-                            onClick = { onTrack(payment.id) }
+                            payment = payment,
+                            liveRate = state.liveRate,
+                            onClick = { onTrack(payment.id, payment.recipient.name, inrFormatted, usdFormatted) }
                         )
                         Spacer(modifier = Modifier.height(10.dp))
                     }
+                } else if (state.isLoading) {
+                    repeat(3) {
+                        TransactionSkeletonCard()
+                        Spacer(modifier = Modifier.height(10.dp))
+                    }
                 } else {
-                    // Card 1: Priya Sharma
-                    TransactionCard(
-                        title = "Priya Sharma",
-                        subtitle = "Yesterday, 17:45 • Solana Settled",
-                        fiatAmount = "-$500.00",
-                        inrEquivalent = "≈ ₹41,950",
-                        initial = "P",
-                        avatarColor = Color(0xFFE91E63),
-                        onClick = { onTrack("tx_priya_500") }
-                    )
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    // Card 2: Rahul Verma
-                    TransactionCard(
-                        title = "Rahul Verma",
-                        subtitle = "Apr 11, 14:20 • Solana Settled",
-                        fiatAmount = "-$250.00",
-                        inrEquivalent = "≈ ₹20,975",
-                        initial = "R",
-                        avatarColor = Color(0xFF2E7D32),
-                        onClick = { onTrack("tx_rahul_250") }
-                    )
+                    EmptyActivityCard(onSend = { onSend(null) })
                 }
             }
         }
@@ -303,10 +265,22 @@ private fun DashboardHeader(
     userName: String,
     balance: String,
     savedAmount: String,
-    exchangeRate: String = "₹92.90",
+    exchangeRate: String? = null,
+    isLoading: Boolean = false,
     onSettings: () -> Unit,
     onReceiver: () -> Unit = {}
 ) {
+    val shimmerTransition = rememberInfiniteTransition(label = "headerShimmer")
+    val shimmerAlpha by shimmerTransition.animateFloat(
+        initialValue = 0.25f,
+        targetValue = 0.65f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(850, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "headerAlpha"
+    )
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -412,40 +386,60 @@ private fun DashboardHeader(
         Spacer(modifier = Modifier.height(8.dp))
 
         // Big, Confident, Hero Balance
-        Text(
-            text = balance,
-            style = TextStyle(
-                fontFamily = MontaguSlab,
-                fontSize = 46.sp,
-                fontWeight = FontWeight.Medium,
-                letterSpacing = (-1.5).sp,
-                color = Color.White
+        if (isLoading) {
+            Box(
+                modifier = Modifier
+                    .width(180.dp)
+                    .height(48.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Color(0xFF282538).copy(alpha = shimmerAlpha))
             )
-        )
+        } else {
+            Text(
+                text = balance,
+                style = TextStyle(
+                    fontFamily = MontaguSlab,
+                    fontSize = 46.sp,
+                    fontWeight = FontWeight.Medium,
+                    letterSpacing = (-1.5).sp,
+                    color = Color.White
+                )
+            )
+        }
 
         Spacer(modifier = Modifier.height(10.dp))
 
         // Adjusted Saved Metric (Removed 'vs bank wire fees')
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
-        ) {
+        if (isLoading) {
             Box(
                 modifier = Modifier
-                    .size(5.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFF34D399))
+                    .width(100.dp)
+                    .height(18.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(Color(0xFF282538).copy(alpha = shimmerAlpha))
             )
-            Spacer(modifier = Modifier.width(6.dp))
-            Text(
-                text = "Saved $savedAmount",
-                style = TextStyle(
-                    fontFamily = PlusJakartaSans,
-                    fontSize = 13.5.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFF34D399)
+        } else {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(5.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF34D399))
                 )
-            )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "Saved $savedAmount",
+                    style = TextStyle(
+                        fontFamily = PlusJakartaSans,
+                        fontSize = 13.5.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFF34D399)
+                    )
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(10.dp))
@@ -483,20 +477,69 @@ private fun DashboardHeader(
 
             Spacer(modifier = Modifier.width(8.dp))
 
-            Text(
-                text = exchangeRate,
-                style = TextStyle(
-                    fontFamily = PlusJakartaSans,
-                    fontSize = 13.5.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
+            if (isLoading && exchangeRate == null) {
+                Box(
+                    modifier = Modifier
+                        .width(52.dp)
+                        .height(14.dp)
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(Color(0xFF282538).copy(alpha = shimmerAlpha))
                 )
-            )
+            } else {
+                Text(
+                    text = exchangeRate ?: "₹92.90",
+                    style = TextStyle(
+                        fontFamily = PlusJakartaSans,
+                        fontSize = 13.5.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                )
+            }
 
             Spacer(modifier = Modifier.width(7.dp))
 
             IndiaFlag(width = 16.dp, height = 11.dp)
         }
+    }
+}
+
+/**
+ * Shimmer skeleton placeholder for Send Again contact bubble
+ */
+@Composable
+private fun SendAgainSkeletonContact() {
+    val transition = rememberInfiniteTransition(label = "sendAgainShimmer")
+    val alpha by transition.animateFloat(
+        initialValue = 0.25f,
+        targetValue = 0.65f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(850, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "contactAlpha"
+    )
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.padding(horizontal = 2.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(56.dp)
+                .clip(CircleShape)
+                .background(Color(0xFF282538).copy(alpha = alpha))
+        )
+
+        Spacer(modifier = Modifier.height(9.dp))
+
+        Box(
+            modifier = Modifier
+                .width(42.dp)
+                .height(13.dp)
+                .clip(RoundedCornerShape(4.dp))
+                .background(Color(0xFF282538).copy(alpha = alpha))
+        )
     }
 }
 
@@ -613,20 +656,55 @@ private fun SendAgainAddContact(onClick: () -> Unit) {
         )
     }
 }
+private fun formatRelativeTime(isoString: String): String {
+    return try {
+        val instant = java.time.Instant.parse(isoString)
+        val now = java.time.Instant.now()
+        val seconds = java.time.Duration.between(instant, now).seconds
+        when {
+            seconds < 0 -> "Just now"
+            seconds < 60 -> "Just now"
+            seconds < 3600 -> "${seconds / 60}m ago"
+            seconds < 86400 -> "${seconds / 3600}h ago"
+            seconds < 172800 -> "Yesterday"
+            else -> {
+                val zdt = instant.atZone(java.time.ZoneId.systemDefault())
+                zdt.format(java.time.format.DateTimeFormatter.ofPattern("d MMM"))
+            }
+        }
+    } catch (_: Exception) {
+        "Recent"
+    }
+}
 
 /**
- * Clean Transaction Card with High Typographic Clarity
+ * Modern Elevated Transaction Card with Dynamic Status Pill and Rail Details
  */
 @Composable
 private fun TransactionCard(
-    title: String,
-    subtitle: String,
-    fiatAmount: String,
-    inrEquivalent: String,
-    initial: String,
-    avatarColor: Color,
+    payment: PaymentDto,
+    liveRate: Double?,
     onClick: () -> Unit
 ) {
+    val initial = payment.recipient.name.firstOrNull()?.uppercaseChar()?.toString() ?: "T"
+    val avatarColor = getAvatarColor(initial)
+    val inrEquivalent = payment.destinationAmount?.let { "≈ ₹${"%,.2f".format(it)}" }
+        ?: "≈ ₹${"%,.2f".format(payment.sourceAmount * (payment.exchangeRate ?: liveRate ?: 87.20))}"
+
+    val (badgeBg, badgeText, badgeLabel) = when (payment.status) {
+        "COMPLETED", "SETTLEMENT_CONFIRMED" -> Triple(Color(0x1F10B981), Color(0xFF34D399), "Settled")
+        "OFFRAMP_PROCESSING", "FIAT_PAYOUT_PENDING", "SETTLEMENT_SUBMITTED", "OFFRAMP_CREATED" -> Triple(Color(0x1F06B6D4), Color(0xFF22D3EE), "Processing")
+        "PAYMENT_FAILED", "SETTLEMENT_FAILED", "OFFRAMP_FAILED", "PAYOUT_FAILED", "QUOTE_EXPIRED" -> Triple(Color(0x1FEF4444), Color(0xFFF87171), "Failed")
+        else -> Triple(Color(0x1FF59E0B), Color(0xFFFBBF24), "Pending")
+    }
+
+    val relativeTime = formatRelativeTime(payment.createdAt)
+    val railDetail = when {
+        !payment.recipient.upiId.isNullOrBlank() -> "UPI: ${payment.recipient.upiId}"
+        !payment.recipient.bankAccount.isNullOrBlank() -> "Bank: •••• ${payment.recipient.bankAccount.takeLast(4)}"
+        else -> "Solana • ${payment.senderWallet.take(4)}...${payment.senderWallet.takeLast(4)}"
+    }
+
     Surface(
         shape = RoundedCornerShape(18.dp),
         color = Color(0xFF121118),
@@ -634,6 +712,168 @@ private fun TransactionCard(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .background(avatarColor),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = initial,
+                            style = TextStyle(
+                                fontFamily = PlusJakartaSans,
+                                fontSize = 17.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        )
+                    }
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = payment.recipient.name.ifBlank { "Direct Transfer" },
+                            style = TextStyle(
+                                fontFamily = PlusJakartaSans,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color.White
+                            ),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Spacer(modifier = Modifier.height(3.dp))
+                        Text(
+                            text = "$relativeTime • $railDetail",
+                            style = TextStyle(
+                                fontFamily = PlusJakartaSans,
+                                fontSize = 11.5.sp,
+                                color = Color(0xFF7E7B8D)
+                            ),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Column(
+                    horizontalAlignment = Alignment.End
+                ) {
+                    Text(
+                        text = "-$${"%,.2f".format(payment.sourceAmount)}",
+                        style = TextStyle(
+                            fontFamily = PlusJakartaSans,
+                            fontSize = 15.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = (-0.3).sp,
+                            color = Color.White
+                        ),
+                        maxLines = 1,
+                        softWrap = false
+                    )
+                    Spacer(modifier = Modifier.height(3.dp))
+                    Text(
+                        text = inrEquivalent,
+                        style = TextStyle(
+                            fontFamily = PlusJakartaSans,
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFFAE9EF8)
+                        ),
+                        maxLines = 1,
+                        softWrap = false
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(badgeBg)
+                        .padding(horizontal = 8.dp, vertical = 3.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(5.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(5.dp)
+                                .clip(CircleShape)
+                                .background(badgeText)
+                        )
+                        Text(
+                            text = badgeLabel,
+                            style = TextStyle(
+                                fontFamily = PlusJakartaSans,
+                                fontSize = 10.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = badgeText
+                            )
+                        )
+                    }
+                }
+
+                Text(
+                    text = "ID: ${payment.id.take(14)}",
+                    style = TextStyle(
+                        fontFamily = PlusJakartaSans,
+                        fontSize = 10.sp,
+                        color = Color(0xFF5A566A)
+                    )
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Animated Shimmer Skeleton for Smooth Zero-Jank Loading
+ */
+@Composable
+private fun TransactionSkeletonCard() {
+    val transition = rememberInfiniteTransition(label = "shimmer")
+    val alpha by transition.animateFloat(
+        initialValue = 0.25f,
+        targetValue = 0.65f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(850, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "alpha"
+    )
+
+    Surface(
+        shape = RoundedCornerShape(18.dp),
+        color = Color(0xFF121118),
+        border = BorderStroke(1.dp, Color(0xFF1D1B28)),
+        modifier = Modifier.fillMaxWidth()
     ) {
         Row(
             modifier = Modifier
@@ -646,66 +886,118 @@ private fun TransactionCard(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Avatar circle matching payee identity
                 Box(
                     modifier = Modifier
                         .size(44.dp)
                         .clip(CircleShape)
-                        .background(avatarColor),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = initial,
-                        style = TextStyle(
-                            fontFamily = PlusJakartaSans,
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-                    )
-                }
-
+                        .background(Color(0xFF282538).copy(alpha = alpha))
+                )
                 Column {
-                    Text(
-                        text = title,
-                        style = TextStyle(
-                            fontFamily = PlusJakartaSans,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color.White
-                        )
+                    Box(
+                        modifier = Modifier
+                            .width(110.dp)
+                            .height(14.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(Color(0xFF282538).copy(alpha = alpha))
                     )
-                    Spacer(modifier = Modifier.height(3.dp))
-                    Text(
-                        text = subtitle,
-                        style = TextStyle(
-                            fontFamily = PlusJakartaSans,
-                            fontSize = 11.5.sp,
-                            color = Color(0xFF7E7B8D)
-                        )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Box(
+                        modifier = Modifier
+                            .width(70.dp)
+                            .height(10.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(Color(0xFF282538).copy(alpha = alpha))
                     )
                 }
             }
-
             Column(horizontalAlignment = Alignment.End) {
-                Text(
-                    text = fiatAmount,
-                    style = TextStyle(
-                        fontFamily = PlusJakartaSans,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = (-0.3).sp,
-                        color = Color.White
-                    )
+                Box(
+                    modifier = Modifier
+                        .width(75.dp)
+                        .height(14.dp)
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(Color(0xFF282538).copy(alpha = alpha))
                 )
-                Spacer(modifier = Modifier.height(3.dp))
+                Spacer(modifier = Modifier.height(6.dp))
+                Box(
+                    modifier = Modifier
+                        .width(55.dp)
+                        .height(10.dp)
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(Color(0xFF282538).copy(alpha = alpha))
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Empty Activity Card When DB Has Zero Transactions
+ */
+@Composable
+private fun EmptyActivityCard(onSend: () -> Unit) {
+    Surface(
+        shape = RoundedCornerShape(20.dp),
+        color = Color(0xFF121118),
+        border = BorderStroke(1.dp, Color(0xFF201E2E)),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFF1E1A2E)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ReceiptLong,
+                    contentDescription = null,
+                    tint = Color(0xFFAE9EF8),
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = "No transactions yet",
+                style = TextStyle(
+                    fontFamily = PlusJakartaSans,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "Live transfers from your Solana wallet to Indian UPI and Bank accounts will appear here.",
+                textAlign = TextAlign.Center,
+                style = TextStyle(
+                    fontFamily = PlusJakartaSans,
+                    fontSize = 12.sp,
+                    color = Color(0xFF7E7B8D),
+                    lineHeight = 16.sp
+                )
+            )
+            Spacer(modifier = Modifier.height(14.dp))
+            Surface(
+                onClick = onSend,
+                shape = RoundedCornerShape(12.dp),
+                color = Color(0xFF201B36),
+                border = BorderStroke(1.dp, Color(0xFFAE9EF8).copy(alpha = 0.35f))
+            ) {
                 Text(
-                    text = inrEquivalent,
+                    text = "Send Your First Transfer",
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
                     style = TextStyle(
                         fontFamily = PlusJakartaSans,
                         fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color(0xFF8E8B9C)
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFFAE9EF8)
                     )
                 )
             }
@@ -714,7 +1006,7 @@ private fun TransactionCard(
 }
 
 /**
- * Solid Bottom Navigation Dock with Premium Animated Transfer Action
+ * Solid Bottom Navigation Dock with Home, Animated Transfer Action, and Settings
  */
 @Composable
 private fun BottomNavigationDock(
@@ -758,12 +1050,11 @@ private fun BottomNavigationDock(
                 .padding(vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Home Tab Container
+            // 1. Home Tab Container
             Box(
                 modifier = Modifier.weight(1f),
                 contentAlignment = Alignment.Center
             ) {
-                // Home Tab
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier
@@ -771,13 +1062,13 @@ private fun BottomNavigationDock(
                             indication = null,
                             interactionSource = remember { MutableInteractionSource() }
                         ) { }
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                        .padding(horizontal = 6.dp, vertical = 4.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Home,
                         contentDescription = "Home",
                         tint = Color(0xFFAE9EF8),
-                        modifier = Modifier.size(23.dp)
+                        modifier = Modifier.size(22.dp)
                     )
                     Spacer(modifier = Modifier.height(3.dp))
                     Text(
@@ -792,10 +1083,10 @@ private fun BottomNavigationDock(
                 }
             }
 
-            // Center Animated TRANSFER Pill Button
+            // 2. Center Animated TRANSFER Pill Button
             Box(
                 modifier = Modifier
-                    .width(152.dp)
+                    .width(138.dp)
                     .height(48.dp)
                     .graphicsLayer {
                         scaleX = buttonScale
@@ -803,7 +1094,6 @@ private fun BottomNavigationDock(
                     },
                 contentAlignment = Alignment.Center
             ) {
-                // Main pill container with solid background
                 Box(
                     modifier = Modifier
                         .matchParentSize()
@@ -830,7 +1120,6 @@ private fun BottomNavigationDock(
                         horizontalArrangement = Arrangement.Center,
                         modifier = Modifier.fillMaxSize()
                     ) {
-                        // Dart Arrow on the left with animated rear thruster wake
                         Box(
                             modifier = Modifier.graphicsLayer {
                                 translationX = arrowOffsetX.toPx()
@@ -847,34 +1136,31 @@ private fun BottomNavigationDock(
 
                         Spacer(modifier = Modifier.width(7.dp))
 
-                        // TRANSFER text that cascades down character-by-character
                         StaggeredTransferText(
                             isTransferring = isTransferring
                         )
 
-                        // Balance the 17.dp of empty space reserved for the thruster wake on the left side of the arrow
                         Spacer(modifier = Modifier.width(17.dp))
                     }
                 }
             }
 
-            // Settings Tab Container
+            // 4. Settings Tab Container
             Box(
                 modifier = Modifier.weight(1f),
                 contentAlignment = Alignment.Center
             ) {
-                // Settings Tab
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier
                         .clickable(onClick = onSettings)
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                        .padding(horizontal = 6.dp, vertical = 4.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Settings,
                         contentDescription = "Settings",
-                        tint = Color(0xFF6B6878),
-                        modifier = Modifier.size(23.dp)
+                        tint = Color(0xFF7E7B8D),
+                        modifier = Modifier.size(22.dp)
                     )
                     Spacer(modifier = Modifier.height(3.dp))
                     Text(
@@ -883,7 +1169,7 @@ private fun BottomNavigationDock(
                             fontFamily = PlusJakartaSans,
                             fontSize = 10.5.sp,
                             fontWeight = FontWeight.Medium,
-                            color = Color(0xFF6B6878)
+                            color = Color(0xFF7E7B8D)
                         )
                     )
                 }

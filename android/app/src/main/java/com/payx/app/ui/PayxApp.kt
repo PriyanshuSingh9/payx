@@ -148,7 +148,9 @@ fun PayxApp(authViewModel: AuthViewModel = viewModel()) {
             DashboardScreen(
                 user = authState.user,
                 onSend = { recipientId -> nav.navigate(Routes.send(recipientId)) },
-                onTrack = { id -> nav.navigate(Routes.tracker(id)) },
+                onTrack = { id, recipient, inr, usd ->
+                    nav.navigate(Routes.tracker(id, recipient, inr, usd))
+                },
                 onSettings = { nav.navigate(Routes.SETTINGS) },
                 onReceiver = { nav.navigate(Routes.RECEIVER) }
             )
@@ -199,17 +201,17 @@ fun PayxApp(authViewModel: AuthViewModel = viewModel()) {
                 navArgument("transferId") { type = NavType.StringType },
                 navArgument("recipient") {
                     type = NavType.StringType
-                    defaultValue = "Priya Sharma"
+                    defaultValue = ""
                     nullable = true
                 },
                 navArgument("inr") {
                     type = NavType.StringType
-                    defaultValue = "₹1,79,761.50"
+                    defaultValue = ""
                     nullable = true
                 },
                 navArgument("usd") {
                     type = NavType.StringType
-                    defaultValue = "$2,000.00"
+                    defaultValue = ""
                     nullable = true
                 },
                 navArgument("timeTaken") {
@@ -229,15 +231,15 @@ fun PayxApp(authViewModel: AuthViewModel = viewModel()) {
             }
         ) { backStackEntry ->
             val id = backStackEntry.arguments?.getString("transferId") ?: "px-demo-transfer"
-            val recipient = backStackEntry.arguments?.getString("recipient") ?: "Priya Sharma"
-            val inr = backStackEntry.arguments?.getString("inr") ?: "₹1,79,761.50"
-            val usd = backStackEntry.arguments?.getString("usd") ?: "$2,000.00"
+            val recipient = backStackEntry.arguments?.getString("recipient").orEmpty()
+            val inr = backStackEntry.arguments?.getString("inr").orEmpty()
+            val usd = backStackEntry.arguments?.getString("usd").orEmpty()
             val time = backStackEntry.arguments?.getString("timeTaken") ?: "4.2s"
             TrackerScreen(
                 transferId = id,
-                recipientName = recipient,
-                inrAmount = inr,
-                usdAmount = usd,
+                recipientName = recipient.ifBlank { "Recipient" },
+                inrAmount = inr.ifBlank { "" },
+                usdAmount = usd.ifBlank { "" },
                 timeTaken = time,
                 onDone = {
                     nav.navigate(Routes.DASHBOARD) {

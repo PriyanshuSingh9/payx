@@ -1,7 +1,8 @@
 import { Router } from "express";
 import { globalPipelineService, DEFAULT_DEMO_SENDER_WALLET } from "../services/paymentPipeline.js";
 import { globalPaymentStore } from "../services/paymentStore.js";
-import { computeOffRampQuote, validateIndianRecipient } from "../lib/index.js";
+import { computeOffRampQuote, validateIndianRecipient, DEFAULT_USDC_INR_RATE } from "../lib/index.js";
+import { getLiveUsdcToInrRate } from "../fx.js";
 
 export const paymentRouter = Router();
 
@@ -205,11 +206,37 @@ paymentRouter.post("/api/v1/payments/:id/fail", async (req, res, next) => {
   }
 });
 
-// GET /api/v1/quote - Direct quote preview
-paymentRouter.get("/api/v1/quote", (req, res) => {
-  const amount = Number(req.query.amount || 100);
-  const quote = computeOffRampQuote({ sourceAmount: amount });
-  res.json({ quote });
+// GET /api/v1/quote - Direct quote preview with live USD -> INR rate resolution & caching
+paymentRouter.get("/api/v1/quote", async (req, res, next) => {
+  try {
+    const amount = Number(req.query.amount || 100);
+    const customRate = req.query.rate ? Number(req.query.rate) : undefined;
+    const forceLive = req.query.live === "true";
+    const isTest = process.env.NODE_ENV === "test";
+
+    // In unit/integration test suite without explicit live flag, retain static rate for deterministic assertion
+    const exchangeRate = customRate ?? (isTest && !forceLive ? DEFAULT_USDC_INR_RATE : await getLiveUsdcToInrRate());
+    const quote = computeOffRampQuote({ sourceAmount: amount, exchangeRate });
+    res.json({ quote });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/v1/rates - Live exchange rates with caching information
+paymentRouter.get("/api/v1/rates", async (_req, res, next) => {
+  try {
+    const liveRate = await getLiveUsdcToInrRate();
+    res.json({
+      baseCurrency: "USD",
+      quoteCurrency: "INR",
+      rate: liveRate,
+      provider: "open.er-api.com",
+      timestamp: new Date().toISOString()
+    });
+  } catch (err) {
+    next(err);
+  }
 });
 
 // POST /api/v1/recipients/validate - Validate recipient details

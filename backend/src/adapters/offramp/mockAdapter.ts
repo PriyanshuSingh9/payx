@@ -11,6 +11,7 @@ import type {
   OffRampStatusResult,
   SubmitTxResult
 } from "./types.js";
+import { getLiveUsdcToInrRate } from "../../fx.js";
 
 // Deterministic mock settlement wallet for the simulation bridge (valid on-curve Solana address).
 const MOCK_SETTLEMENT_DEPOSIT_ADDRESS = "DaxETCdkR5cNgWNBN3Su6dAepQtnPVuae4v1D5T5b9u6";
@@ -64,9 +65,11 @@ export class MockOffRampAdapter implements OffRampProvider {
     if (this.failureMode === "quote_failure") {
       throw new Error("Simulated mock off-ramp quote failure: upstream provider unavailable.");
     }
+    const isTest = process.env.NODE_ENV === "test";
+    const resolvedRate = this.customRate ?? (isTest ? undefined : await getLiveUsdcToInrRate().catch(() => undefined));
     return computeOffRampQuote({
       sourceAmount: amountUsdc,
-      exchangeRate: this.customRate
+      exchangeRate: resolvedRate
     });
   }
 
@@ -85,9 +88,11 @@ export class MockOffRampAdapter implements OffRampProvider {
     }
 
     const orderId = generateOrderId("MOCK-");
+    const isTest = process.env.NODE_ENV === "test";
+    const resolvedRate = this.customRate ?? (isTest ? undefined : await getLiveUsdcToInrRate().catch(() => undefined));
     const quote = computeOffRampQuote({
       sourceAmount: params.sourceAmount,
-      exchangeRate: this.customRate
+      exchangeRate: resolvedRate
     });
 
     const order: InternalMockOrder = {

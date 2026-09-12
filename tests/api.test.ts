@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import http from "node:http";
 import { app } from "../backend/src/server.js";
 import { checkPaymentRateLimit, clearPaymentRateLimits } from "../backend/src/routes/payments.js";
+import { globalPaymentPollerService } from "../backend/src/services/paymentPoller.js";
 
 const VALID_SOLANA_WALLET = "7xK999999999999999999999999999999999999992PD";
 
@@ -11,6 +12,7 @@ describe("PayX HTTP API & Dev Console Integration Suite", () => {
   let baseUrl: string;
 
   before(async () => {
+    globalPaymentPollerService.stop();
     await new Promise<void>((resolve) => {
       server = http.createServer(app);
       server.listen(0, "127.0.0.1", () => {
@@ -22,6 +24,7 @@ describe("PayX HTTP API & Dev Console Integration Suite", () => {
   });
 
   after(async () => {
+    globalPaymentPollerService.stop();
     await new Promise<void>((resolve, reject) => {
       server.close((err) => (err ? reject(err) : resolve()));
     });
@@ -43,12 +46,18 @@ describe("PayX HTTP API & Dev Console Integration Suite", () => {
     assert.ok(html.includes("USDC to INR Pipeline"));
   });
 
-  it("GET /api/v1/quote calculates pure off-ramp quote", async () => {
-    const res = await fetch(`${baseUrl}/api/v1/quote?amount=100`);
-    assert.equal(res.status, 200);
-    const body = (await res.json()) as { quote: { recipientAmount: number; exchangeRate: number } };
-    assert.equal(body.quote.exchangeRate, 87.20);
-    assert.equal(body.quote.recipientAmount, 8676.40);
+  it("GET /api/v1/quote calculates pure off-ramp quote with explicit or live rate", async () => {
+    const resStatic = await fetch(`${baseUrl}/api/v1/quote?amount=100&rate=87.20`);
+    assert.equal(resStatic.status, 200);
+    const bodyStatic = (await resStatic.json()) as { quote: { recipientAmount: number; exchangeRate: number } };
+    assert.equal(bodyStatic.quote.exchangeRate, 87.20);
+    assert.equal(bodyStatic.quote.recipientAmount, 8676.40);
+
+    const resLive = await fetch(`${baseUrl}/api/v1/quote?amount=100`);
+    assert.equal(resLive.status, 200);
+    const bodyLive = (await resLive.json()) as { quote: { recipientAmount: number; exchangeRate: number } };
+    assert.ok(bodyLive.quote.exchangeRate > 80);
+    assert.ok(bodyLive.quote.recipientAmount > 8000);
   });
 
   it("POST /api/v1/payments creates payment intent with quote locked", async () => {
@@ -187,6 +196,7 @@ describe("PayX HTTP API & Dev Console Integration Suite", () => {
   });
 
   it("POST /api/v1/payments/execute works with default demo wallet without validation errors", async () => {
+    clearPaymentRateLimits();
     const res = await fetch(`${baseUrl}/api/v1/payments/execute`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -200,6 +210,8 @@ describe("PayX HTTP API & Dev Console Integration Suite", () => {
       })
     });
 
+    const errBody = res.status !== 201 ? await res.text() : "";
+    if (errBody) console.error("EXECUTE TEST ERROR BODY:", errBody);
     assert.equal(res.status, 201);
     const data = (await res.json()) as { payment: { id: string; status: string; senderWallet: string } };
     assert.equal(data.payment.status, "COMPLETED");

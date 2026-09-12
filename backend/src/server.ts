@@ -65,7 +65,7 @@ if (env.enableBlockchain) {
   console.log("[server] Blockchain disabled. Set ENABLE_BLOCKCHAIN=true to connect.");
 }
 
-if (env.enablePoller) {
+if (env.enablePoller && process.env["NODE_ENV"] !== "test") {
   globalPaymentPollerService.start();
   console.log(`[server] Background payment poller started (interval: ${env.pollIntervalMs}ms).`);
 }
@@ -79,8 +79,8 @@ process.on("SIGTERM", () => {
 
 export { app };
 
-// Start HTTP server only if run directly
-if (process.argv[1] && process.argv[1].endsWith("server.ts")) {
+// Start HTTP server only if run directly and not in test environment
+if (process.env["NODE_ENV"] !== "test" && process.argv[1] && (process.argv[1].endsWith("server.ts") || process.argv[1].endsWith("server.js"))) {
   app.listen(env.port, "0.0.0.0", () => {
     console.log(`PayX backend listening on http://localhost:${env.port}`);
   });

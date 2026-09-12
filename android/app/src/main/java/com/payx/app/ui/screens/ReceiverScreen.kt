@@ -390,12 +390,6 @@ private fun ReceiverPaymentCard(
     val inrFormatted = payment.destinationAmount?.let { "₹${"%,.2f".format(it)}" }
         ?: "₹${"%,.2f".format(payment.sourceAmount * (payment.exchangeRate ?: 92.9))}"
 
-    val statusBadgeColor = when (payment.status) {
-        "COMPLETED" -> Color(0xFF34D399)
-        "PAYMENT_FAILED", "SETTLEMENT_FAILED", "OFFRAMP_FAILED", "PAYOUT_FAILED" -> Color(0xFFEF4444)
-        else -> PayxPalette.VividPurple
-    }
-
     Surface(
         onClick = onClick,
         shape = RoundedCornerShape(16.dp),
@@ -454,25 +448,6 @@ private fun ReceiverPaymentCard(
                             color = Color(0xFF7E7B94)
                         )
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(5.dp)
-                                .clip(CircleShape)
-                                .background(statusBadgeColor)
-                        )
-                        Spacer(modifier = Modifier.width(5.dp))
-                        Text(
-                            text = payment.statusLabel,
-                            style = TextStyle(
-                                fontFamily = PlusJakartaSans,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = statusBadgeColor
-                            )
-                        )
-                    }
                 }
             }
 

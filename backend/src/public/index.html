@@ -415,6 +415,35 @@
       border-bottom: 1px solid rgba(46, 36, 77, 0.5);
     }
 
+    .status-badge {
+      display: inline-block;
+      padding: 0.2rem 0.6rem;
+      border-radius: 9999px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+    .status-badge.status-completed {
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border: 1px solid rgba(52, 211, 153, 0.35);
+    }
+    .status-badge.status-processing {
+      background: rgba(6, 182, 212, 0.15);
+      color: #22d3ee;
+      border: 1px solid rgba(34, 211, 238, 0.35);
+    }
+    .status-badge.status-pending {
+      background: rgba(245, 158, 11, 0.15);
+      color: #fbbf24;
+      border: 1px solid rgba(251, 191, 36, 0.35);
+    }
+    .status-badge.status-failed {
+      background: rgba(239, 68, 68, 0.15);
+      color: #f87171;
+      border: 1px solid rgba(248, 113, 113, 0.35);
+    }
+
     .mono {
       font-family: var(--font-mono);
     }
@@ -441,6 +470,11 @@
     </div>
     <div class="wallet-status">
       <div class="wallet-pill">
+        <span class="dot" style="background-color: var(--accent-cyan); box-shadow: 0 0 6px var(--accent-cyan);"></span>
+        <span>1 USDC = </span>
+        <strong id="headerRateDisplay" style="color: var(--accent-cyan); margin-left: 4px;">Fetching live rate...</strong>
+      </div>
+      <div class="wallet-pill">
         <span class="dot"></span>
         <span id="senderWalletDisplay">Solana: 7xK9...92PD</span>
       </div>
@@ -455,7 +489,7 @@
     <div class="nav-tabs">
       <button class="tab-btn active" id="tabAppBtn" onclick="switchTab('app')">Production Flow</button>
       <button class="tab-btn" id="tabConsoleBtn" onclick="switchTab('console')">Judge & Dev Console</button>
-      <button class="tab-btn" id="tabHistoryBtn" onclick="switchTab('history')">Payment History</button>
+      <button class="tab-btn" id="tabHistoryBtn" onclick="switchTab('history')">Recent Activity</button>
     </div>
 
     <!-- TAB 1: PRODUCTION FLOW -->
@@ -506,8 +540,8 @@
         <!-- Quote Box (PRD Section 7) -->
         <div class="quote-box" id="liveQuoteBox">
           <div class="quote-row">
-            <span>Exchange Rate</span>
-            <span class="mono">₹87.20 / USDC</span>
+            <span>Exchange Rate (Live)</span>
+            <span class="mono" id="liveRateDisplay" style="color: var(--accent-cyan); font-weight: 600;">₹87.20 / USDC</span>
           </div>
           <div class="quote-row">
             <span>Gross Amount</span>
@@ -645,7 +679,7 @@
     <!-- TAB 3: PAYMENT HISTORY -->
     <div id="tabHistory" style="display: none;" class="card">
       <div class="card-title">
-        <span>Payment Transaction History (PRD Section 4)</span>
+        <span>Recent Activity & Transaction History (Live Database)</span>
         <button class="btn btn-secondary" style="padding: 0.3rem 0.8rem; font-size: 0.8rem;" onclick="loadHistory()">Refresh</button>
       </div>
 
@@ -675,16 +709,26 @@
     let activePayment = null;
     let pollInterval = null;
 
+    let historyInterval = null;
+    let liveExchangeRate = 87.20;
+    let quoteDebounceTimer = null;
+
     function switchTab(tab) {
       document.getElementById('tabApp').style.display = tab === 'app' ? 'grid' : 'none';
       document.getElementById('tabConsole').style.display = tab === 'console' ? 'flex' : 'none';
-      document.getElementById('tabHistory').style.display = tab === 'history' ? 'flex' : 'none';
+      document.getElementById('tabHistory').style.display = tab === 'history' ? 'block' : 'none';
 
       document.getElementById('tabAppBtn').classList.toggle('active', tab === 'app');
       document.getElementById('tabConsoleBtn').classList.toggle('active', tab === 'console');
       document.getElementById('tabHistoryBtn').classList.toggle('active', tab === 'history');
 
-      if (tab === 'history') loadHistory();
+      if (tab === 'history') {
+        loadHistory();
+        if (historyInterval) clearInterval(historyInterval);
+        historyInterval = setInterval(loadHistory, 5000);
+      } else {
+        if (historyInterval) clearInterval(historyInterval);
+      }
     }
 
     function toggleRailInput() {
@@ -693,9 +737,36 @@
       document.getElementById('groupBank').style.display = type === 'bank' ? 'flex' : 'none';
     }
 
+    async function fetchLiveRate() {
+      try {
+        const res = await fetch('/api/v1/rates');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.rates && data.rates.USDC_INR) {
+            liveExchangeRate = Number(data.rates.USDC_INR);
+            const rateFormatted = '₹' + liveExchangeRate.toFixed(2);
+            const headerEl = document.getElementById('headerRateDisplay');
+            if (headerEl) headerEl.innerText = rateFormatted;
+            const liveRateEl = document.getElementById('liveRateDisplay');
+            if (liveRateEl) liveRateEl.innerText = `${rateFormatted} / USDC`;
+            updateLiveQuote();
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to fetch live FX rate:', err);
+      }
+    }
+
     function updateLiveQuote() {
       const amount = parseFloat(document.getElementById('inputAmount').value) || 0;
-      const rate = 87.20;
+      if (amount <= 0) {
+        document.getElementById('liveGross').innerText = '₹0.00';
+        document.getElementById('liveFee').innerText = '₹0.00';
+        document.getElementById('liveNet').innerText = '₹0.00';
+        return;
+      }
+
+      const rate = liveExchangeRate || 87.20;
       const gross = amount * rate;
       const fee = gross * 0.005;
       const net = gross - fee;
@@ -703,6 +774,28 @@
       document.getElementById('liveGross').innerText = '₹' + gross.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
       document.getElementById('liveFee').innerText = '₹' + fee.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
       document.getElementById('liveNet').innerText = '₹' + net.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+      clearTimeout(quoteDebounceTimer);
+      quoteDebounceTimer = setTimeout(async () => {
+        try {
+          const res = await fetch(`/api/v1/quote?amount=${amount}`);
+          if (res.ok) {
+            const data = await res.json();
+            if (data.quote) {
+              const q = data.quote;
+              liveExchangeRate = q.exchangeRate;
+              const rateFormatted = '₹' + q.exchangeRate.toFixed(2);
+              const headerEl = document.getElementById('headerRateDisplay');
+              if (headerEl) headerEl.innerText = rateFormatted;
+              const liveRateEl = document.getElementById('liveRateDisplay');
+              if (liveRateEl) liveRateEl.innerText = `${rateFormatted} / USDC`;
+              document.getElementById('liveGross').innerText = '₹' + q.grossAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+              document.getElementById('liveFee').innerText = '₹' + q.offRampFee.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+              document.getElementById('liveNet').innerText = '₹' + q.recipientAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            }
+          }
+        } catch (_) {}
+      }, 250);
     }
 
     const CANONICAL_DEMO_WALLET = '7xK999999999999999999999999999999999999992PD';
@@ -993,28 +1086,76 @@
       renderPayment(data.payment);
     }
 
-    async function loadHistory() {
-      const res = await fetch('/api/v1/payments');
-      const data = await res.json();
-      const tbody = document.getElementById('historyTableBody');
-      tbody.innerHTML = '';
-      if (!data.payments || data.payments.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--text-muted);">No payments recorded yet.</td></tr>';
-        return;
+    let historyCache = [];
+
+    function formatRelativeTimeWeb(isoDate) {
+      try {
+        const sec = Math.floor((Date.now() - new Date(isoDate).getTime()) / 1000);
+        if (sec < 0 || sec < 60) return 'Just now';
+        if (sec < 3600) return `${Math.floor(sec / 60)}m ago`;
+        if (sec < 86400) return `${Math.floor(sec / 3600)}h ago`;
+        if (sec < 172800) return 'Yesterday';
+        return new Date(isoDate).toLocaleDateString();
+      } catch (_) {
+        return 'Recent';
       }
-      data.payments.forEach(p => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td class="mono" style="color: var(--accent-light); cursor: pointer;" onclick="fetchAndRender('${p.id}')">${p.id}</td>
-          <td><span class="status-badge status-${p.status}">${p.status}</span></td>
-          <td class="mono">${p.sourceAmount} USDC</td>
-          <td class="mono">₹${(p.destinationAmount || 0).toLocaleString('en-IN')}</td>
-          <td>${p.recipient?.name || 'N/A'}</td>
-          <td style="color: var(--text-muted); font-size: 0.75rem;">${new Date(p.createdAt).toLocaleTimeString()}</td>
-          <td><button class="btn btn-secondary" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;" onclick="fetchAndRender('${p.id}')">View</button></td>
-        `;
-        tbody.appendChild(tr);
-      });
+    }
+
+    function getStatusBadge(status) {
+      let cls = 'status-pending';
+      let label = status;
+      if (status === 'COMPLETED' || status === 'SETTLEMENT_CONFIRMED') {
+        cls = 'status-completed';
+        label = 'Settled';
+      } else if (status.includes('PROCESSING') || status.includes('SUBMITTED') || status.includes('CREATED') || status.includes('AWAITING')) {
+        cls = 'status-processing';
+        label = 'Processing';
+      } else if (status.includes('FAILED') || status.includes('EXPIRED')) {
+        cls = 'status-failed';
+        label = 'Failed';
+      }
+      return `<span class="status-badge ${cls}">${label}</span>`;
+    }
+
+    async function loadHistory() {
+      const tbody = document.getElementById('historyTableBody');
+      try {
+        const res = await fetch('/api/v1/payments');
+        if (!res.ok) throw new Error('Network error');
+        const data = await res.json();
+        historyCache = data.payments || [];
+        tbody.innerHTML = '';
+        if (historyCache.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 2rem;">No transactions recorded in database yet.</td></tr>';
+          return;
+        }
+        historyCache.forEach(p => {
+          const railInfo = p.recipient?.upiId
+            ? `<div style="color: var(--accent-cyan); font-size: 0.75rem;">UPI: ${p.recipient.upiId}</div>`
+            : p.recipient?.bankAccount
+            ? `<div style="color: #a855f7; font-size: 0.75rem;">Bank: •••• ${p.recipient.bankAccount.slice(-4)}</div>`
+            : `<div style="color: var(--text-muted); font-size: 0.75rem;">Direct</div>`;
+
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td class="mono" style="color: var(--accent-light); cursor: pointer; font-weight: 600;" onclick="fetchAndRender('${p.id}')">${p.id.slice(0, 14)}...</td>
+            <td>${getStatusBadge(p.status)}</td>
+            <td class="mono" style="font-weight: 600;">$${Number(p.sourceAmount).toFixed(2)} USDC</td>
+            <td class="mono" style="color: #34d399; font-weight: 600;">₹${Number(p.destinationAmount || (p.sourceAmount * (p.exchangeRate || 87.20))).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+            <td>
+              <div style="font-weight: 600; font-size: 0.85rem;">${p.recipient?.name || 'Payee'}</div>
+              ${railInfo}
+            </td>
+            <td style="color: var(--text-muted); font-size: 0.8rem;" title="${new Date(p.createdAt).toLocaleString()}">${formatRelativeTimeWeb(p.createdAt)}</td>
+            <td><button class="btn btn-secondary" style="padding: 0.25rem 0.65rem; font-size: 0.75rem;" onclick="fetchAndRender('${p.id}')">Inspect</button></td>
+          `;
+          tbody.appendChild(tr);
+        });
+      } catch (err) {
+        if (historyCache.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--status-failed);">Could not load history.</td></tr>';
+        }
+      }
     }
 
     async function fetchAndRender(id) {
@@ -1039,7 +1180,10 @@
       }, 2000);
     }
 
+    // Initialize live rate ticker and quote calculation
+    fetchLiveRate();
     updateLiveQuote();
+    setInterval(fetchLiveRate, 60000);
   </script>
 </body>
 </html>

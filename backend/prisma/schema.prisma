@@ -31,6 +31,8 @@ model User {
   lifetimeSavingsUsd   Decimal       @default(0) @map("lifetime_savings_usd") @db.Decimal(12, 2)
   createdAt            DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt            DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+  sentTransactions     Transaction[] @relation("transactions_sender_idTousers")
+  receivedTransactions Transaction[] @relation("transactions_receiver_idTousers")
 
   @@map("users")
 }
@@ -76,12 +78,10 @@ model Transaction {
   amountDest         Decimal           @map("amount_dest") @db.Decimal(12, 2)
   feeSource          Decimal           @map("fee_source") @db.Decimal(8, 2)
   status             TransactionStatus @default(pending)
-  failureReason      String?           @map("failure_reason") @db.Text
   createdAt          DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
   completedAt        DateTime?         @map("completed_at") @db.Timestamptz(6)
 
   // ─── Escrow & rate lock (Solana) ──────────────────────────────
-  escrowId           BigInt?           @unique @map("escrow_id")
   lockedSourceToUsdc Decimal?          @map("locked_source_to_usdc") @db.Decimal(18, 8)
   lockedUsdcToDest   Decimal?          @map("locked_usdc_to_dest") @db.Decimal(12, 4)
   escrowPda          String?           @map("escrow_pda") @db.Text
@@ -90,6 +90,8 @@ model Transaction {
   releaseTxHash      String?           @unique @map("release_tx_hash") @db.Text
   solanaSignature    String?           @unique @map("solana_signature") @db.Text
   rampOrders         RampOrder[]
+  receiver           User              @relation("transactions_receiver_idTousers", fields: [receiverId], references: [id])
+  sender             User              @relation("transactions_sender_idTousers", fields: [senderId], references: [id])
 
   @@index([senderId])
   @@index([receiverId])
