@@ -45,8 +45,18 @@ class TrackerViewModel(application: Application) : AndroidViewModel(application)
         startedFor = paymentId
         pollJob?.cancel()
         driveJob?.cancel()
+        val cached = PaymentRepository.getCachedPayments()?.find { it.id == paymentId }
         _state.update {
-            TrackerUiState(paymentId = paymentId, isLoading = true, error = null)
+            TrackerUiState(
+                paymentId = paymentId,
+                payment = cached,
+                isLoading = cached == null,
+                isAdvancing = false,
+                error = null
+            )
+        }
+        if (cached?.isTerminal == true) {
+            return
         }
         pollJob = viewModelScope.launch { poll(paymentId) }
         driveJob = viewModelScope.launch { drivePipeline(paymentId) }
@@ -102,7 +112,6 @@ class TrackerViewModel(application: Application) : AndroidViewModel(application)
                 }
                 payment = payments.simulateStep(paymentId, step)
                 _state.update { it.copy(payment = payment) }
-                delay(1_100)
             }
         } catch (error: Exception) {
             _state.update { it.copy(error = error.message ?: "Pipeline step failed.") }

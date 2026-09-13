@@ -51,6 +51,17 @@ support idempotency via the `Idempotency-Key` header. Errors return
 | GET | `/api/v1/poller/status` | none | Poller observability metrics, run counts, and last sweep summary |
 | POST | `/api/v1/poller/run` | none | Manually trigger a single polling reconciliation sweep |
 
+### Contacts Management Routes
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/api/v1/contacts` | opt JWT / wallet | List user contacts with search query `?q=` |
+| POST | `/api/v1/contacts` | opt JWT / wallet | Create new contact (`name`, `phone`, `upiId`, `email`, `country`) |
+| GET | `/api/v1/contacts/lookup` | opt JWT / wallet | Search registered user or contact by 10-digit phone query `?phone=` |
+| DELETE | `/api/v1/contacts/:id` | none | Delete contact by UUID |
+| GET | `/recipients?q=` | opt JWT / wallet | Compatibility list of contacts and address book |
+| POST | `/recipients` | opt JWT / wallet | Compatibility contact creation |
+
 
 ## 2. Unified Payment State Machine
 

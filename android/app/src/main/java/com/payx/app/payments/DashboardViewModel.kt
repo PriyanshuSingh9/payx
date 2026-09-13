@@ -31,6 +31,21 @@ data class DashboardUiState(
             (wireFee - network).coerceAtLeast(0.0)
         }
 
+    val totalTransferredInr: Double
+        get() = payments
+            .filter { it.status != "PAYMENT_FAILED" }
+            .sumOf { payment ->
+                payment.destinationAmount ?: (payment.sourceAmount * (payment.exchangeRate ?: liveRate ?: 92.90))
+            }
+
+    val savedInr: Double
+        get() = payments.sumOf { payment ->
+            val rate = payment.exchangeRate ?: liveRate ?: 92.90
+            val wireFee = payment.sourceAmount * 0.03
+            val network = payment.fees?.networkFee ?: 0.01
+            ((wireFee - network).coerceAtLeast(0.0)) * rate
+        }
+
     val recentRecipients: List<PaymentDto>
         get() = payments.distinctBy { it.recipient.name }.take(3)
 }

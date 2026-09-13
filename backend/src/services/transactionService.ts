@@ -229,7 +229,6 @@ export async function updateTransactionStatus(
     where: { id },
     data: {
       status,
-      failureReason: failureReason ?? null,
       completedAt: isTerminal ? new Date() : undefined
     },
     include: {

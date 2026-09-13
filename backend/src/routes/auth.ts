@@ -17,7 +17,11 @@ authRouter.post("/auth/google", async (req, res, next) => {
     const identity = await verifyGoogleIdentityToken(idToken);
     const user = await prisma.user.upsert({
       where: { googleSubject: identity.sub },
-      update: { displayName: identity.name, photoUrl: identity.picture },
+      update: {
+        displayName: identity.name,
+        photoUrl: identity.picture,
+        ...(country ? { country } : {})
+      },
       create: {
         googleSubject: identity.sub,
         email: identity.email,

@@ -9,6 +9,7 @@ import { corridorRouter } from "./routes/corridors.js";
 import { rampRouter } from "./routes/ramps.js";
 import { transferRouter } from "./routes/transfers.js";
 import { paymentRouter } from "./routes/payments.js";
+import { contactRouter } from "./routes/contacts.js";
 import { webhookRouter } from "./routes/webhooks.js";
 import { pollerRouter } from "./routes/poller.js";
 import { globalPaymentPollerService } from "./services/paymentPoller.js";
@@ -44,6 +45,7 @@ app.get(["/", "/console", "/demo"], (_req, res) => {
 app.use(webhookRouter);
 app.use(pollerRouter);
 app.use(paymentRouter);
+app.use(contactRouter);
 app.use(authRouter);
 app.use(corridorRouter);
 app.use(transferRouter);

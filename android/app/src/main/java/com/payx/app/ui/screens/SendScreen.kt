@@ -38,6 +38,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -49,6 +50,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.payx.app.data.AddressBookRecipient
+import com.payx.app.data.SessionUser
 import com.payx.app.payments.SendViewModel
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -195,29 +197,94 @@ private val sampleRecipients = listOf(
             upiId = "sarah.smith@oksbi",
             avatarInitials = "SS"
         )
+    ),
+    Recipient(
+        id = "rec_aarav",
+        name = "Aarav Patel",
+        email = "aarav.patel@oksbi",
+        avatarInitials = "AP",
+        gradientColors = listOf(Color(0xFF10B981), Color(0xFF059669)),
+        addressBookItem = AddressBookRecipient(
+            id = "rec_aarav",
+            name = "Aarav Patel",
+            phone = "+919876543213",
+            upiId = "aarav.patel@oksbi",
+            avatarInitials = "AP"
+        )
     )
 )
 
 @Composable
 fun SendScreen(
     initialRecipientId: String? = null,
+    initialRecipientName: String? = null,
+    initialRecipientUpi: String? = null,
+    initialRecipientPhone: String? = null,
     onBack: () -> Unit = {},
-    onSubmitted: (transferId: String, recipientName: String, inrAmount: String, usdAmount: String) -> Unit,
+    onSubmitted: (transferId: String, recipientName: String, inrAmount: String, usdAmount: String, timeTaken: String) -> Unit,
     senderWallet: String? = null,
+    user: SessionUser? = null,
     viewModel: SendViewModel = viewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    var selectedRecipient by remember(initialRecipientId) {
-        mutableStateOf<Recipient?>(
-            if (!initialRecipientId.isNullOrBlank()) {
-                sampleRecipients.find {
-                    it.id == initialRecipientId ||
-                        it.name.startsWith(initialRecipientId, ignoreCase = true)
-                } ?: initialRecipientId.toIntOrNull()?.let { index ->
-                    sampleRecipients.getOrNull(index - 1)
-                }
-            } else null
+
+    fun resolveRecipient(idOrName: String?): Recipient? {
+        if (idOrName.isNullOrBlank() || idOrName == "add_contact" || idOrName == "new") return null
+        sampleRecipients.find {
+            it.id == idOrName ||
+                it.name.equals(idOrName, ignoreCase = true) ||
+                it.name.startsWith(idOrName, ignoreCase = true)
+        }?.let { return it }
+
+        state.recipients.find {
+            it.id == idOrName ||
+                it.name.equals(idOrName, ignoreCase = true) ||
+                it.name.startsWith(idOrName, ignoreCase = true)
+        }?.toUiRecipient()?.let { return it }
+
+        val cleanName = initialRecipientName?.ifBlank { null } ?: idOrName
+        val cleanUpi = initialRecipientUpi?.ifBlank { null } ?: "${cleanName.lowercase().replace(" ", ".")}@upi"
+        val cleanPhone = initialRecipientPhone?.ifBlank { null } ?: "+919876543210"
+        val initials = cleanName.split(" ")
+            .mapNotNull { it.firstOrNull()?.uppercaseChar() }
+            .take(2)
+            .joinToString("")
+            .ifEmpty { "R" }
+
+        val colors = when (initials.firstOrNull()?.uppercaseChar()) {
+            'P' -> listOf(Color(0xFFE91E63), Color(0xFFF43F5E))
+            'R' -> listOf(Color(0xFF3B82F6), Color(0xFF6366F1))
+            'S' -> listOf(Color(0xFF8B5CF6), Color(0xFFA855F7))
+            'A' -> listOf(Color(0xFF10B981), Color(0xFF059669))
+            else -> listOf(Color(0xFF9881F5), Color(0xFF6366F1))
+        }
+
+        return Recipient(
+            id = idOrName,
+            name = cleanName,
+            email = cleanUpi,
+            avatarInitials = initials,
+            gradientColors = colors,
+            addressBookItem = AddressBookRecipient(
+                id = idOrName,
+                name = cleanName,
+                phone = cleanPhone,
+                upiId = cleanUpi,
+                avatarInitials = initials
+            )
         )
+    }
+
+    var selectedRecipient by remember(initialRecipientId, initialRecipientName) {
+        mutableStateOf<Recipient?>(
+            resolveRecipient(initialRecipientId ?: initialRecipientName)
+        )
+    }
+
+    LaunchedEffect(initialRecipientId, state.recipients) {
+        if (selectedRecipient == null && !initialRecipientId.isNullOrBlank()) {
+            selectedRecipient = resolveRecipient(initialRecipientId)
+        }
     }
 
     LaunchedEffect(selectedRecipient?.id) {
@@ -242,31 +309,33 @@ fun SendScreen(
                 SendToScreen(
                     onBack = onBack,
                     onRecipientSelected = { selectedRecipient = it },
-                    viewModel = viewModel
+                    viewModel = viewModel,
+                    initialOpenAddContact = initialRecipientId == "add_contact" || initialRecipientId == "new"
                 )
             } else {
                 // Step 2: Send Money
                 SendMoneyScreen(
                     recipient = recipient,
                     onBack = {
-                        if (!initialRecipientId.isNullOrBlank() && selectedRecipient?.id == initialRecipientId) {
+                        if (!initialRecipientId.isNullOrBlank()) {
                             onBack()
                         } else {
                             selectedRecipient = null
                         }
                     },
-                    onConfirm = { inr, usd ->
+                    onConfirm = { inr, usd, timeTaken ->
                         val paymentId = state.createdPaymentId ?: "tx_${recipient.id}_${System.currentTimeMillis()}"
                         onSubmitted(
                             paymentId,
                             recipient.name,
                             inr,
-                            usd
+                            usd,
+                            timeTaken
                         )
-                        viewModel.consumeCreatedPayment()
                     },
                     viewModel = viewModel,
-                    senderWallet = senderWallet
+                    senderWallet = senderWallet,
+                    user = user
                 )
             }
         }
@@ -280,9 +349,54 @@ fun SendScreen(
 private fun SendToScreen(
     onBack: () -> Unit,
     onRecipientSelected: (Recipient) -> Unit,
-    viewModel: SendViewModel
+    viewModel: SendViewModel,
+    initialOpenAddContact: Boolean = false
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    var showAddContactSheet by remember { mutableStateOf(initialOpenAddContact) }
+    var newName by remember { mutableStateOf("") }
+    var newPhone by remember { mutableStateOf("") }
+    var newUpi by remember { mutableStateOf("") }
+    var isSearchingPhone by remember { mutableStateOf(false) }
+    var lookupMessage by remember { mutableStateOf<String?>(null) }
+    var isFoundInDb by remember { mutableStateOf(false) }
+
+    fun resetAddContactFields() {
+        newName = ""
+        newPhone = ""
+        newUpi = ""
+        isSearchingPhone = false
+        lookupMessage = null
+        isFoundInDb = false
+        viewModel.clearAddContactError()
+    }
+
+    LaunchedEffect(newPhone) {
+        val digits = newPhone.filter { it.isDigit() }
+        if (digits.length == 10) {
+            isSearchingPhone = true
+            lookupMessage = "Searching database..."
+            viewModel.lookupContactByPhone(digits) { res ->
+                isSearchingPhone = false
+                if (res.found && res.contact != null) {
+                    isFoundInDb = true
+                    lookupMessage = "Found in PayX database"
+                    newName = res.contact.name
+                    val contactUpi = res.contact.upiId
+                    if (!contactUpi.isNullOrBlank()) {
+                        newUpi = contactUpi
+                    }
+                } else {
+                    isFoundInDb = false
+                    lookupMessage = "No matching contact in database. Enter details below to add."
+                }
+            }
+        } else {
+            isSearchingPhone = false
+            lookupMessage = null
+            isFoundInDb = false
+        }
+    }
 
     val filteredRecipients = remember(state.recipients, state.searchQuery) {
         if (state.recipients.isNotEmpty()) {
@@ -300,144 +414,692 @@ private fun SendToScreen(
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .statusBarsPadding()
-            .padding(horizontal = 20.dp)
-    ) {
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // Top App Bar with back button and centered "Send To" title
-        Box(
-            modifier = Modifier.fillMaxWidth(),
-            contentAlignment = Alignment.Center
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .padding(horizontal = 20.dp)
         ) {
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Top App Bar with back button and centered "Send To" title
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
+                Surface(
+                    onClick = onBack,
+                    shape = CircleShape,
+                    color = Color(0xFF14131C),
+                    border = BorderStroke(1.dp, Color(0xFF1F1D2B)),
+                    modifier = Modifier
+                        .size(40.dp)
+                        .align(Alignment.CenterStart)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = Color.White,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+
+                Text(
+                    text = "Send To",
+                    style = TextStyle(
+                        fontFamily = PlusJakartaSans,
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = (-0.3).sp,
+                        color = Color.White
+                    )
+                )
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Search Bar Capsule: "Search by name or email"
             Surface(
-                onClick = onBack,
-                shape = CircleShape,
+                shape = RoundedCornerShape(16.dp),
                 color = Color(0xFF14131C),
                 border = BorderStroke(1.dp, Color(0xFF1F1D2B)),
-                modifier = Modifier
-                    .size(40.dp)
-                    .align(Alignment.CenterStart)
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Box(contentAlignment = Alignment.Center) {
+                Row(
+                    modifier = Modifier
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back",
-                        tint = Color.White,
+                        imageVector = Icons.Default.Search,
+                        contentDescription = "Search",
+                        tint = Color(0xFF9881F5),
+                        modifier = Modifier.size(20.dp)
+                    )
+
+                    Spacer(modifier = Modifier.width(12.dp))
+
+                    BasicTextField(
+                        value = state.searchQuery,
+                        onValueChange = { viewModel.onSearchQueryChange(it) },
+                        textStyle = TextStyle(
+                            fontFamily = PlusJakartaSans,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color.White
+                        ),
+                        cursorBrush = SolidColor(Color(0xFF9881F5)),
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        decorationBox = { innerTextField ->
+                            if (state.searchQuery.isEmpty()) {
+                                Text(
+                                    text = "Search by name or email",
+                                    style = TextStyle(
+                                        fontFamily = PlusJakartaSans,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Normal,
+                                        color = Color(0xFF6B6880)
+                                    )
+                                )
+                            }
+                            innerTextField()
+                        }
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Add New Contact Action Card
+            Surface(
+                onClick = {
+                    resetAddContactFields()
+                    showAddContactSheet = true
+                },
+                shape = RoundedCornerShape(16.dp),
+                color = Color(0xFF14131C),
+                border = BorderStroke(1.dp, Color(0xFF262335)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 13.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(42.dp)
+                            .clip(CircleShape)
+                            .background(
+                                Brush.linearGradient(
+                                    listOf(Color(0xFF8B5CF6), Color(0xFFA855F7))
+                                )
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "+",
+                            style = TextStyle(
+                                fontFamily = PlusJakartaSans,
+                                fontSize = 22.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(14.dp))
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Add New Contact",
+                            style = TextStyle(
+                                fontFamily = PlusJakartaSans,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color.White
+                            )
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "Save name, phone & UPI handle",
+                            style = TextStyle(
+                                fontFamily = PlusJakartaSans,
+                                fontSize = 12.sp,
+                                color = Color(0xFF7E7B94)
+                            )
+                        )
+                    }
+
+                    Icon(
+                        imageVector = Icons.Default.ChevronRight,
+                        contentDescription = null,
+                        tint = Color(0xFF5A5672),
                         modifier = Modifier.size(18.dp)
                     )
                 }
             }
 
-            Text(
-                text = "Send To",
-                style = TextStyle(
-                    fontFamily = PlusJakartaSans,
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = (-0.3).sp,
-                    color = Color.White
-                )
-            )
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // Search Bar Capsule: "Search by name or email"
-        Surface(
-            shape = RoundedCornerShape(16.dp),
-            color = Color(0xFF14131C),
-            border = BorderStroke(1.dp, Color(0xFF1F1D2B)),
-            modifier = Modifier.fillMaxWidth()
-        ) {
+            // Typographic Visual Hierarchy Section Header
             Row(
                 modifier = Modifier
-                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                    .fillMaxWidth()
+                    .padding(top = 22.dp, bottom = 12.dp, start = 4.dp, end = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = Icons.Default.Search,
-                    contentDescription = "Search",
-                    tint = Color(0xFF9881F5),
-                    modifier = Modifier.size(20.dp)
-                )
-
-                Spacer(modifier = Modifier.width(12.dp))
-
-                BasicTextField(
-                    value = state.searchQuery,
-                    onValueChange = { viewModel.onSearchQueryChange(it) },
-                    textStyle = TextStyle(
+                Text(
+                    text = "RECENT RECIPIENTS",
+                    style = TextStyle(
                         fontFamily = PlusJakartaSans,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color.White
-                    ),
-                    cursorBrush = SolidColor(Color(0xFF9881F5)),
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    decorationBox = { innerTextField ->
-                        if (state.searchQuery.isEmpty()) {
-                            Text(
-                                text = "Search by name or email",
-                                style = TextStyle(
-                                    fontFamily = PlusJakartaSans,
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Normal,
-                                    color = Color(0xFF6B6880)
-                                )
-                            )
-                        }
-                        innerTextField()
-                    }
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.2.sp,
+                        color = Color(0xFF6B6880)
+                    )
                 )
+
+                Text(
+                    text = "${filteredRecipients.size} CONTACTS",
+                    style = TextStyle(
+                        fontFamily = PlusJakartaSans,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        letterSpacing = 0.8.sp,
+                        color = Color(0xFF4A4660)
+                    )
+                )
+            }
+
+            // Recipient List Cards without Lines
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                items(filteredRecipients, key = { it.id }) { recipient ->
+                    RecipientItemCard(
+                        recipient = recipient,
+                        onClick = { onRecipientSelected(recipient) }
+                    )
+                }
             }
         }
 
-        // Typographic Visual Hierarchy Section Header
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 24.dp, bottom = 12.dp, start = 4.dp, end = 4.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "RECENT RECIPIENTS",
-                style = TextStyle(
-                    fontFamily = PlusJakartaSans,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 1.2.sp,
-                    color = Color(0xFF6B6880)
-                )
-            )
+        // Add Contact Modal Dialog Overlay
+        if (showAddContactSheet) {
+            BackHandler {
+                resetAddContactFields()
+                showAddContactSheet = false
+            }
 
-            Text(
-                text = "${filteredRecipients.size} CONTACTS",
-                style = TextStyle(
-                    fontFamily = PlusJakartaSans,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    letterSpacing = 0.8.sp,
-                    color = Color(0xFF4A4660)
-                )
-            )
-        }
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color(0xCC05050A))
+                    .clickable {
+                        resetAddContactFields()
+                        showAddContactSheet = false
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(24.dp),
+                    color = Color(0xFF14131C),
+                    border = BorderStroke(1.dp, Color(0xFF2E2C3D)),
+                    shadowElevation = 16.dp,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp)
+                        .clickable(enabled = false) {}
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(22.dp)
+                    ) {
+                        // Header Row
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text(
+                                    text = "Add Recipient",
+                                    style = TextStyle(
+                                        fontFamily = PlusJakartaSans,
+                                        fontSize = 19.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White
+                                    )
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "Instant UPI settlement on Solana rail",
+                                    style = TextStyle(
+                                        fontFamily = PlusJakartaSans,
+                                        fontSize = 12.sp,
+                                        color = Color(0xFF7E7B94)
+                                    )
+                                )
+                            }
 
-        // Recipient List Cards without Lines
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            items(filteredRecipients, key = { it.id }) { recipient ->
-                RecipientItemCard(
-                    recipient = recipient,
-                    onClick = { onRecipientSelected(recipient) }
-                )
+                            Surface(
+                                onClick = {
+                                    resetAddContactFields()
+                                    showAddContactSheet = false
+                                },
+                                shape = CircleShape,
+                                color = Color(0xFF1F1D2B),
+                                modifier = Modifier.size(32.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Text(
+                                        text = "X",
+                                        style = TextStyle(
+                                            fontFamily = PlusJakartaSans,
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFF9E9BAE)
+                                        )
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(20.dp))
+
+                        // 1. Phone Number Input (Primary Search Key)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "MOBILE NUMBER",
+                                style = TextStyle(
+                                    fontFamily = PlusJakartaSans,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 1.sp,
+                                    color = Color(0xFF6B6880)
+                                )
+                            )
+                            if (isFoundInDb) {
+                                Text(
+                                    text = "REGISTERED USER",
+                                    style = TextStyle(
+                                        fontFamily = PlusJakartaSans,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        letterSpacing = 0.8.sp,
+                                        color = Color(0xFF10B981)
+                                    )
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = Color(0xFF0D0C13),
+                            border = BorderStroke(
+                                1.dp,
+                                when {
+                                    isFoundInDb -> Color(0xFF10B981)
+                                    isSearchingPhone -> PayxPalette.VividPurple
+                                    else -> Color(0xFF262335)
+                                }
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)
+                            ) {
+                                Text(
+                                    text = "+91",
+                                    style = TextStyle(
+                                        fontFamily = PlusJakartaSans,
+                                        fontSize = 14.5.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = PayxPalette.VividPurple
+                                    )
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                BasicTextField(
+                                    value = newPhone,
+                                    onValueChange = { input ->
+                                        val digits = input.filter { it.isDigit() }
+                                        if (digits.length <= 10) newPhone = digits
+                                    },
+                                    textStyle = TextStyle(
+                                        fontFamily = PlusJakartaSans,
+                                        fontSize = 14.5.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = Color.White
+                                    ),
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                                    cursorBrush = SolidColor(PayxPalette.VividPurple),
+                                    singleLine = true,
+                                    modifier = Modifier.weight(1f),
+                                    decorationBox = { inner ->
+                                        if (newPhone.isEmpty()) {
+                                            Text(
+                                                text = "Enter 10-digit mobile number",
+                                                style = TextStyle(
+                                                    fontFamily = PlusJakartaSans,
+                                                    fontSize = 14.5.sp,
+                                                    color = Color(0xFF524F66)
+                                                )
+                                            )
+                                        }
+                                        inner()
+                                    }
+                                )
+
+                                if (isSearchingPhone) {
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(16.dp),
+                                        strokeWidth = 2.dp,
+                                        color = PayxPalette.VividPurple
+                                    )
+                                } else if (isFoundInDb) {
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = "Found",
+                                        tint = Color(0xFF10B981),
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+                        }
+
+                        // DB Search Status Banner
+                        if (lookupMessage != null) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = if (isFoundInDb) Color(0xFF0D251A) else Color(0xFF171522),
+                                border = BorderStroke(
+                                    1.dp,
+                                    if (isFoundInDb) Color(0xFF10B981) else Color(0xFF2E2C3D)
+                                ),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                                ) {
+                                    Text(
+                                        text = if (isFoundInDb) "Verified: " else "Info: ",
+                                        style = TextStyle(
+                                            fontFamily = PlusJakartaSans,
+                                            fontSize = 11.5.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (isFoundInDb) Color(0xFF34D399) else Color(0xFF9E9BAE)
+                                        )
+                                    )
+                                    Text(
+                                        text = lookupMessage ?: "",
+                                        style = TextStyle(
+                                            fontFamily = PlusJakartaSans,
+                                            fontSize = 11.5.sp,
+                                            color = if (isFoundInDb) Color(0xFFA7F3D0) else Color(0xFF7E7B94)
+                                        )
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        // 2. Full Name Input
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "FULL NAME",
+                                style = TextStyle(
+                                    fontFamily = PlusJakartaSans,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 1.sp,
+                                    color = Color(0xFF6B6880)
+                                )
+                            )
+                            if (isFoundInDb && newName.isNotBlank()) {
+                                Text(
+                                    text = "AUTO-FILLED",
+                                    style = TextStyle(
+                                        fontFamily = PlusJakartaSans,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        letterSpacing = 0.8.sp,
+                                        color = PayxPalette.VividPurple
+                                    )
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = Color(0xFF0D0C13),
+                            border = BorderStroke(1.dp, Color(0xFF262335)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            BasicTextField(
+                                value = newName,
+                                onValueChange = { newName = it },
+                                textStyle = TextStyle(
+                                    fontFamily = PlusJakartaSans,
+                                    fontSize = 14.5.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = Color.White
+                                ),
+                                cursorBrush = SolidColor(PayxPalette.VividPurple),
+                                singleLine = true,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                                decorationBox = { inner ->
+                                    if (newName.isEmpty()) {
+                                        Text(
+                                            text = "e.g. Rohan Gupta",
+                                            style = TextStyle(
+                                                fontFamily = PlusJakartaSans,
+                                                fontSize = 14.5.sp,
+                                                color = Color(0xFF524F66)
+                                            )
+                                        )
+                                    }
+                                    inner()
+                                }
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        // 3. UPI ID Input
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "UPI ID (OPTIONAL)",
+                                style = TextStyle(
+                                    fontFamily = PlusJakartaSans,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 1.sp,
+                                    color = Color(0xFF6B6880)
+                                )
+                            )
+                            if (isFoundInDb && newUpi.isNotBlank()) {
+                                Text(
+                                    text = "AUTO-FILLED",
+                                    style = TextStyle(
+                                        fontFamily = PlusJakartaSans,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        letterSpacing = 0.8.sp,
+                                        color = PayxPalette.VividPurple
+                                    )
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = Color(0xFF0D0C13),
+                            border = BorderStroke(1.dp, Color(0xFF262335)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            BasicTextField(
+                                value = newUpi,
+                                onValueChange = { newUpi = it },
+                                textStyle = TextStyle(
+                                    fontFamily = PlusJakartaSans,
+                                    fontSize = 14.5.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = Color.White
+                                ),
+                                cursorBrush = SolidColor(PayxPalette.VividPurple),
+                                singleLine = true,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                                decorationBox = { inner ->
+                                    if (newUpi.isEmpty()) {
+                                        Text(
+                                            text = "e.g. rohan@oksbi",
+                                            style = TextStyle(
+                                                fontFamily = PlusJakartaSans,
+                                                fontSize = 14.5.sp,
+                                                color = Color(0xFF524F66)
+                                            )
+                                        )
+                                    }
+                                    inner()
+                                }
+                            )
+                        }
+
+                        // Quick Handle Chips
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            listOf("@oksbi", "@okhdfcbank", "@paytm", "@upi").forEach { chip ->
+                                Surface(
+                                    onClick = {
+                                        val base = if (newUpi.contains("@")) {
+                                            newUpi.substringBefore("@")
+                                        } else if (newUpi.isNotBlank()) {
+                                            newUpi
+                                        } else {
+                                            newName.lowercase().replace(" ", "")
+                                        }
+                                        newUpi = "$base$chip"
+                                    },
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = Color(0xFF1B1926),
+                                    border = BorderStroke(1.dp, Color(0xFF2E2C3D))
+                                ) {
+                                    Text(
+                                        text = chip,
+                                        style = TextStyle(
+                                            fontFamily = PlusJakartaSans,
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            color = Color(0xFFB5A9F8)
+                                        ),
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                    )
+                                }
+                            }
+                        }
+
+                        // Error Banner if any
+                        if (state.addContactError != null) {
+                            Spacer(modifier = Modifier.height(14.dp))
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = Color(0xFF3B151E),
+                                border = BorderStroke(1.dp, Color(0xFFEF4444)),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    text = state.addContactError ?: "Failed to add contact",
+                                    style = TextStyle(
+                                        fontFamily = PlusJakartaSans,
+                                        fontSize = 12.sp,
+                                        color = Color(0xFFFCA5A5)
+                                    ),
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(20.dp))
+
+                        val isValid = newName.trim().length >= 2 && (newPhone.length >= 10 || (newUpi.contains("@") && newUpi.length >= 5))
+                        Surface(
+                            onClick = {
+                                if (isValid && !state.isAddingContact) {
+                                    val formattedPhone = if (newPhone.isNotBlank() && !newPhone.startsWith("+")) "+91$newPhone" else newPhone
+                                    val finalUpi = if (newUpi.isNotBlank()) newUpi.trim() else "${newName.lowercase().replace(" ", "")}@oksbi"
+                                    viewModel.createContact(
+                                        name = newName.trim(),
+                                        phone = formattedPhone.ifBlank { "+919876543210" },
+                                        upiId = finalUpi
+                                    ) { created ->
+                                        resetAddContactFields()
+                                        showAddContactSheet = false
+                                        onRecipientSelected(created.toUiRecipient())
+                                    }
+                                }
+                            },
+                            enabled = isValid && !state.isAddingContact,
+                            shape = RoundedCornerShape(14.dp),
+                            color = if (isValid && !state.isAddingContact) PayxPalette.VividPurple else Color(0xFF262335),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 14.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = if (state.isAddingContact) {
+                                        "Saving Contact..."
+                                    } else if (isFoundInDb) {
+                                        "Add & Send Money"
+                                    } else {
+                                        "Save & Send Money"
+                                    },
+                                    style = TextStyle(
+                                        fontFamily = PlusJakartaSans,
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (isValid && !state.isAddingContact) Color.White else Color(0xFF6B6880)
+                                    )
+                                )
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -542,14 +1204,18 @@ private fun RecipientItemCard(
 private fun SendMoneyScreen(
     recipient: Recipient,
     onBack: () -> Unit,
-    onConfirm: (inrAmount: String, usdAmount: String) -> Unit,
+    onConfirm: (inrAmount: String, usdAmount: String, timeTaken: String) -> Unit,
     viewModel: SendViewModel,
-    senderWallet: String?
+    senderWallet: String?,
+    user: SessionUser? = null
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var amountInput by remember(recipient.id) { mutableStateOf("") }
     var isAmountConfirmed by remember(recipient.id) { mutableStateOf(false) }
     var isProcessingPayment by remember(recipient.id) { mutableStateOf(false) }
+
+    val isIndia = user?.country?.equals("IN", ignoreCase = true) == true ||
+        user?.country?.equals("IND", ignoreCase = true) == true
 
     LaunchedEffect(recipient.id) {
         amountInput = ""
@@ -602,9 +1268,23 @@ private fun SendMoneyScreen(
     val amountDouble = amountInput.toDoubleOrNull() ?: 0.0
     val quote = state.quote
     val exchangeRate = quote?.exchangeRate ?: 92.90
-    val feeAmount = quote?.let { it.offRampFee + it.estimatedNetworkFee } ?: (amountDouble * 0.0325)
-    val feePercent = if (amountDouble > 0.0) ((feeAmount / amountDouble) * 100.0) else 3.25
-    val receiveInr = quote?.recipientAmount ?: ((amountDouble - feeAmount).coerceAtLeast(0.0) * exchangeRate)
+
+    val feePercent = 0.50
+    val feeAmount: Double
+    val receiveInr: Double
+    val sourceAmountUsd: Double
+
+    if (isIndia) {
+        val sendInr = amountDouble
+        val feeInr = sendInr * 0.005
+        feeAmount = feeInr
+        receiveInr = (sendInr - feeInr).coerceAtLeast(0.0)
+        sourceAmountUsd = if (exchangeRate > 0.0) sendInr / exchangeRate else sendInr / 92.90
+    } else {
+        sourceAmountUsd = amountDouble
+        feeAmount = quote?.let { it.offRampFee + it.estimatedNetworkFee } ?: (amountDouble * 0.005)
+        receiveInr = quote?.recipientAmount ?: ((amountDouble - feeAmount).coerceAtLeast(0.0) * exchangeRate)
+    }
 
     val inrFormatter = remember { DecimalFormat("#,##,##0.00") }
     val usdFormatter = remember { DecimalFormat("#,##0.00") }
@@ -779,7 +1459,7 @@ private fun SendMoneyScreen(
                     val amountColor = if (isEntered) Color.White else Color(0xFF5A5672)
 
                     Text(
-                        text = "$",
+                        text = if (isIndia) "₹" else "$",
                         style = TextStyle(
                             fontFamily = MontaguSlab,
                             fontSize = 46.sp,
@@ -795,14 +1475,14 @@ private fun SendMoneyScreen(
                             value = amountInput,
                             onValueChange = { input ->
                                 val digitsOnly = input.filter { it.isDigit() }
-                                if (digitsOnly.length <= 6) {
+                                if (digitsOnly.length <= 7) {
                                     amountInput = if (digitsOnly.startsWith("0") && digitsOnly.length > 1) {
                                         digitsOnly.trimStart('0')
                                     } else {
                                         digitsOnly
                                     }
                                     scaleTrigger = true
-                                    viewModel.onAmountChange(amountInput)
+                                    viewModel.onAmountChange(amountInput, isIndia = isIndia, exchangeRate = exchangeRate)
                                 }
                             },
                             textStyle = TextStyle(
@@ -934,7 +1614,7 @@ private fun SendMoneyScreen(
                             // You send row
                             BreakdownRow(
                                 label = "You send",
-                                value = "$${usdFormatter.format(amountDouble)}",
+                                value = if (isIndia) "₹${inrFormatter.format(amountDouble)}" else "$${usdFormatter.format(amountDouble)}",
                                 valueColor = Color.White
                             )
 
@@ -965,7 +1645,7 @@ private fun SendMoneyScreen(
                                     )
 
                                     Text(
-                                        text = "-$${usdFormatter.format(feeAmount)}",
+                                        text = if (isIndia) "-₹${inrFormatter.format(feeAmount)}" else "-$${usdFormatter.format(feeAmount)}",
                                         style = TextStyle(
                                             fontFamily = PlusJakartaSans,
                                             fontSize = 13.sp,
@@ -1018,7 +1698,11 @@ private fun SendMoneyScreen(
 
                             // Footnote: Estimated delivery
                             Text(
-                                text = "Estimated delivery: ${quote?.estimatedMinutesMin ?: 5}-${quote?.estimatedMinutesMax ?: 10} minutes via UPI",
+                                text = if (isIndia) {
+                                    "Estimated delivery: Instant via UPI (≈ $${usdFormatter.format(sourceAmountUsd)} USDC on Solana)"
+                                } else {
+                                    "Estimated delivery: ${quote?.estimatedMinutesMin ?: 5}-${quote?.estimatedMinutesMax ?: 10} minutes via UPI"
+                                },
                                 style = TextStyle(
                                     fontFamily = PlusJakartaSans,
                                     fontSize = 12.sp,
@@ -1061,7 +1745,7 @@ private fun SendMoneyScreen(
                                 phone = "+919876543210",
                                 upiId = if (recipient.email.contains("@") && !recipient.email.endsWith(".demo")) recipient.email else "${recipient.name.lowercase().replace(" ", "")}@oksbi"
                             )
-                            viewModel.submit(bookRecipient, senderWallet)
+                            viewModel.submit(bookRecipient, senderWallet, isIndia = isIndia, exchangeRate = exchangeRate)
                             isProcessingPayment = true
                         },
                         modifier = Modifier.fillMaxWidth()
@@ -1081,13 +1765,13 @@ private fun SendMoneyScreen(
             FastArrowPaymentOverlay(
                 recipient = recipient,
                 inrAmount = inrFormatter.format(receiveInr),
-                usdAmount = usdFormatter.format(amountDouble),
+                usdAmount = usdFormatter.format(sourceAmountUsd),
                 isProcessing = state.isSubmitting,
                 isCompleted = state.paymentCompleted,
                 errorMessage = state.submitError,
-                onComplete = {
+                onComplete = { timeTaken ->
                     if (state.submitError == null) {
-                        onConfirm(inrFormatter.format(receiveInr), usdFormatter.format(amountDouble))
+                        onConfirm(inrFormatter.format(receiveInr), usdFormatter.format(sourceAmountUsd), timeTaken)
                     } else {
                         isProcessingPayment = false
                     }
@@ -1539,7 +2223,7 @@ private fun FastArrowPaymentOverlay(
     isProcessing: Boolean,
     isCompleted: Boolean,
     errorMessage: String? = null,
-    onComplete: () -> Unit,
+    onComplete: (timeTaken: String) -> Unit,
     onDismissError: () -> Unit = {}
 ) {
     val haptics = LocalHapticFeedback.current
@@ -1645,14 +2329,17 @@ private fun FastArrowPaymentOverlay(
             // Animate checkmark drawing stroke-by-stroke
             tickAnim.animateTo(
                 targetValue = 1f,
-                animationSpec = tween(durationMillis = 450, easing = FastOutSlowInEasing)
+                animationSpec = tween(durationMillis = 400, easing = FastOutSlowInEasing)
             )
 
-            // Hold confirmed state with tick animation for optimal satisfaction
-            delay(1300)
+            // Hold confirmed state briefly so checkmark is visible, then directly transition to thermal receipt
+            delay(350)
+
+            val totalSec = ((System.currentTimeMillis() - startTime) / 1000f).coerceIn(0.5f, 9.9f)
+            val timeTakenStr = String.format(java.util.Locale.US, "%.1fs", totalSec)
 
             // Directly transition to thermal receipt in TrackerScreen
-            onComplete()
+            onComplete(timeTakenStr)
         }
     }
 

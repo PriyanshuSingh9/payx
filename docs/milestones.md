@@ -40,6 +40,8 @@
 - [x] Physical device deployment and verification
 - [x] Branded PayX launcher icon with adaptive vector layers and multi-density mipmaps
 - [x] Supersonic in-flight rocket animation with dynamic Solana progress messaging and seamless receipt roll-out
+- [x] Contacts table in PostgreSQL, contact CRUD endpoints, and in-app Add Contact modal with real-time phone database lookup and instant UPI transfer flow
+- [x] Zero-latency receipt dispenser rollout, eliminating artificial pipeline delays and hardcoded timing buffers
 
 ## Phase 4 — Ramps, hardening, mainnet readiness
 

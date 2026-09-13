@@ -326,6 +326,14 @@ export class PaymentPipelineService {
     if (!payment) throw new Error(`Payment not found: ${paymentId}`);
 
     if (payment.status !== "SETTLEMENT_CONFIRMED") {
+      if (
+        payment.status === "OFFRAMP_CREATED" ||
+        payment.status === "OFFRAMP_PROCESSING" ||
+        payment.status === "FIAT_PAYOUT_PENDING" ||
+        payment.status === "COMPLETED"
+      ) {
+        return payment;
+      }
       throw new Error(`Cannot initiate off-ramp from status: ${payment.status}. Expected: SETTLEMENT_CONFIRMED`);
     }
 

@@ -36,13 +36,23 @@ object Routes {
     const val INTRO = "intro"
     const val LOGIN = "login"
     const val DASHBOARD = "dashboard"
-    const val SEND = "send?recipientId={recipientId}"
+    const val SEND = "send?recipientId={recipientId}&name={name}&upi={upi}&phone={phone}"
     const val TRACKER = "tracker/{transferId}?recipient={recipient}&inr={inr}&usd={usd}&timeTaken={timeTaken}"
     const val RECEIVER = "receiver"
     const val SETTINGS = "settings"
 
-    fun send(recipientId: String? = null): String {
-        return if (!recipientId.isNullOrBlank()) "send?recipientId=$recipientId" else "send"
+    fun send(
+        recipientId: String? = null,
+        name: String? = null,
+        upi: String? = null,
+        phone: String? = null
+    ): String {
+        val params = mutableListOf<String>()
+        if (!recipientId.isNullOrBlank()) params.add("recipientId=${java.net.URLEncoder.encode(recipientId, "UTF-8")}")
+        if (!name.isNullOrBlank()) params.add("name=${java.net.URLEncoder.encode(name, "UTF-8")}")
+        if (!upi.isNullOrBlank()) params.add("upi=${java.net.URLEncoder.encode(upi, "UTF-8")}")
+        if (!phone.isNullOrBlank()) params.add("phone=${java.net.URLEncoder.encode(phone, "UTF-8")}")
+        return if (params.isNotEmpty()) "send?${params.joinToString("&")}" else "send"
     }
 
     fun tracker(
@@ -147,7 +157,9 @@ fun PayxApp(authViewModel: AuthViewModel = viewModel()) {
         ) {
             DashboardScreen(
                 user = authState.user,
-                onSend = { recipientId -> nav.navigate(Routes.send(recipientId)) },
+                onSend = { recipientId, name, upi, phone ->
+                    nav.navigate(Routes.send(recipientId, name, upi, phone))
+                },
                 onTrack = { id, recipient, inr, usd ->
                     nav.navigate(Routes.tracker(id, recipient, inr, usd))
                 },
@@ -160,6 +172,21 @@ fun PayxApp(authViewModel: AuthViewModel = viewModel()) {
             route = Routes.SEND,
             arguments = listOf(
                 navArgument("recipientId") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                },
+                navArgument("name") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                },
+                navArgument("upi") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                },
+                navArgument("phone") {
                     type = NavType.StringType
                     nullable = true
                     defaultValue = null
@@ -185,13 +212,22 @@ fun PayxApp(authViewModel: AuthViewModel = viewModel()) {
             }
         ) { backStackEntry ->
             val recipientId = backStackEntry.arguments?.getString("recipientId")
+            val name = backStackEntry.arguments?.getString("name")
+            val upi = backStackEntry.arguments?.getString("upi")
+            val phone = backStackEntry.arguments?.getString("phone")
             SendScreen(
                 initialRecipientId = recipientId,
+                initialRecipientName = name,
+                initialRecipientUpi = upi,
+                initialRecipientPhone = phone,
                 onBack = { nav.popBackStack() },
-                onSubmitted = { id, recipient, inr, usd ->
-                    nav.navigate(Routes.tracker(id, recipient, inr, usd))
+                onSubmitted = { id, recipient, inr, usd, timeTaken ->
+                    nav.navigate(Routes.tracker(id, recipient, inr, usd, timeTaken)) {
+                        popUpTo(Routes.DASHBOARD) { inclusive = false }
+                    }
                 },
-                senderWallet = authState.user?.walletAddress
+                senderWallet = authState.user?.walletAddress,
+                user = authState.user
             )
         }
 
@@ -216,7 +252,7 @@ fun PayxApp(authViewModel: AuthViewModel = viewModel()) {
                 },
                 navArgument("timeTaken") {
                     type = NavType.StringType
-                    defaultValue = "4.2s"
+                    defaultValue = "Instant"
                     nullable = true
                 }
             ),
@@ -234,7 +270,7 @@ fun PayxApp(authViewModel: AuthViewModel = viewModel()) {
             val recipient = backStackEntry.arguments?.getString("recipient").orEmpty()
             val inr = backStackEntry.arguments?.getString("inr").orEmpty()
             val usd = backStackEntry.arguments?.getString("usd").orEmpty()
-            val time = backStackEntry.arguments?.getString("timeTaken") ?: "4.2s"
+            val time = backStackEntry.arguments?.getString("timeTaken") ?: "Instant"
             TrackerScreen(
                 transferId = id,
                 recipientName = recipient.ifBlank { "Recipient" },

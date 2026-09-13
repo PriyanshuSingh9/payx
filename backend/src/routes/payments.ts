@@ -3,6 +3,7 @@ import { globalPipelineService, DEFAULT_DEMO_SENDER_WALLET } from "../services/p
 import { globalPaymentStore } from "../services/paymentStore.js";
 import { computeOffRampQuote, validateIndianRecipient, DEFAULT_USDC_INR_RATE } from "../lib/index.js";
 import { getLiveUsdcToInrRate } from "../fx.js";
+import { listContacts } from "../services/contactService.js";
 
 export const paymentRouter = Router();
 
@@ -246,43 +247,15 @@ paymentRouter.post("/api/v1/recipients/validate", (req, res) => {
 });
 
 // GET /api/v1/recipients - List recipients preview
-paymentRouter.get("/api/v1/recipients", (req, res) => {
-  const q = req.query.q ? String(req.query.q).toLowerCase().trim() : "";
-  let list = [
-    {
-      id: "rec_priya",
-      name: "Priya Sharma",
-      phone: "+919876543210",
-      upiId: "priya.sharma@oksbi",
-      avatarInitials: "PS",
-      country: "IN"
-    },
-    {
-      id: "rec_rahul",
-      name: "Rahul Verma",
-      phone: "+919876543211",
-      upiId: "rahul.verma@oksbi",
-      avatarInitials: "RV",
-      country: "IN"
-    },
-    {
-      id: "rec_sarah",
-      name: "Sarah Smith",
-      phone: "+919876543212",
-      upiId: "sarah.smith@oksbi",
-      avatarInitials: "SS",
-      country: "IN"
-    }
-  ];
-  if (q) {
-    list = list.filter(
-      (r) =>
-        r.name.toLowerCase().includes(q) ||
-        r.phone.includes(q) ||
-        (r.upiId && r.upiId.toLowerCase().includes(q))
-    );
+paymentRouter.get("/api/v1/recipients", async (req, res, next) => {
+  try {
+    const q = req.query.q ? String(req.query.q).toLowerCase().trim() : "";
+    const walletAddress = req.query.walletAddress ? String(req.query.walletAddress) : undefined;
+    const list = await listContacts({ q, walletAddress });
+    res.json({ recipients: list });
+  } catch (err) {
+    next(err);
   }
-  res.json({ recipients: list });
 });
 
 // GET /api/v1/receiver/dashboard - Receiver dashboard view of incoming pipeline payments

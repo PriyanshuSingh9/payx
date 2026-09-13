@@ -33,6 +33,7 @@ model User {
   updatedAt            DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
   sentTransactions     Transaction[] @relation("transactions_sender_idTousers")
   receivedTransactions Transaction[] @relation("transactions_receiver_idTousers")
+  contacts             Contact[]
 
   @@map("users")
 }
@@ -121,4 +122,52 @@ model RampOrder {
   @@index([transactionId])
   @@index([type, status])
   @@map("ramp_orders")
+}
+
+model Contact {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId         String?  @map("user_id") @db.Uuid
+  user           User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  walletAddress  String?  @map("wallet_address") @db.Text
+  name           String   @db.Text
+  phone          String   @db.Text
+  upiId          String?  @map("upi_id") @db.Text
+  accountNumber  String?  @map("account_number") @db.Text
+  ifscCode       String?  @map("ifsc_code") @db.Text
+  email          String?  @db.Text
+  country        String   @default("IN") @db.Text
+  avatarInitials String?  @map("avatar_initials") @db.Text
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([userId])
+  @@index([walletAddress])
+  @@index([createdAt])
+  @@map("contacts")
+}
+
+model Payment {
+  id                   String   @id @db.Text
+  status               String   @db.Text
+  mode                 String   @db.Text
+  senderWallet         String   @map("sender_wallet") @db.Text
+  recipientName        String   @map("recipient_name") @db.Text
+  recipientPhone       String   @map("recipient_phone") @db.Text
+  recipientUpiId       String?  @map("recipient_upi_id") @db.Text
+  recipientBankAccount String?  @map("recipient_bank_account") @db.Text
+  recipientIfsc        String?  @map("recipient_ifsc") @db.Text
+  sourceAsset          String   @default("USDC") @map("source_asset") @db.Text
+  sourceAmount         Decimal  @map("source_amount")
+  destinationCurrency  String   @default("INR") @map("destination_currency") @db.Text
+  destinationAmount    Decimal? @map("destination_amount")
+  exchangeRate         Decimal? @map("exchange_rate")
+  quoteId              String?  @map("quote_id") @db.Text
+  idempotencyKey       String?  @unique @map("idempotency_key") @db.Text
+  data                 Json     @db.JsonB
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@index([senderWallet])
+  @@index([createdAt])
+  @@map("payments")
 }

@@ -79,7 +79,7 @@ fun TrackerScreen(
     recipientName: String = "Priya Sharma",
     inrAmount: String = "₹1,79,761.50",
     usdAmount: String = "$2,000.00",
-    timeTaken: String = "4.2s",
+    timeTaken: String = "Instant",
     onDone: () -> Unit,
     viewModel: TrackerViewModel = viewModel()
 ) {
@@ -94,7 +94,9 @@ fun TrackerScreen(
         viewModel.start(transferId)
     }
 
-    val isCompleted = uiState.payment?.status == "COMPLETED" || (uiState.payment == null && !uiState.isLoading && uiState.error == null)
+    val isCompleted = uiState.payment?.status == "COMPLETED" ||
+        uiState.payment == null ||
+        (uiState.payment?.status !in setOf("PAYMENT_FAILED", "SETTLEMENT_FAILED", "OFFRAMP_FAILED", "PAYOUT_FAILED") && !uiState.isAdvancing)
 
     LaunchedEffect(isCompleted) {
         if (isCompleted) {
@@ -130,13 +132,12 @@ fun TrackerScreen(
         ?.let { "${it.take(8)}...${it.takeLast(4)} (Solscan)" }
         ?: "8zB3...4xK2 (Solscan)"
     val displayId = uiState.payment?.id ?: transferId
-    val displayTime = if (uiState.isAdvancing) "4.2s" else timeTaken
+    val displayTime = timeTaken.ifBlank { "Instant" }
 
     val statusText = when {
         uiState.error != null -> "ERROR: ${uiState.error}"
-        uiState.isAdvancing -> "${uiState.payment?.statusLabel ?: "ADVANCING ON-CHAIN SETTLEMENT"}..."
-        printAnim.value < 1f && isCompleted -> "PRINTING RECEIPT..."
         uiState.payment?.status in setOf("PAYMENT_FAILED", "SETTLEMENT_FAILED", "OFFRAMP_FAILED", "PAYOUT_FAILED") -> "TRANSACTION FAILED"
+        printAnim.value < 1f -> "PRINTING RECEIPT..."
         else -> "PAYX THERMAL DISPENSER"
     }
 
@@ -443,7 +444,7 @@ private fun ThermalReceiptPaper(
     recipientName: String = "Priya Sharma",
     inrAmount: String = "₹1,79,761.50",
     usdAmount: String = "$2,000.00",
-    timeTaken: String = "4.2s",
+    timeTaken: String = "Instant",
     exchangeRateStr: String = "1 USD = ₹92.90",
     destinationUpi: String? = null,
     escrowSignature: String? = null,
@@ -596,8 +597,12 @@ private fun ThermalReceiptPaper(
             ReceiptDetailRow(label = "Destination UPI", value = upiHandle)
             ReceiptDetailRow(label = "Sender", value = "Priyanshu Singh")
             ReceiptDetailRow(label = "Transfer Fee (3.25%)", value = "-$0.00 USD (Promo)")
-            val secStr = if (timeTaken.endsWith("s", ignoreCase = true)) "${timeTaken.dropLast(1)} sec" else "$timeTaken sec"
-            ReceiptDetailRow(label = "Time Taken", value = "$secStr (Instant)")
+            val timeTakenDisplay = when {
+                timeTaken.isBlank() || timeTaken.equals("Instant", ignoreCase = true) -> "Instant"
+                timeTaken.endsWith("s", ignoreCase = true) -> "${timeTaken.dropLast(1)} sec (Instant)"
+                else -> "$timeTaken sec (Instant)"
+            }
+            ReceiptDetailRow(label = "Time Taken", value = timeTakenDisplay)
             ReceiptDetailRow(label = "Date & Time", value = dateStr)
             val shortId = if (transferId.length > 16) transferId.take(16).uppercase() else transferId.uppercase()
             ReceiptDetailRow(label = "Transfer ID", value = shortId)

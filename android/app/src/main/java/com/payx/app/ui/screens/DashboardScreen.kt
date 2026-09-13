@@ -90,7 +90,7 @@ private val MontaguSlab = FontFamily(Font(R.font.montagu_slab))
 @Composable
 fun DashboardScreen(
     user: SessionUser?,
-    onSend: (recipientId: String?) -> Unit,
+    onSend: (recipientId: String?, name: String?, upi: String?, phone: String?) -> Unit,
     onTrack: (id: String, recipient: String, inr: String, usd: String) -> Unit = { id, _, _, _ -> },
     onSettings: () -> Unit,
     onReceiver: () -> Unit = {},
@@ -105,8 +105,19 @@ fun DashboardScreen(
     val sendAgainScrollState = rememberScrollState()
     val screenBackground = Color(0xFF09090D)
 
-    val balanceStr = "$${"%,.2f".format(state.totalTransferredUsd)}"
-    val savedStr = "$${"%,.2f".format(state.savedUsd)}"
+    val isIndia = user?.country?.equals("IN", ignoreCase = true) == true ||
+        user?.country?.equals("IND", ignoreCase = true) == true
+
+    val balanceStr = if (isIndia) {
+        "₹${"%,.2f".format(state.totalTransferredInr)}"
+    } else {
+        "$${"%,.2f".format(state.totalTransferredUsd)}"
+    }
+    val savedStr = if (isIndia) {
+        "₹${"%,.2f".format(state.savedInr)}"
+    } else {
+        "$${"%,.2f".format(state.savedUsd)}"
+    }
     val rateStr = state.liveRate?.let { "₹${"%,.2f".format(it)}" }
 
     Box(
@@ -129,6 +140,7 @@ fun DashboardScreen(
                 savedAmount = savedStr,
                 exchangeRate = rateStr,
                 isLoading = state.isLoading && state.payments.isEmpty(),
+                isIndia = isIndia,
                 onSettings = onSettings,
                 onReceiver = onReceiver
             )
@@ -172,17 +184,24 @@ fun DashboardScreen(
                                 name = firstName,
                                 backgroundColor = avatarColor,
                                 showActiveDot = isActive,
-                                onClick = { onSend(payment.recipient.id.ifEmpty { payment.recipient.name }) }
+                                onClick = {
+                                    onSend(
+                                        payment.recipient.id.ifEmpty { "rec_${payment.recipient.name.lowercase().replace(" ", "_")}" },
+                                        payment.recipient.name,
+                                        payment.recipient.upiId,
+                                        payment.recipient.phone
+                                    )
+                                }
                             )
                         }
-                        SendAgainAddContact(onClick = { onSend(null) })
+                        SendAgainAddContact(onClick = { onSend("add_contact", null, null, null) })
                     } else if (state.isLoading) {
                         repeat(3) {
                             SendAgainSkeletonContact()
                         }
-                        SendAgainAddContact(onClick = { onSend(null) })
+                        SendAgainAddContact(onClick = { onSend("add_contact", null, null, null) })
                     } else {
-                        SendAgainAddContact(onClick = { onSend(null) })
+                        SendAgainAddContact(onClick = { onSend("add_contact", null, null, null) })
                     }
                 }
             }
@@ -227,12 +246,14 @@ fun DashboardScreen(
 
                 if (state.payments.isNotEmpty()) {
                     state.payments.take(8).forEach { payment ->
-                        val inrFormatted = payment.destinationAmount?.let { "≈ ₹${"%,.2f".format(it)}" }
-                            ?: "≈ ₹${"%,.2f".format(payment.sourceAmount * (payment.exchangeRate ?: state.liveRate ?: 87.20))}"
+                        val currentRate = payment.exchangeRate ?: state.liveRate ?: 92.90
+                        val inrVal = payment.destinationAmount ?: (payment.sourceAmount * currentRate)
+                        val inrFormatted = "₹${"%,.2f".format(inrVal)}"
                         val usdFormatted = "$${"%,.2f".format(payment.sourceAmount)}"
                         TransactionCard(
                             payment = payment,
                             liveRate = state.liveRate,
+                            isIndia = isIndia,
                             onClick = { onTrack(payment.id, payment.recipient.name, inrFormatted, usdFormatted) }
                         )
                         Spacer(modifier = Modifier.height(10.dp))
@@ -243,14 +264,14 @@ fun DashboardScreen(
                         Spacer(modifier = Modifier.height(10.dp))
                     }
                 } else {
-                    EmptyActivityCard(onSend = { onSend(null) })
+                    EmptyActivityCard(onSend = { onSend(null, null, null, null) })
                 }
             }
         }
 
         // 4. Solid Bottom Navigation Dock with Animated Transfer Action
         BottomNavigationDock(
-            onSend = { onSend(null) },
+            onSend = { onSend(null, null, null, null) },
             onSettings = onSettings,
             modifier = Modifier.align(Alignment.BottomCenter)
         )
@@ -267,6 +288,7 @@ private fun DashboardHeader(
     savedAmount: String,
     exchangeRate: String? = null,
     isLoading: Boolean = false,
+    isIndia: Boolean = false,
     onSettings: () -> Unit,
     onReceiver: () -> Unit = {}
 ) {
@@ -355,16 +377,29 @@ private fun DashboardHeader(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    UsaFlag(width = 16.dp, height = 11.dp)
-                    Text(
-                        text = "⇄",
-                        style = TextStyle(
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFFAE9EF8)
+                    if (isIndia) {
+                        IndiaFlag(width = 16.dp, height = 11.dp)
+                        Text(
+                            text = "⇄",
+                            style = TextStyle(
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color(0xFFAE9EF8)
+                            )
                         )
-                    )
-                    IndiaFlag(width = 16.dp, height = 11.dp)
+                        UsaFlag(width = 16.dp, height = 11.dp)
+                    } else {
+                        UsaFlag(width = 16.dp, height = 11.dp)
+                        Text(
+                            text = "⇄",
+                            style = TextStyle(
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color(0xFFAE9EF8)
+                            )
+                        )
+                        IndiaFlag(width = 16.dp, height = 11.dp)
+                    }
                 }
             }
         }
@@ -684,12 +719,15 @@ private fun formatRelativeTime(isoString: String): String {
 private fun TransactionCard(
     payment: PaymentDto,
     liveRate: Double?,
+    isIndia: Boolean = false,
     onClick: () -> Unit
 ) {
     val initial = payment.recipient.name.firstOrNull()?.uppercaseChar()?.toString() ?: "T"
     val avatarColor = getAvatarColor(initial)
-    val inrEquivalent = payment.destinationAmount?.let { "≈ ₹${"%,.2f".format(it)}" }
-        ?: "≈ ₹${"%,.2f".format(payment.sourceAmount * (payment.exchangeRate ?: liveRate ?: 87.20))}"
+    val currentRate = payment.exchangeRate ?: liveRate ?: 92.90
+    val inrAmount = payment.destinationAmount ?: (payment.sourceAmount * currentRate)
+    val inrEquivalent = "≈ ₹${"%,.2f".format(inrAmount)}"
+    val usdEquivalent = "≈ $${"%,.2f".format(payment.sourceAmount)}"
 
     val (badgeBg, badgeText, badgeLabel) = when (payment.status) {
         "COMPLETED", "SETTLEMENT_CONFIRMED" -> Triple(Color(0x1F10B981), Color(0xFF34D399), "Settled")
@@ -778,7 +816,7 @@ private fun TransactionCard(
                     horizontalAlignment = Alignment.End
                 ) {
                     Text(
-                        text = "-$${"%,.2f".format(payment.sourceAmount)}",
+                        text = if (isIndia) "-₹${"%,.2f".format(inrAmount)}" else "-$${"%,.2f".format(payment.sourceAmount)}",
                         style = TextStyle(
                             fontFamily = PlusJakartaSans,
                             fontSize = 15.5.sp,
@@ -791,7 +829,7 @@ private fun TransactionCard(
                     )
                     Spacer(modifier = Modifier.height(3.dp))
                     Text(
-                        text = inrEquivalent,
+                        text = if (isIndia) usdEquivalent else inrEquivalent,
                         style = TextStyle(
                             fontFamily = PlusJakartaSans,
                             fontSize = 11.5.sp,

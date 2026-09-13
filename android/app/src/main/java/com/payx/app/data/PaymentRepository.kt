@@ -114,6 +114,36 @@ class PaymentRepository(private val api: ApiClient) {
         return api.get<RecipientsResponse>("/recipients", params).recipients
     }
 
+    suspend fun createContact(
+        name: String,
+        phone: String,
+        upiId: String? = null,
+        bankAccount: String? = null,
+        ifsc: String? = null,
+        email: String? = null,
+        country: String = "IN"
+    ): AddressBookRecipient {
+        val request = CreateContactRequest(
+            name = name.trim(),
+            phone = phone.trim(),
+            upiId = upiId?.trim()?.ifBlank { null },
+            bankAccount = bankAccount?.trim()?.ifBlank { null },
+            ifsc = ifsc?.trim()?.ifBlank { null },
+            email = email?.trim()?.ifBlank { null },
+            country = country
+        )
+        val response = api.post<CreateContactResponse, CreateContactRequest>("/api/v1/contacts", request)
+        return response.contact ?: response.recipient ?: throw ApiException("Contact creation failed")
+    }
+
+    suspend fun lookupContactByPhone(phone: String): ContactLookupResponse {
+        return try {
+            api.get<ContactLookupResponse>("/api/v1/contacts/lookup", mapOf("phone" to phone))
+        } catch (_: Exception) {
+            ContactLookupResponse(found = false, message = "Lookup service unavailable.")
+        }
+    }
+
     suspend fun previewQuote(amountUsdc: Double, forceRefresh: Boolean = false): OffRampQuoteDto {
         val now = System.currentTimeMillis()
         val cached = quoteCache[amountUsdc]
@@ -180,10 +210,15 @@ class PaymentRepository(private val api: ApiClient) {
                 mode = "full_simulation"
             )
         )
-        return response.payment
+        val payment = response.payment
+        updatePaymentInCache(payment)
+        return payment
     }
 
     suspend fun getPayment(id: String): PaymentDto {
+        cachedPaymentsList?.find { it.id == id }?.let { cached ->
+            if (cached.isTerminal) return cached
+        }
         val payment = api.get<PaymentResponse>("/api/v1/payments/$id").payment
         updatePaymentInCache(payment)
         return payment

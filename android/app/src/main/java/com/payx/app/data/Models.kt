@@ -108,6 +108,30 @@ data class RecipientsResponse(
 )
 
 @Serializable
+data class CreateContactRequest(
+    val name: String,
+    val phone: String,
+    val upiId: String? = null,
+    val bankAccount: String? = null,
+    val ifsc: String? = null,
+    val email: String? = null,
+    val country: String = "IN"
+)
+
+@Serializable
+data class CreateContactResponse(
+    val contact: AddressBookRecipient? = null,
+    val recipient: AddressBookRecipient? = null
+)
+
+@Serializable
+data class ContactLookupResponse(
+    val found: Boolean = false,
+    val contact: AddressBookRecipient? = null,
+    val message: String? = null
+)
+
+@Serializable
 data class OffRampQuoteDto(
     val quoteId: String = "",
     val sourceAsset: String = "USDC",
